@@ -1,899 +1,515 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <additional>
-    <e3Detector id="verdi_5001_0" file="NUL">
-        <detEntry lane="921_1" pos="2"/>
-        <detExit lane="921_1" pos="34.02"/>
-        <detEntry lane="921_2" pos="2"/>
-        <detExit lane="921_2" pos="34.02"/>
-        <detEntry lane="921_3" pos="2"/>
-        <detExit lane="921_3" pos="34.02"/>
-        <param key="verdi.trafficLight" value="5001"/>
-        <param key="verdi.edge" value="921"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5001:12;5001:13;5001:14;5001:15;5001:16;5001:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5001_1" file="NUL">
-        <detEntry lane="-101_1" pos="2"/>
-        <detExit lane="-101_1" pos="122.87"/>
-        <detEntry lane="-101_2" pos="2"/>
-        <detExit lane="-101_2" pos="122.87"/>
-        <detEntry lane="-101_3" pos="2"/>
-        <detExit lane="-101_3" pos="122.87"/>
-        <param key="verdi.trafficLight" value="5001"/>
-        <param key="verdi.edge" value="-101"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5001:6;5001:7;5001:8;5001:9;5001:10;5001:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5001_2" file="NUL">
-        <detEntry lane="901_1" pos="2"/>
-        <detExit lane="901_1" pos="28.79"/>
-        <detEntry lane="901_2" pos="2"/>
-        <detExit lane="901_2" pos="28.79"/>
-        <detEntry lane="901_3" pos="2"/>
-        <detExit lane="901_3" pos="28.79"/>
-        <param key="verdi.trafficLight" value="5001"/>
-        <param key="verdi.edge" value="901"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5001:18;5001:19;5001:20;5001:21;5001:22;5001:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5001_3" file="NUL">
-        <detEntry lane="-301_1" pos="2"/>
-        <detExit lane="-301_1" pos="122.35"/>
-        <detEntry lane="-301_2" pos="2"/>
-        <detExit lane="-301_2" pos="122.35"/>
-        <detEntry lane="-301_3" pos="2"/>
-        <detExit lane="-301_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5001"/>
-        <param key="verdi.edge" value="-301"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5001:0;5001:1;5001:2;5001:3;5001:4;5001:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5002_0" file="NUL">
-        <detEntry lane="101_1" pos="2"/>
-        <detExit lane="101_1" pos="122.87"/>
-        <detEntry lane="101_2" pos="2"/>
-        <detExit lane="101_2" pos="122.87"/>
-        <detEntry lane="101_3" pos="2"/>
-        <detExit lane="101_3" pos="122.87"/>
-        <param key="verdi.trafficLight" value="5002"/>
-        <param key="verdi.edge" value="101"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5002:18;5002:19;5002:20;5002:21;5002:22;5002:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5002_1" file="NUL">
-        <detEntry lane="-102_1" pos="2"/>
-        <detExit lane="-102_1" pos="122.96"/>
-        <detEntry lane="-102_2" pos="2"/>
-        <detExit lane="-102_2" pos="122.96"/>
-        <detEntry lane="-102_3" pos="2"/>
-        <detExit lane="-102_3" pos="122.96"/>
-        <param key="verdi.trafficLight" value="5002"/>
-        <param key="verdi.edge" value="-102"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5002:6;5002:7;5002:8;5002:9;5002:10;5002:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5002_2" file="NUL">
-        <detEntry lane="922_1" pos="2"/>
-        <detExit lane="922_1" pos="34.03"/>
-        <detEntry lane="922_2" pos="2"/>
-        <detExit lane="922_2" pos="34.03"/>
-        <detEntry lane="922_3" pos="2"/>
-        <detExit lane="922_3" pos="34.03"/>
-        <param key="verdi.trafficLight" value="5002"/>
-        <param key="verdi.edge" value="922"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5002:12;5002:13;5002:14;5002:15;5002:16;5002:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5002_3" file="NUL">
-        <detEntry lane="-302_1" pos="2"/>
-        <detExit lane="-302_1" pos="122.35"/>
-        <detEntry lane="-302_2" pos="2"/>
-        <detExit lane="-302_2" pos="122.35"/>
-        <detEntry lane="-302_3" pos="2"/>
-        <detExit lane="-302_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5002"/>
-        <param key="verdi.edge" value="-302"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5002:0;5002:1;5002:2;5002:3;5002:4;5002:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5003_0" file="NUL">
-        <detEntry lane="-103_1" pos="2"/>
-        <detExit lane="-103_1" pos="122.87"/>
-        <detEntry lane="-103_2" pos="2"/>
-        <detExit lane="-103_2" pos="122.87"/>
-        <detEntry lane="-103_3" pos="2"/>
-        <detExit lane="-103_3" pos="122.87"/>
-        <param key="verdi.trafficLight" value="5003"/>
-        <param key="verdi.edge" value="-103"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5003:6;5003:7;5003:8;5003:9;5003:10;5003:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5003_1" file="NUL">
-        <detEntry lane="102_1" pos="2"/>
-        <detExit lane="102_1" pos="122.96"/>
-        <detEntry lane="102_2" pos="2"/>
-        <detExit lane="102_2" pos="122.96"/>
-        <detEntry lane="102_3" pos="2"/>
-        <detExit lane="102_3" pos="122.96"/>
-        <param key="verdi.trafficLight" value="5003"/>
-        <param key="verdi.edge" value="102"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5003:18;5003:19;5003:20;5003:21;5003:22;5003:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5003_2" file="NUL">
-        <detEntry lane="923_1" pos="2"/>
-        <detExit lane="923_1" pos="34.03"/>
-        <detEntry lane="923_2" pos="2"/>
-        <detExit lane="923_2" pos="34.03"/>
-        <detEntry lane="923_3" pos="2"/>
-        <detExit lane="923_3" pos="34.03"/>
-        <param key="verdi.trafficLight" value="5003"/>
-        <param key="verdi.edge" value="923"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5003:12;5003:13;5003:14;5003:15;5003:16;5003:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5003_3" file="NUL">
-        <detEntry lane="-303_1" pos="2"/>
-        <detExit lane="-303_1" pos="122.35"/>
-        <detEntry lane="-303_2" pos="2"/>
-        <detExit lane="-303_2" pos="122.35"/>
-        <detEntry lane="-303_3" pos="2"/>
-        <detExit lane="-303_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5003"/>
-        <param key="verdi.edge" value="-303"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5003:0;5003:1;5003:2;5003:3;5003:4;5003:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5004_0" file="NUL">
-        <detEntry lane="-304_1" pos="2"/>
-        <detExit lane="-304_1" pos="122.35"/>
-        <detEntry lane="-304_2" pos="2"/>
-        <detExit lane="-304_2" pos="122.35"/>
-        <detEntry lane="-304_3" pos="2"/>
-        <detExit lane="-304_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5004"/>
-        <param key="verdi.edge" value="-304"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5004:0;5004:1;5004:2;5004:3;5004:4;5004:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5004_1" file="NUL">
-        <detEntry lane="911_1" pos="2"/>
-        <detExit lane="911_1" pos="28.79"/>
-        <detEntry lane="911_2" pos="2"/>
-        <detExit lane="911_2" pos="28.79"/>
-        <detEntry lane="911_3" pos="2"/>
-        <detExit lane="911_3" pos="28.79"/>
-        <param key="verdi.trafficLight" value="5004"/>
-        <param key="verdi.edge" value="911"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5004:6;5004:7;5004:8;5004:9;5004:10;5004:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5004_2" file="NUL">
-        <detEntry lane="103_1" pos="2"/>
-        <detExit lane="103_1" pos="122.87"/>
-        <detEntry lane="103_2" pos="2"/>
-        <detExit lane="103_2" pos="122.87"/>
-        <detEntry lane="103_3" pos="2"/>
-        <detExit lane="103_3" pos="122.87"/>
-        <param key="verdi.trafficLight" value="5004"/>
-        <param key="verdi.edge" value="103"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5004:18;5004:19;5004:20;5004:21;5004:22;5004:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5004_3" file="NUL">
-        <detEntry lane="924_1" pos="2"/>
-        <detExit lane="924_1" pos="34.03"/>
-        <detEntry lane="924_2" pos="2"/>
-        <detExit lane="924_2" pos="34.03"/>
-        <detEntry lane="924_3" pos="2"/>
-        <detExit lane="924_3" pos="34.03"/>
-        <param key="verdi.trafficLight" value="5004"/>
-        <param key="verdi.edge" value="924"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5004:12;5004:13;5004:14;5004:15;5004:16;5004:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5005_0" file="NUL">
-        <detEntry lane="-305_1" pos="2"/>
-        <detExit lane="-305_1" pos="122.46"/>
-        <detEntry lane="-305_2" pos="2"/>
-        <detExit lane="-305_2" pos="122.46"/>
-        <detEntry lane="-305_3" pos="2"/>
-        <detExit lane="-305_3" pos="122.46"/>
-        <param key="verdi.trafficLight" value="5005"/>
-        <param key="verdi.edge" value="-305"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5005:0;5005:1;5005:2;5005:3;5005:4;5005:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5005_1" file="NUL">
-        <detEntry lane="902_1" pos="2"/>
-        <detExit lane="902_1" pos="28.78"/>
-        <detEntry lane="902_2" pos="2"/>
-        <detExit lane="902_2" pos="28.78"/>
-        <detEntry lane="902_3" pos="2"/>
-        <detExit lane="902_3" pos="28.78"/>
-        <param key="verdi.trafficLight" value="5005"/>
-        <param key="verdi.edge" value="902"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5005:18;5005:19;5005:20;5005:21;5005:22;5005:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5005_2" file="NUL">
-        <detEntry lane="-104_1" pos="2"/>
-        <detExit lane="-104_1" pos="122.87"/>
-        <detEntry lane="-104_2" pos="2"/>
-        <detExit lane="-104_2" pos="122.87"/>
-        <detEntry lane="-104_3" pos="2"/>
-        <detExit lane="-104_3" pos="122.87"/>
-        <param key="verdi.trafficLight" value="5005"/>
-        <param key="verdi.edge" value="-104"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5005:6;5005:7;5005:8;5005:9;5005:10;5005:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5005_3" file="NUL">
-        <detEntry lane="301_1" pos="2"/>
-        <detExit lane="301_1" pos="122.35"/>
-        <detEntry lane="301_2" pos="2"/>
-        <detExit lane="301_2" pos="122.35"/>
-        <detEntry lane="301_3" pos="2"/>
-        <detExit lane="301_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5005"/>
-        <param key="verdi.edge" value="301"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5005:12;5005:13;5005:14;5005:15;5005:16;5005:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5006_0" file="NUL">
-        <detEntry lane="-306_1" pos="2"/>
-        <detExit lane="-306_1" pos="122.46"/>
-        <detEntry lane="-306_2" pos="2"/>
-        <detExit lane="-306_2" pos="122.46"/>
-        <detEntry lane="-306_3" pos="2"/>
-        <detExit lane="-306_3" pos="122.46"/>
-        <param key="verdi.trafficLight" value="5006"/>
-        <param key="verdi.edge" value="-306"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5006:0;5006:1;5006:2;5006:3;5006:4;5006:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5006_1" file="NUL">
-        <detEntry lane="104_1" pos="2"/>
-        <detExit lane="104_1" pos="122.87"/>
-        <detEntry lane="104_2" pos="2"/>
-        <detExit lane="104_2" pos="122.87"/>
-        <detEntry lane="104_3" pos="2"/>
-        <detExit lane="104_3" pos="122.87"/>
-        <param key="verdi.trafficLight" value="5006"/>
-        <param key="verdi.edge" value="104"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5006:18;5006:19;5006:20;5006:21;5006:22;5006:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5006_2" file="NUL">
-        <detEntry lane="-105_1" pos="2"/>
-        <detExit lane="-105_1" pos="122.96"/>
-        <detEntry lane="-105_2" pos="2"/>
-        <detExit lane="-105_2" pos="122.96"/>
-        <detEntry lane="-105_3" pos="2"/>
-        <detExit lane="-105_3" pos="122.96"/>
-        <param key="verdi.trafficLight" value="5006"/>
-        <param key="verdi.edge" value="-105"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5006:6;5006:7;5006:8;5006:9;5006:10;5006:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5006_3" file="NUL">
-        <detEntry lane="302_1" pos="2"/>
-        <detExit lane="302_1" pos="122.35"/>
-        <detEntry lane="302_2" pos="2"/>
-        <detExit lane="302_2" pos="122.35"/>
-        <detEntry lane="302_3" pos="2"/>
-        <detExit lane="302_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5006"/>
-        <param key="verdi.edge" value="302"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5006:12;5006:13;5006:14;5006:15;5006:16;5006:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5007_0" file="NUL">
-        <detEntry lane="-106_1" pos="2"/>
-        <detExit lane="-106_1" pos="122.87"/>
-        <detEntry lane="-106_2" pos="2"/>
-        <detExit lane="-106_2" pos="122.87"/>
-        <detEntry lane="-106_3" pos="2"/>
-        <detExit lane="-106_3" pos="122.87"/>
-        <param key="verdi.trafficLight" value="5007"/>
-        <param key="verdi.edge" value="-106"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5007:6;5007:7;5007:8;5007:9;5007:10;5007:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5007_1" file="NUL">
-        <detEntry lane="105_1" pos="2"/>
-        <detExit lane="105_1" pos="122.96"/>
-        <detEntry lane="105_2" pos="2"/>
-        <detExit lane="105_2" pos="122.96"/>
-        <detEntry lane="105_3" pos="2"/>
-        <detExit lane="105_3" pos="122.96"/>
-        <param key="verdi.trafficLight" value="5007"/>
-        <param key="verdi.edge" value="105"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5007:18;5007:19;5007:20;5007:21;5007:22;5007:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5007_2" file="NUL">
-        <detEntry lane="-307_1" pos="2"/>
-        <detExit lane="-307_1" pos="122.46"/>
-        <detEntry lane="-307_2" pos="2"/>
-        <detExit lane="-307_2" pos="122.46"/>
-        <detEntry lane="-307_3" pos="2"/>
-        <detExit lane="-307_3" pos="122.46"/>
-        <param key="verdi.trafficLight" value="5007"/>
-        <param key="verdi.edge" value="-307"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5007:0;5007:1;5007:2;5007:3;5007:4;5007:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5007_3" file="NUL">
-        <detEntry lane="303_1" pos="2"/>
-        <detExit lane="303_1" pos="122.35"/>
-        <detEntry lane="303_2" pos="2"/>
-        <detExit lane="303_2" pos="122.35"/>
-        <detEntry lane="303_3" pos="2"/>
-        <detExit lane="303_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5007"/>
-        <param key="verdi.edge" value="303"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5007:12;5007:13;5007:14;5007:15;5007:16;5007:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5008_0" file="NUL">
-        <detEntry lane="-308_1" pos="2"/>
-        <detExit lane="-308_1" pos="122.46"/>
-        <detEntry lane="-308_2" pos="2"/>
-        <detExit lane="-308_2" pos="122.46"/>
-        <detEntry lane="-308_3" pos="2"/>
-        <detExit lane="-308_3" pos="122.46"/>
-        <param key="verdi.trafficLight" value="5008"/>
-        <param key="verdi.edge" value="-308"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5008:0;5008:1;5008:2;5008:3;5008:4;5008:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5008_1" file="NUL">
-        <detEntry lane="304_1" pos="2"/>
-        <detExit lane="304_1" pos="122.35"/>
-        <detEntry lane="304_2" pos="2"/>
-        <detExit lane="304_2" pos="122.35"/>
-        <detEntry lane="304_3" pos="2"/>
-        <detExit lane="304_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5008"/>
-        <param key="verdi.edge" value="304"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5008:12;5008:13;5008:14;5008:15;5008:16;5008:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5008_2" file="NUL">
-        <detEntry lane="912_1" pos="2"/>
-        <detExit lane="912_1" pos="28.78"/>
-        <detEntry lane="912_2" pos="2"/>
-        <detExit lane="912_2" pos="28.78"/>
-        <detEntry lane="912_3" pos="2"/>
-        <detExit lane="912_3" pos="28.78"/>
-        <param key="verdi.trafficLight" value="5008"/>
-        <param key="verdi.edge" value="912"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5008:6;5008:7;5008:8;5008:9;5008:10;5008:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5008_3" file="NUL">
-        <detEntry lane="106_1" pos="2"/>
-        <detExit lane="106_1" pos="122.87"/>
-        <detEntry lane="106_2" pos="2"/>
-        <detExit lane="106_2" pos="122.87"/>
-        <detEntry lane="106_3" pos="2"/>
-        <detExit lane="106_3" pos="122.87"/>
-        <param key="verdi.trafficLight" value="5008"/>
-        <param key="verdi.edge" value="106"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5008:18;5008:19;5008:20;5008:21;5008:22;5008:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5009_0" file="NUL">
-        <detEntry lane="305_1" pos="2"/>
-        <detExit lane="305_1" pos="122.46"/>
-        <detEntry lane="305_2" pos="2"/>
-        <detExit lane="305_2" pos="122.46"/>
-        <detEntry lane="305_3" pos="2"/>
-        <detExit lane="305_3" pos="122.46"/>
-        <param key="verdi.trafficLight" value="5009"/>
-        <param key="verdi.edge" value="305"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5009:12;5009:13;5009:14;5009:15;5009:16;5009:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5009_1" file="NUL">
-        <detEntry lane="903_1" pos="2"/>
-        <detExit lane="903_1" pos="28.79"/>
-        <detEntry lane="903_2" pos="2"/>
-        <detExit lane="903_2" pos="28.79"/>
-        <detEntry lane="903_3" pos="2"/>
-        <detExit lane="903_3" pos="28.79"/>
-        <param key="verdi.trafficLight" value="5009"/>
-        <param key="verdi.edge" value="903"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5009:18;5009:19;5009:20;5009:21;5009:22;5009:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5009_2" file="NUL">
-        <detEntry lane="-107_1" pos="2"/>
-        <detExit lane="-107_1" pos="122.87"/>
-        <detEntry lane="-107_2" pos="2"/>
-        <detExit lane="-107_2" pos="122.87"/>
-        <detEntry lane="-107_3" pos="2"/>
-        <detExit lane="-107_3" pos="122.87"/>
-        <param key="verdi.trafficLight" value="5009"/>
-        <param key="verdi.edge" value="-107"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5009:6;5009:7;5009:8;5009:9;5009:10;5009:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5009_3" file="NUL">
-        <detEntry lane="-309_1" pos="2"/>
-        <detExit lane="-309_1" pos="122.35"/>
-        <detEntry lane="-309_2" pos="2"/>
-        <detExit lane="-309_2" pos="122.35"/>
-        <detEntry lane="-309_3" pos="2"/>
-        <detExit lane="-309_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5009"/>
-        <param key="verdi.edge" value="-309"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5009:0;5009:1;5009:2;5009:3;5009:4;5009:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5010_0" file="NUL">
-        <detEntry lane="306_1" pos="2"/>
-        <detExit lane="306_1" pos="122.46"/>
-        <detEntry lane="306_2" pos="2"/>
-        <detExit lane="306_2" pos="122.46"/>
-        <detEntry lane="306_3" pos="2"/>
-        <detExit lane="306_3" pos="122.46"/>
-        <param key="verdi.trafficLight" value="5010"/>
-        <param key="verdi.edge" value="306"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5010:12;5010:13;5010:14;5010:15;5010:16;5010:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5010_1" file="NUL">
-        <detEntry lane="107_1" pos="2"/>
-        <detExit lane="107_1" pos="122.87"/>
-        <detEntry lane="107_2" pos="2"/>
-        <detExit lane="107_2" pos="122.87"/>
-        <detEntry lane="107_3" pos="2"/>
-        <detExit lane="107_3" pos="122.87"/>
-        <param key="verdi.trafficLight" value="5010"/>
-        <param key="verdi.edge" value="107"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5010:18;5010:19;5010:20;5010:21;5010:22;5010:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5010_2" file="NUL">
-        <detEntry lane="-108_1" pos="2"/>
-        <detExit lane="-108_1" pos="122.95"/>
-        <detEntry lane="-108_2" pos="2"/>
-        <detExit lane="-108_2" pos="122.95"/>
-        <detEntry lane="-108_3" pos="2"/>
-        <detExit lane="-108_3" pos="122.95"/>
-        <param key="verdi.trafficLight" value="5010"/>
-        <param key="verdi.edge" value="-108"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5010:6;5010:7;5010:8;5010:9;5010:10;5010:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5010_3" file="NUL">
-        <detEntry lane="-310_1" pos="2"/>
-        <detExit lane="-310_1" pos="122.35"/>
-        <detEntry lane="-310_2" pos="2"/>
-        <detExit lane="-310_2" pos="122.35"/>
-        <detEntry lane="-310_3" pos="2"/>
-        <detExit lane="-310_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5010"/>
-        <param key="verdi.edge" value="-310"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5010:0;5010:1;5010:2;5010:3;5010:4;5010:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5011_0" file="NUL">
-        <detEntry lane="-109_1" pos="2"/>
-        <detExit lane="-109_1" pos="122.87"/>
-        <detEntry lane="-109_2" pos="2"/>
-        <detExit lane="-109_2" pos="122.87"/>
-        <detEntry lane="-109_3" pos="2"/>
-        <detExit lane="-109_3" pos="122.87"/>
-        <param key="verdi.trafficLight" value="5011"/>
-        <param key="verdi.edge" value="-109"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5011:6;5011:7;5011:8;5011:9;5011:10;5011:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5011_1" file="NUL">
-        <detEntry lane="108_1" pos="2"/>
-        <detExit lane="108_1" pos="122.95"/>
-        <detEntry lane="108_2" pos="2"/>
-        <detExit lane="108_2" pos="122.95"/>
-        <detEntry lane="108_3" pos="2"/>
-        <detExit lane="108_3" pos="122.95"/>
-        <param key="verdi.trafficLight" value="5011"/>
-        <param key="verdi.edge" value="108"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5011:18;5011:19;5011:20;5011:21;5011:22;5011:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5011_2" file="NUL">
-        <detEntry lane="307_1" pos="2"/>
-        <detExit lane="307_1" pos="122.46"/>
-        <detEntry lane="307_2" pos="2"/>
-        <detExit lane="307_2" pos="122.46"/>
-        <detEntry lane="307_3" pos="2"/>
-        <detExit lane="307_3" pos="122.46"/>
-        <param key="verdi.trafficLight" value="5011"/>
-        <param key="verdi.edge" value="307"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5011:12;5011:13;5011:14;5011:15;5011:16;5011:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5011_3" file="NUL">
-        <detEntry lane="-311_1" pos="2"/>
-        <detExit lane="-311_1" pos="122.36"/>
-        <detEntry lane="-311_2" pos="2"/>
-        <detExit lane="-311_2" pos="122.36"/>
-        <detEntry lane="-311_3" pos="2"/>
-        <detExit lane="-311_3" pos="122.36"/>
-        <param key="verdi.trafficLight" value="5011"/>
-        <param key="verdi.edge" value="-311"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5011:0;5011:1;5011:2;5011:3;5011:4;5011:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5012_0" file="NUL">
-        <detEntry lane="308_1" pos="2"/>
-        <detExit lane="308_1" pos="122.46"/>
-        <detEntry lane="308_2" pos="2"/>
-        <detExit lane="308_2" pos="122.46"/>
-        <detEntry lane="308_3" pos="2"/>
-        <detExit lane="308_3" pos="122.46"/>
-        <param key="verdi.trafficLight" value="5012"/>
-        <param key="verdi.edge" value="308"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5012:12;5012:13;5012:14;5012:15;5012:16;5012:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5012_1" file="NUL">
-        <detEntry lane="913_1" pos="2"/>
-        <detExit lane="913_1" pos="28.78"/>
-        <detEntry lane="913_2" pos="2"/>
-        <detExit lane="913_2" pos="28.78"/>
-        <detEntry lane="913_3" pos="2"/>
-        <detExit lane="913_3" pos="28.78"/>
-        <param key="verdi.trafficLight" value="5012"/>
-        <param key="verdi.edge" value="913"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5012:6;5012:7;5012:8;5012:9;5012:10;5012:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5012_2" file="NUL">
-        <detEntry lane="109_1" pos="2"/>
-        <detExit lane="109_1" pos="122.87"/>
-        <detEntry lane="109_2" pos="2"/>
-        <detExit lane="109_2" pos="122.87"/>
-        <detEntry lane="109_3" pos="2"/>
-        <detExit lane="109_3" pos="122.87"/>
-        <param key="verdi.trafficLight" value="5012"/>
-        <param key="verdi.edge" value="109"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5012:18;5012:19;5012:20;5012:21;5012:22;5012:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5012_3" file="NUL">
-        <detEntry lane="-312_1" pos="2"/>
-        <detExit lane="-312_1" pos="122.35"/>
-        <detEntry lane="-312_2" pos="2"/>
-        <detExit lane="-312_2" pos="122.35"/>
-        <detEntry lane="-312_3" pos="2"/>
-        <detExit lane="-312_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5012"/>
-        <param key="verdi.edge" value="-312"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5012:0;5012:1;5012:2;5012:3;5012:4;5012:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5013_0" file="NUL">
-        <detEntry lane="931_1" pos="2"/>
-        <detExit lane="931_1" pos="34.03"/>
-        <detEntry lane="931_2" pos="2"/>
-        <detExit lane="931_2" pos="34.03"/>
-        <detEntry lane="931_3" pos="2"/>
-        <detExit lane="931_3" pos="34.03"/>
-        <param key="verdi.trafficLight" value="5013"/>
-        <param key="verdi.edge" value="931"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5013:0;5013:1;5013:2;5013:3;5013:4;5013:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5013_1" file="NUL">
-        <detEntry lane="-110_1" pos="2"/>
-        <detExit lane="-110_1" pos="122.86"/>
-        <detEntry lane="-110_2" pos="2"/>
-        <detExit lane="-110_2" pos="122.86"/>
-        <detEntry lane="-110_3" pos="2"/>
-        <detExit lane="-110_3" pos="122.86"/>
-        <param key="verdi.trafficLight" value="5013"/>
-        <param key="verdi.edge" value="-110"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5013:6;5013:7;5013:8;5013:9;5013:10;5013:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5013_2" file="NUL">
-        <detEntry lane="904_1" pos="2"/>
-        <detExit lane="904_1" pos="28.78"/>
-        <detEntry lane="904_2" pos="2"/>
-        <detExit lane="904_2" pos="28.78"/>
-        <detEntry lane="904_3" pos="2"/>
-        <detExit lane="904_3" pos="28.78"/>
-        <param key="verdi.trafficLight" value="5013"/>
-        <param key="verdi.edge" value="904"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5013:18;5013:19;5013:20;5013:21;5013:22;5013:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5013_3" file="NUL">
-        <detEntry lane="309_1" pos="2"/>
-        <detExit lane="309_1" pos="122.35"/>
-        <detEntry lane="309_2" pos="2"/>
-        <detExit lane="309_2" pos="122.35"/>
-        <detEntry lane="309_3" pos="2"/>
-        <detExit lane="309_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5013"/>
-        <param key="verdi.edge" value="309"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5013:12;5013:13;5013:14;5013:15;5013:16;5013:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5014_0" file="NUL">
-        <detEntry lane="-111_1" pos="2"/>
-        <detExit lane="-111_1" pos="122.95"/>
-        <detEntry lane="-111_2" pos="2"/>
-        <detExit lane="-111_2" pos="122.95"/>
-        <detEntry lane="-111_3" pos="2"/>
-        <detExit lane="-111_3" pos="122.95"/>
-        <param key="verdi.trafficLight" value="5014"/>
-        <param key="verdi.edge" value="-111"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5014:6;5014:7;5014:8;5014:9;5014:10;5014:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5014_1" file="NUL">
-        <detEntry lane="110_1" pos="2"/>
-        <detExit lane="110_1" pos="122.86"/>
-        <detEntry lane="110_2" pos="2"/>
-        <detExit lane="110_2" pos="122.86"/>
-        <detEntry lane="110_3" pos="2"/>
-        <detExit lane="110_3" pos="122.86"/>
-        <param key="verdi.trafficLight" value="5014"/>
-        <param key="verdi.edge" value="110"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5014:18;5014:19;5014:20;5014:21;5014:22;5014:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5014_2" file="NUL">
-        <detEntry lane="932_1" pos="2"/>
-        <detExit lane="932_1" pos="34.03"/>
-        <detEntry lane="932_2" pos="2"/>
-        <detExit lane="932_2" pos="34.03"/>
-        <detEntry lane="932_3" pos="2"/>
-        <detExit lane="932_3" pos="34.03"/>
-        <param key="verdi.trafficLight" value="5014"/>
-        <param key="verdi.edge" value="932"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5014:0;5014:1;5014:2;5014:3;5014:4;5014:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5014_3" file="NUL">
-        <detEntry lane="310_1" pos="2"/>
-        <detExit lane="310_1" pos="122.35"/>
-        <detEntry lane="310_2" pos="2"/>
-        <detExit lane="310_2" pos="122.35"/>
-        <detEntry lane="310_3" pos="2"/>
-        <detExit lane="310_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5014"/>
-        <param key="verdi.edge" value="310"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5014:12;5014:13;5014:14;5014:15;5014:16;5014:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5015_0" file="NUL">
-        <detEntry lane="111_1" pos="2"/>
-        <detExit lane="111_1" pos="122.95"/>
-        <detEntry lane="111_2" pos="2"/>
-        <detExit lane="111_2" pos="122.95"/>
-        <detEntry lane="111_3" pos="2"/>
-        <detExit lane="111_3" pos="122.95"/>
-        <param key="verdi.trafficLight" value="5015"/>
-        <param key="verdi.edge" value="111"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5015:18;5015:19;5015:20;5015:21;5015:22;5015:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5015_1" file="NUL">
-        <detEntry lane="-112_1" pos="2"/>
-        <detExit lane="-112_1" pos="122.86"/>
-        <detEntry lane="-112_2" pos="2"/>
-        <detExit lane="-112_2" pos="122.86"/>
-        <detEntry lane="-112_3" pos="2"/>
-        <detExit lane="-112_3" pos="122.86"/>
-        <param key="verdi.trafficLight" value="5015"/>
-        <param key="verdi.edge" value="-112"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5015:6;5015:7;5015:8;5015:9;5015:10;5015:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5015_2" file="NUL">
-        <detEntry lane="933_1" pos="2"/>
-        <detExit lane="933_1" pos="34.02"/>
-        <detEntry lane="933_2" pos="2"/>
-        <detExit lane="933_2" pos="34.02"/>
-        <detEntry lane="933_3" pos="2"/>
-        <detExit lane="933_3" pos="34.02"/>
-        <param key="verdi.trafficLight" value="5015"/>
-        <param key="verdi.edge" value="933"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5015:0;5015:1;5015:2;5015:3;5015:4;5015:5"/>
-    </e3Detector>
-    <e3Detector id="verdi_5015_3" file="NUL">
-        <detEntry lane="311_1" pos="2"/>
-        <detExit lane="311_1" pos="122.36"/>
-        <detEntry lane="311_2" pos="2"/>
-        <detExit lane="311_2" pos="122.36"/>
-        <detEntry lane="311_3" pos="2"/>
-        <detExit lane="311_3" pos="122.36"/>
-        <param key="verdi.trafficLight" value="5015"/>
-        <param key="verdi.edge" value="311"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5015:12;5015:13;5015:14;5015:15;5015:16;5015:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5016_0" file="NUL">
-        <detEntry lane="914_1" pos="2"/>
-        <detExit lane="914_1" pos="28.79"/>
-        <detEntry lane="914_2" pos="2"/>
-        <detExit lane="914_2" pos="28.79"/>
-        <detEntry lane="914_3" pos="2"/>
-        <detExit lane="914_3" pos="28.79"/>
-        <param key="verdi.trafficLight" value="5016"/>
-        <param key="verdi.edge" value="914"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="6 7 8 9 10 11"/>
-        <param key="verdi.signalLinks" value="5016:6;5016:7;5016:8;5016:9;5016:10;5016:11"/>
-    </e3Detector>
-    <e3Detector id="verdi_5016_1" file="NUL">
-        <detEntry lane="112_1" pos="2"/>
-        <detExit lane="112_1" pos="122.86"/>
-        <detEntry lane="112_2" pos="2"/>
-        <detExit lane="112_2" pos="122.86"/>
-        <detEntry lane="112_3" pos="2"/>
-        <detExit lane="112_3" pos="122.86"/>
-        <param key="verdi.trafficLight" value="5016"/>
-        <param key="verdi.edge" value="112"/>
-        <param key="verdi.approach" value="0"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="18 19 20 21 22 23"/>
-        <param key="verdi.signalLinks" value="5016:18;5016:19;5016:20;5016:21;5016:22;5016:23"/>
-    </e3Detector>
-    <e3Detector id="verdi_5016_2" file="NUL">
-        <detEntry lane="312_1" pos="2"/>
-        <detExit lane="312_1" pos="122.35"/>
-        <detEntry lane="312_2" pos="2"/>
-        <detExit lane="312_2" pos="122.35"/>
-        <detEntry lane="312_3" pos="2"/>
-        <detExit lane="312_3" pos="122.35"/>
-        <param key="verdi.trafficLight" value="5016"/>
-        <param key="verdi.edge" value="312"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="12 13 14 15 16 17"/>
-        <param key="verdi.signalLinks" value="5016:12;5016:13;5016:14;5016:15;5016:16;5016:17"/>
-    </e3Detector>
-    <e3Detector id="verdi_5016_3" file="NUL">
-        <detEntry lane="934_1" pos="2"/>
-        <detExit lane="934_1" pos="34.03"/>
-        <detEntry lane="934_2" pos="2"/>
-        <detExit lane="934_2" pos="34.03"/>
-        <detEntry lane="934_3" pos="2"/>
-        <detExit lane="934_3" pos="34.03"/>
-        <param key="verdi.trafficLight" value="5016"/>
-        <param key="verdi.edge" value="934"/>
-        <param key="verdi.approach" value="1"/>
-        <param key="verdi.directions" value="Left Straight Right"/>
-        <param key="verdi.linkIndexes" value="0 1 2 3 4 5"/>
-        <param key="verdi.signalLinks" value="5016:0;5016:1;5016:2;5016:3;5016:4;5016:5"/>
-    </e3Detector>
+  <e3Detector id="5001_0" file="detector_output/5001_0.xml" pos="42.39,51.9">
+    <detEntry lane="-301_1" pos="0" />
+    <detEntry lane="-301_2" pos="0" />
+    <detEntry lane="-301_3" pos="0" />
+    <detExit lane="-301_1" pos="122.3499984741211" />
+    <detExit lane="-301_2" pos="122.3499984741211" />
+    <detExit lane="-301_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5001_1" file="detector_output/5001_1.xml" pos="42.39,51.9">
+    <detEntry lane="-101_1" pos="0" />
+    <detEntry lane="-101_2" pos="0" />
+    <detEntry lane="-101_3" pos="0" />
+    <detExit lane="-101_1" pos="122.87000274658203" />
+    <detExit lane="-101_2" pos="122.87000274658203" />
+    <detExit lane="-101_3" pos="122.87000274658203" />
+  </e3Detector>
+  <e3Detector id="5001_2" file="detector_output/5001_2.xml" pos="42.39,51.9">
+    <detEntry lane="921_1" pos="0" />
+    <detEntry lane="921_2" pos="0" />
+    <detEntry lane="921_3" pos="0" />
+    <detExit lane="921_1" pos="34.02000045776367" />
+    <detExit lane="921_2" pos="34.02000045776367" />
+    <detExit lane="921_3" pos="34.02000045776367" />
+  </e3Detector>
+  <e3Detector id="5001_3" file="detector_output/5001_3.xml" pos="42.39,51.9">
+    <detEntry lane="901_1" pos="0" />
+    <detEntry lane="901_2" pos="0" />
+    <detEntry lane="901_3" pos="0" />
+    <detExit lane="901_1" pos="28.790000915527344" />
+    <detExit lane="901_2" pos="28.790000915527344" />
+    <detExit lane="901_3" pos="28.790000915527344" />
+  </e3Detector>
+  <e3Detector id="5002_0" file="detector_output/5002_0.xml" pos="192.45,50.48">
+    <detEntry lane="-302_1" pos="0" />
+    <detEntry lane="-302_2" pos="0" />
+    <detEntry lane="-302_3" pos="0" />
+    <detExit lane="-302_1" pos="122.3499984741211" />
+    <detExit lane="-302_2" pos="122.3499984741211" />
+    <detExit lane="-302_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5002_1" file="detector_output/5002_1.xml" pos="192.45,50.48">
+    <detEntry lane="-102_1" pos="0" />
+    <detEntry lane="-102_2" pos="0" />
+    <detEntry lane="-102_3" pos="0" />
+    <detExit lane="-102_1" pos="122.95999908447266" />
+    <detExit lane="-102_2" pos="122.95999908447266" />
+    <detExit lane="-102_3" pos="122.95999908447266" />
+  </e3Detector>
+  <e3Detector id="5002_2" file="detector_output/5002_2.xml" pos="192.45,50.48">
+    <detEntry lane="922_1" pos="0" />
+    <detEntry lane="922_2" pos="0" />
+    <detEntry lane="922_3" pos="0" />
+    <detExit lane="922_1" pos="34.029998779296875" />
+    <detExit lane="922_2" pos="34.029998779296875" />
+    <detExit lane="922_3" pos="34.029998779296875" />
+  </e3Detector>
+  <e3Detector id="5002_3" file="detector_output/5002_3.xml" pos="192.45,50.48">
+    <detEntry lane="101_1" pos="0" />
+    <detEntry lane="101_2" pos="0" />
+    <detEntry lane="101_3" pos="0" />
+    <detExit lane="101_1" pos="122.87000274658203" />
+    <detExit lane="101_2" pos="122.87000274658203" />
+    <detExit lane="101_3" pos="122.87000274658203" />
+  </e3Detector>
+  <e3Detector id="5003_0" file="detector_output/5003_0.xml" pos="342.6,49.05">
+    <detEntry lane="-303_1" pos="0" />
+    <detEntry lane="-303_2" pos="0" />
+    <detEntry lane="-303_3" pos="0" />
+    <detExit lane="-303_1" pos="122.3499984741211" />
+    <detExit lane="-303_2" pos="122.3499984741211" />
+    <detExit lane="-303_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5003_1" file="detector_output/5003_1.xml" pos="342.6,49.05">
+    <detEntry lane="-103_1" pos="0" />
+    <detEntry lane="-103_2" pos="0" />
+    <detEntry lane="-103_3" pos="0" />
+    <detExit lane="-103_1" pos="122.87000274658203" />
+    <detExit lane="-103_2" pos="122.87000274658203" />
+    <detExit lane="-103_3" pos="122.87000274658203" />
+  </e3Detector>
+  <e3Detector id="5003_2" file="detector_output/5003_2.xml" pos="342.6,49.05">
+    <detEntry lane="923_1" pos="0" />
+    <detEntry lane="923_2" pos="0" />
+    <detEntry lane="923_3" pos="0" />
+    <detExit lane="923_1" pos="34.029998779296875" />
+    <detExit lane="923_2" pos="34.029998779296875" />
+    <detExit lane="923_3" pos="34.029998779296875" />
+  </e3Detector>
+  <e3Detector id="5003_3" file="detector_output/5003_3.xml" pos="342.6,49.05">
+    <detEntry lane="102_1" pos="0" />
+    <detEntry lane="102_2" pos="0" />
+    <detEntry lane="102_3" pos="0" />
+    <detExit lane="102_1" pos="122.95999908447266" />
+    <detExit lane="102_2" pos="122.95999908447266" />
+    <detExit lane="102_3" pos="122.95999908447266" />
+  </e3Detector>
+  <e3Detector id="5004_0" file="detector_output/5004_0.xml" pos="492.66,47.63">
+    <detEntry lane="-304_1" pos="0" />
+    <detEntry lane="-304_2" pos="0" />
+    <detEntry lane="-304_3" pos="0" />
+    <detExit lane="-304_1" pos="122.3499984741211" />
+    <detExit lane="-304_2" pos="122.3499984741211" />
+    <detExit lane="-304_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5004_1" file="detector_output/5004_1.xml" pos="492.66,47.63">
+    <detEntry lane="911_1" pos="0" />
+    <detEntry lane="911_2" pos="0" />
+    <detEntry lane="911_3" pos="0" />
+    <detExit lane="911_1" pos="28.790000915527344" />
+    <detExit lane="911_2" pos="28.790000915527344" />
+    <detExit lane="911_3" pos="28.790000915527344" />
+  </e3Detector>
+  <e3Detector id="5004_2" file="detector_output/5004_2.xml" pos="492.66,47.63">
+    <detEntry lane="924_1" pos="0" />
+    <detEntry lane="924_2" pos="0" />
+    <detEntry lane="924_3" pos="0" />
+    <detExit lane="924_1" pos="34.029998779296875" />
+    <detExit lane="924_2" pos="34.029998779296875" />
+    <detExit lane="924_3" pos="34.029998779296875" />
+  </e3Detector>
+  <e3Detector id="5004_3" file="detector_output/5004_3.xml" pos="492.66,47.63">
+    <detEntry lane="103_1" pos="0" />
+    <detEntry lane="103_2" pos="0" />
+    <detEntry lane="103_3" pos="0" />
+    <detExit lane="103_1" pos="122.87000274658203" />
+    <detExit lane="103_2" pos="122.87000274658203" />
+    <detExit lane="103_3" pos="122.87000274658203" />
+  </e3Detector>
+  <e3Detector id="5005_0" file="detector_output/5005_0.xml" pos="43.81,201.45">
+    <detEntry lane="-305_1" pos="0" />
+    <detEntry lane="-305_2" pos="0" />
+    <detEntry lane="-305_3" pos="0" />
+    <detExit lane="-305_1" pos="122.45999908447266" />
+    <detExit lane="-305_2" pos="122.45999908447266" />
+    <detExit lane="-305_3" pos="122.45999908447266" />
+  </e3Detector>
+  <e3Detector id="5005_1" file="detector_output/5005_1.xml" pos="43.81,201.45">
+    <detEntry lane="-104_1" pos="0" />
+    <detEntry lane="-104_2" pos="0" />
+    <detEntry lane="-104_3" pos="0" />
+    <detExit lane="-104_1" pos="122.87000274658203" />
+    <detExit lane="-104_2" pos="122.87000274658203" />
+    <detExit lane="-104_3" pos="122.87000274658203" />
+  </e3Detector>
+  <e3Detector id="5005_2" file="detector_output/5005_2.xml" pos="43.81,201.45">
+    <detEntry lane="301_1" pos="0" />
+    <detEntry lane="301_2" pos="0" />
+    <detEntry lane="301_3" pos="0" />
+    <detExit lane="301_1" pos="122.3499984741211" />
+    <detExit lane="301_2" pos="122.3499984741211" />
+    <detExit lane="301_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5005_3" file="detector_output/5005_3.xml" pos="43.81,201.45">
+    <detEntry lane="902_1" pos="0" />
+    <detEntry lane="902_2" pos="0" />
+    <detEntry lane="902_3" pos="0" />
+    <detExit lane="902_1" pos="28.780000686645508" />
+    <detExit lane="902_2" pos="28.780000686645508" />
+    <detExit lane="902_3" pos="28.780000686645508" />
+  </e3Detector>
+  <e3Detector id="5006_0" file="detector_output/5006_0.xml" pos="193.87,200.02">
+    <detEntry lane="-306_1" pos="0" />
+    <detEntry lane="-306_2" pos="0" />
+    <detEntry lane="-306_3" pos="0" />
+    <detExit lane="-306_1" pos="122.45999908447266" />
+    <detExit lane="-306_2" pos="122.45999908447266" />
+    <detExit lane="-306_3" pos="122.45999908447266" />
+  </e3Detector>
+  <e3Detector id="5006_1" file="detector_output/5006_1.xml" pos="193.87,200.02">
+    <detEntry lane="-105_1" pos="0" />
+    <detEntry lane="-105_2" pos="0" />
+    <detEntry lane="-105_3" pos="0" />
+    <detExit lane="-105_1" pos="122.95999908447266" />
+    <detExit lane="-105_2" pos="122.95999908447266" />
+    <detExit lane="-105_3" pos="122.95999908447266" />
+  </e3Detector>
+  <e3Detector id="5006_2" file="detector_output/5006_2.xml" pos="193.87,200.02">
+    <detEntry lane="302_1" pos="0" />
+    <detEntry lane="302_2" pos="0" />
+    <detEntry lane="302_3" pos="0" />
+    <detExit lane="302_1" pos="122.3499984741211" />
+    <detExit lane="302_2" pos="122.3499984741211" />
+    <detExit lane="302_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5006_3" file="detector_output/5006_3.xml" pos="193.87,200.02">
+    <detEntry lane="104_1" pos="0" />
+    <detEntry lane="104_2" pos="0" />
+    <detEntry lane="104_3" pos="0" />
+    <detExit lane="104_1" pos="122.87000274658203" />
+    <detExit lane="104_2" pos="122.87000274658203" />
+    <detExit lane="104_3" pos="122.87000274658203" />
+  </e3Detector>
+  <e3Detector id="5007_0" file="detector_output/5007_0.xml" pos="344.02,198.59">
+    <detEntry lane="-307_1" pos="0" />
+    <detEntry lane="-307_2" pos="0" />
+    <detEntry lane="-307_3" pos="0" />
+    <detExit lane="-307_1" pos="122.45999908447266" />
+    <detExit lane="-307_2" pos="122.45999908447266" />
+    <detExit lane="-307_3" pos="122.45999908447266" />
+  </e3Detector>
+  <e3Detector id="5007_1" file="detector_output/5007_1.xml" pos="344.02,198.59">
+    <detEntry lane="-106_1" pos="0" />
+    <detEntry lane="-106_2" pos="0" />
+    <detEntry lane="-106_3" pos="0" />
+    <detExit lane="-106_1" pos="122.87000274658203" />
+    <detExit lane="-106_2" pos="122.87000274658203" />
+    <detExit lane="-106_3" pos="122.87000274658203" />
+  </e3Detector>
+  <e3Detector id="5007_2" file="detector_output/5007_2.xml" pos="344.02,198.59">
+    <detEntry lane="303_1" pos="0" />
+    <detEntry lane="303_2" pos="0" />
+    <detEntry lane="303_3" pos="0" />
+    <detExit lane="303_1" pos="122.3499984741211" />
+    <detExit lane="303_2" pos="122.3499984741211" />
+    <detExit lane="303_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5007_3" file="detector_output/5007_3.xml" pos="344.02,198.59">
+    <detEntry lane="105_1" pos="0" />
+    <detEntry lane="105_2" pos="0" />
+    <detEntry lane="105_3" pos="0" />
+    <detExit lane="105_1" pos="122.95999908447266" />
+    <detExit lane="105_2" pos="122.95999908447266" />
+    <detExit lane="105_3" pos="122.95999908447266" />
+  </e3Detector>
+  <e3Detector id="5008_0" file="detector_output/5008_0.xml" pos="494.08,197.17">
+    <detEntry lane="-308_1" pos="0" />
+    <detEntry lane="-308_2" pos="0" />
+    <detEntry lane="-308_3" pos="0" />
+    <detExit lane="-308_1" pos="122.45999908447266" />
+    <detExit lane="-308_2" pos="122.45999908447266" />
+    <detExit lane="-308_3" pos="122.45999908447266" />
+  </e3Detector>
+  <e3Detector id="5008_1" file="detector_output/5008_1.xml" pos="494.08,197.17">
+    <detEntry lane="912_1" pos="0" />
+    <detEntry lane="912_2" pos="0" />
+    <detEntry lane="912_3" pos="0" />
+    <detExit lane="912_1" pos="28.780000686645508" />
+    <detExit lane="912_2" pos="28.780000686645508" />
+    <detExit lane="912_3" pos="28.780000686645508" />
+  </e3Detector>
+  <e3Detector id="5008_2" file="detector_output/5008_2.xml" pos="494.08,197.17">
+    <detEntry lane="304_1" pos="0" />
+    <detEntry lane="304_2" pos="0" />
+    <detEntry lane="304_3" pos="0" />
+    <detExit lane="304_1" pos="122.3499984741211" />
+    <detExit lane="304_2" pos="122.3499984741211" />
+    <detExit lane="304_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5008_3" file="detector_output/5008_3.xml" pos="494.08,197.17">
+    <detEntry lane="106_1" pos="0" />
+    <detEntry lane="106_2" pos="0" />
+    <detEntry lane="106_3" pos="0" />
+    <detExit lane="106_1" pos="122.87000274658203" />
+    <detExit lane="106_2" pos="122.87000274658203" />
+    <detExit lane="106_3" pos="122.87000274658203" />
+  </e3Detector>
+  <e3Detector id="5009_0" file="detector_output/5009_0.xml" pos="45.24,351.1">
+    <detEntry lane="-309_1" pos="0" />
+    <detEntry lane="-309_2" pos="0" />
+    <detEntry lane="-309_3" pos="0" />
+    <detExit lane="-309_1" pos="122.3499984741211" />
+    <detExit lane="-309_2" pos="122.3499984741211" />
+    <detExit lane="-309_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5009_1" file="detector_output/5009_1.xml" pos="45.24,351.1">
+    <detEntry lane="-107_1" pos="0" />
+    <detEntry lane="-107_2" pos="0" />
+    <detEntry lane="-107_3" pos="0" />
+    <detExit lane="-107_1" pos="122.87000274658203" />
+    <detExit lane="-107_2" pos="122.87000274658203" />
+    <detExit lane="-107_3" pos="122.87000274658203" />
+  </e3Detector>
+  <e3Detector id="5009_2" file="detector_output/5009_2.xml" pos="45.24,351.1">
+    <detEntry lane="305_1" pos="0" />
+    <detEntry lane="305_2" pos="0" />
+    <detEntry lane="305_3" pos="0" />
+    <detExit lane="305_1" pos="122.45999908447266" />
+    <detExit lane="305_2" pos="122.45999908447266" />
+    <detExit lane="305_3" pos="122.45999908447266" />
+  </e3Detector>
+  <e3Detector id="5009_3" file="detector_output/5009_3.xml" pos="45.24,351.1">
+    <detEntry lane="903_1" pos="0" />
+    <detEntry lane="903_2" pos="0" />
+    <detEntry lane="903_3" pos="0" />
+    <detExit lane="903_1" pos="28.790000915527344" />
+    <detExit lane="903_2" pos="28.790000915527344" />
+    <detExit lane="903_3" pos="28.790000915527344" />
+  </e3Detector>
+  <e3Detector id="5010_0" file="detector_output/5010_0.xml" pos="195.3,349.67">
+    <detEntry lane="-310_1" pos="0" />
+    <detEntry lane="-310_2" pos="0" />
+    <detEntry lane="-310_3" pos="0" />
+    <detExit lane="-310_1" pos="122.3499984741211" />
+    <detExit lane="-310_2" pos="122.3499984741211" />
+    <detExit lane="-310_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5010_1" file="detector_output/5010_1.xml" pos="195.3,349.67">
+    <detEntry lane="-108_1" pos="0" />
+    <detEntry lane="-108_2" pos="0" />
+    <detEntry lane="-108_3" pos="0" />
+    <detExit lane="-108_1" pos="122.94999694824219" />
+    <detExit lane="-108_2" pos="122.94999694824219" />
+    <detExit lane="-108_3" pos="122.94999694824219" />
+  </e3Detector>
+  <e3Detector id="5010_2" file="detector_output/5010_2.xml" pos="195.3,349.67">
+    <detEntry lane="306_1" pos="0" />
+    <detEntry lane="306_2" pos="0" />
+    <detEntry lane="306_3" pos="0" />
+    <detExit lane="306_1" pos="122.45999908447266" />
+    <detExit lane="306_2" pos="122.45999908447266" />
+    <detExit lane="306_3" pos="122.45999908447266" />
+  </e3Detector>
+  <e3Detector id="5010_3" file="detector_output/5010_3.xml" pos="195.3,349.67">
+    <detEntry lane="107_1" pos="0" />
+    <detEntry lane="107_2" pos="0" />
+    <detEntry lane="107_3" pos="0" />
+    <detExit lane="107_1" pos="122.87000274658203" />
+    <detExit lane="107_2" pos="122.87000274658203" />
+    <detExit lane="107_3" pos="122.87000274658203" />
+  </e3Detector>
+  <e3Detector id="5011_0" file="detector_output/5011_0.xml" pos="345.44,348.24">
+    <detEntry lane="-311_1" pos="0" />
+    <detEntry lane="-311_2" pos="0" />
+    <detEntry lane="-311_3" pos="0" />
+    <detExit lane="-311_1" pos="122.36000061035156" />
+    <detExit lane="-311_2" pos="122.36000061035156" />
+    <detExit lane="-311_3" pos="122.36000061035156" />
+  </e3Detector>
+  <e3Detector id="5011_1" file="detector_output/5011_1.xml" pos="345.44,348.24">
+    <detEntry lane="-109_1" pos="0" />
+    <detEntry lane="-109_2" pos="0" />
+    <detEntry lane="-109_3" pos="0" />
+    <detExit lane="-109_1" pos="122.87000274658203" />
+    <detExit lane="-109_2" pos="122.87000274658203" />
+    <detExit lane="-109_3" pos="122.87000274658203" />
+  </e3Detector>
+  <e3Detector id="5011_2" file="detector_output/5011_2.xml" pos="345.44,348.24">
+    <detEntry lane="307_1" pos="0" />
+    <detEntry lane="307_2" pos="0" />
+    <detEntry lane="307_3" pos="0" />
+    <detExit lane="307_1" pos="122.45999908447266" />
+    <detExit lane="307_2" pos="122.45999908447266" />
+    <detExit lane="307_3" pos="122.45999908447266" />
+  </e3Detector>
+  <e3Detector id="5011_3" file="detector_output/5011_3.xml" pos="345.44,348.24">
+    <detEntry lane="108_1" pos="0" />
+    <detEntry lane="108_2" pos="0" />
+    <detEntry lane="108_3" pos="0" />
+    <detExit lane="108_1" pos="122.94999694824219" />
+    <detExit lane="108_2" pos="122.94999694824219" />
+    <detExit lane="108_3" pos="122.94999694824219" />
+  </e3Detector>
+  <e3Detector id="5012_0" file="detector_output/5012_0.xml" pos="495.5,346.82">
+    <detEntry lane="-312_1" pos="0" />
+    <detEntry lane="-312_2" pos="0" />
+    <detEntry lane="-312_3" pos="0" />
+    <detExit lane="-312_1" pos="122.3499984741211" />
+    <detExit lane="-312_2" pos="122.3499984741211" />
+    <detExit lane="-312_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5012_1" file="detector_output/5012_1.xml" pos="495.5,346.82">
+    <detEntry lane="913_1" pos="0" />
+    <detEntry lane="913_2" pos="0" />
+    <detEntry lane="913_3" pos="0" />
+    <detExit lane="913_1" pos="28.780000686645508" />
+    <detExit lane="913_2" pos="28.780000686645508" />
+    <detExit lane="913_3" pos="28.780000686645508" />
+  </e3Detector>
+  <e3Detector id="5012_2" file="detector_output/5012_2.xml" pos="495.5,346.82">
+    <detEntry lane="308_1" pos="0" />
+    <detEntry lane="308_2" pos="0" />
+    <detEntry lane="308_3" pos="0" />
+    <detExit lane="308_1" pos="122.45999908447266" />
+    <detExit lane="308_2" pos="122.45999908447266" />
+    <detExit lane="308_3" pos="122.45999908447266" />
+  </e3Detector>
+  <e3Detector id="5012_3" file="detector_output/5012_3.xml" pos="495.5,346.82">
+    <detEntry lane="109_1" pos="0" />
+    <detEntry lane="109_2" pos="0" />
+    <detEntry lane="109_3" pos="0" />
+    <detExit lane="109_1" pos="122.87000274658203" />
+    <detExit lane="109_2" pos="122.87000274658203" />
+    <detExit lane="109_3" pos="122.87000274658203" />
+  </e3Detector>
+  <e3Detector id="5013_0" file="detector_output/5013_0.xml" pos="46.66,500.64">
+    <detEntry lane="931_1" pos="0" />
+    <detEntry lane="931_2" pos="0" />
+    <detEntry lane="931_3" pos="0" />
+    <detExit lane="931_1" pos="34.029998779296875" />
+    <detExit lane="931_2" pos="34.029998779296875" />
+    <detExit lane="931_3" pos="34.029998779296875" />
+  </e3Detector>
+  <e3Detector id="5013_1" file="detector_output/5013_1.xml" pos="46.66,500.64">
+    <detEntry lane="-110_1" pos="0" />
+    <detEntry lane="-110_2" pos="0" />
+    <detEntry lane="-110_3" pos="0" />
+    <detExit lane="-110_1" pos="122.86000061035156" />
+    <detExit lane="-110_2" pos="122.86000061035156" />
+    <detExit lane="-110_3" pos="122.86000061035156" />
+  </e3Detector>
+  <e3Detector id="5013_2" file="detector_output/5013_2.xml" pos="46.66,500.64">
+    <detEntry lane="309_1" pos="0" />
+    <detEntry lane="309_2" pos="0" />
+    <detEntry lane="309_3" pos="0" />
+    <detExit lane="309_1" pos="122.3499984741211" />
+    <detExit lane="309_2" pos="122.3499984741211" />
+    <detExit lane="309_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5013_3" file="detector_output/5013_3.xml" pos="46.66,500.64">
+    <detEntry lane="904_1" pos="0" />
+    <detEntry lane="904_2" pos="0" />
+    <detEntry lane="904_3" pos="0" />
+    <detExit lane="904_1" pos="28.780000686645508" />
+    <detExit lane="904_2" pos="28.780000686645508" />
+    <detExit lane="904_3" pos="28.780000686645508" />
+  </e3Detector>
+  <e3Detector id="5014_0" file="detector_output/5014_0.xml" pos="196.72,499.21">
+    <detEntry lane="932_1" pos="0" />
+    <detEntry lane="932_2" pos="0" />
+    <detEntry lane="932_3" pos="0" />
+    <detExit lane="932_1" pos="34.029998779296875" />
+    <detExit lane="932_2" pos="34.029998779296875" />
+    <detExit lane="932_3" pos="34.029998779296875" />
+  </e3Detector>
+  <e3Detector id="5014_1" file="detector_output/5014_1.xml" pos="196.72,499.21">
+    <detEntry lane="-111_1" pos="0" />
+    <detEntry lane="-111_2" pos="0" />
+    <detEntry lane="-111_3" pos="0" />
+    <detExit lane="-111_1" pos="122.94999694824219" />
+    <detExit lane="-111_2" pos="122.94999694824219" />
+    <detExit lane="-111_3" pos="122.94999694824219" />
+  </e3Detector>
+  <e3Detector id="5014_2" file="detector_output/5014_2.xml" pos="196.72,499.21">
+    <detEntry lane="310_1" pos="0" />
+    <detEntry lane="310_2" pos="0" />
+    <detEntry lane="310_3" pos="0" />
+    <detExit lane="310_1" pos="122.3499984741211" />
+    <detExit lane="310_2" pos="122.3499984741211" />
+    <detExit lane="310_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5014_3" file="detector_output/5014_3.xml" pos="196.72,499.21">
+    <detEntry lane="110_1" pos="0" />
+    <detEntry lane="110_2" pos="0" />
+    <detEntry lane="110_3" pos="0" />
+    <detExit lane="110_1" pos="122.86000061035156" />
+    <detExit lane="110_2" pos="122.86000061035156" />
+    <detExit lane="110_3" pos="122.86000061035156" />
+  </e3Detector>
+  <e3Detector id="5015_0" file="detector_output/5015_0.xml" pos="346.86,497.79">
+    <detEntry lane="933_1" pos="0" />
+    <detEntry lane="933_2" pos="0" />
+    <detEntry lane="933_3" pos="0" />
+    <detExit lane="933_1" pos="34.02000045776367" />
+    <detExit lane="933_2" pos="34.02000045776367" />
+    <detExit lane="933_3" pos="34.02000045776367" />
+  </e3Detector>
+  <e3Detector id="5015_1" file="detector_output/5015_1.xml" pos="346.86,497.79">
+    <detEntry lane="-112_1" pos="0" />
+    <detEntry lane="-112_2" pos="0" />
+    <detEntry lane="-112_3" pos="0" />
+    <detExit lane="-112_1" pos="122.86000061035156" />
+    <detExit lane="-112_2" pos="122.86000061035156" />
+    <detExit lane="-112_3" pos="122.86000061035156" />
+  </e3Detector>
+  <e3Detector id="5015_2" file="detector_output/5015_2.xml" pos="346.86,497.79">
+    <detEntry lane="311_1" pos="0" />
+    <detEntry lane="311_2" pos="0" />
+    <detEntry lane="311_3" pos="0" />
+    <detExit lane="311_1" pos="122.36000061035156" />
+    <detExit lane="311_2" pos="122.36000061035156" />
+    <detExit lane="311_3" pos="122.36000061035156" />
+  </e3Detector>
+  <e3Detector id="5015_3" file="detector_output/5015_3.xml" pos="346.86,497.79">
+    <detEntry lane="111_1" pos="0" />
+    <detEntry lane="111_2" pos="0" />
+    <detEntry lane="111_3" pos="0" />
+    <detExit lane="111_1" pos="122.94999694824219" />
+    <detExit lane="111_2" pos="122.94999694824219" />
+    <detExit lane="111_3" pos="122.94999694824219" />
+  </e3Detector>
+  <e3Detector id="5016_0" file="detector_output/5016_0.xml" pos="496.91,496.36">
+    <detEntry lane="934_1" pos="0" />
+    <detEntry lane="934_2" pos="0" />
+    <detEntry lane="934_3" pos="0" />
+    <detExit lane="934_1" pos="34.029998779296875" />
+    <detExit lane="934_2" pos="34.029998779296875" />
+    <detExit lane="934_3" pos="34.029998779296875" />
+  </e3Detector>
+  <e3Detector id="5016_1" file="detector_output/5016_1.xml" pos="496.91,496.36">
+    <detEntry lane="914_1" pos="0" />
+    <detEntry lane="914_2" pos="0" />
+    <detEntry lane="914_3" pos="0" />
+    <detExit lane="914_1" pos="28.790000915527344" />
+    <detExit lane="914_2" pos="28.790000915527344" />
+    <detExit lane="914_3" pos="28.790000915527344" />
+  </e3Detector>
+  <e3Detector id="5016_2" file="detector_output/5016_2.xml" pos="496.91,496.36">
+    <detEntry lane="312_1" pos="0" />
+    <detEntry lane="312_2" pos="0" />
+    <detEntry lane="312_3" pos="0" />
+    <detExit lane="312_1" pos="122.3499984741211" />
+    <detExit lane="312_2" pos="122.3499984741211" />
+    <detExit lane="312_3" pos="122.3499984741211" />
+  </e3Detector>
+  <e3Detector id="5016_3" file="detector_output/5016_3.xml" pos="496.91,496.36">
+    <detEntry lane="112_1" pos="0" />
+    <detEntry lane="112_2" pos="0" />
+    <detEntry lane="112_3" pos="0" />
+    <detExit lane="112_1" pos="122.86000061035156" />
+    <detExit lane="112_2" pos="122.86000061035156" />
+    <detExit lane="112_3" pos="122.86000061035156" />
+  </e3Detector>
 </additional>

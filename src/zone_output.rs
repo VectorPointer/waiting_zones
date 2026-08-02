@@ -13,7 +13,7 @@
 //! ~20 unrelated element kinds (rerouters, WAUT, variable speed signs, ...)
 //! we don't need.
 
-use crate::domain::{RoadUser, WaitingZone, ZoneBoundary};
+use crate::domain::{WaitingZone, ZoneBoundary};
 use anyhow::{anyhow, Result};
 use uom::si::length::meter;
 use yaserde::YaSerialize;
@@ -42,10 +42,6 @@ struct E3Detector {
     id: String,
     #[yaserde(attribute = true)]
     file: String,
-    /// SUMO only counts vehicles by default; set for [`RoadUser::Pedestrian`]
-    /// zones so persons crossing are counted too.
-    #[yaserde(rename = "detectPersons", attribute = true)]
-    detect_persons: Option<String>,
     /// Where editors like netedit draw this detector's icon; see
     /// [`crate::domain::WaitingZone::icon_position`]. Purely cosmetic.
     #[yaserde(attribute = true)]
@@ -82,10 +78,6 @@ impl From<&WaitingZone> for E3Detector {
             // would write live detector stats); we don't run a simulation,
             // but the attribute is still mandatory syntactically.
             file: format!("{DETECTOR_OUTPUT_DIR}/{}.xml", zone.id.0),
-            detect_persons: match zone.road_user {
-                RoadUser::Vehicle => None,
-                RoadUser::Pedestrian => Some("walk".to_string()),
-            },
             pos: format!("{},{}", zone.icon_position.x, zone.icon_position.y),
             entries: zone.entries.iter().map(DetEntryExit::from).collect(),
             exits: zone.exits.iter().map(DetEntryExit::from).collect(),
@@ -126,7 +118,6 @@ mod tests {
                 lane: crate::domain::LaneId("e1_0".into()),
                 position: Length::new::<meter>(2.5),
             }],
-            road_user: RoadUser::Vehicle,
             icon_position: crate::domain::Point { x: 0.0, y: 0.0, z: 0.0 },
         };
 
@@ -135,31 +126,6 @@ mod tests {
         assert!(xml.contains(r#"<e3Detector id="j0" file="detector_output/j0.xml" pos="0,0">"#));
         assert!(xml.contains(r#"<detEntry lane="e0_0" pos="10" />"#));
         assert!(xml.contains(r#"<detExit lane="e1_0" pos="2.5" />"#));
-        assert!(
-            !xml.contains("detectPersons"),
-            "vehicle zones shouldn't set detectPersons"
-        );
-    }
-
-    #[test]
-    fn sets_detect_persons_for_pedestrian_zones_only() {
-        let zone = WaitingZone {
-            id: WaitingZoneId("j0_ped".into()),
-            entries: vec![ZoneBoundary {
-                lane: crate::domain::LaneId(":j0_c0_0".into()),
-                position: Length::new::<meter>(0.0),
-            }],
-            exits: vec![ZoneBoundary {
-                lane: crate::domain::LaneId(":j0_c0_0".into()),
-                position: Length::new::<meter>(6.4),
-            }],
-            road_user: RoadUser::Pedestrian,
-            icon_position: crate::domain::Point { x: 0.0, y: 0.0, z: 0.0 },
-        };
-
-        let xml = to_xml(&[zone]).unwrap();
-
-        assert!(xml.contains(r#"detectPersons="walk""#));
     }
 
     #[test]
@@ -174,7 +140,6 @@ mod tests {
                 lane: crate::domain::LaneId("e0_0".into()),
                 position: Length::new::<meter>(25.0),
             }],
-            road_user: RoadUser::Vehicle,
             icon_position: crate::domain::Point { x: 12.5, y: -3.0, z: 0.0 },
         };
 

@@ -296,31 +296,24 @@ pub struct ZoneBoundary {
     pub position: Length,
 }
 
-/// The kind of road user a [`WaitingZone`] tracks. SUMO's E3 detector only
-/// counts vehicles unless told otherwise (`detectPersons`); see
-/// `zone_output` for how this maps to that attribute.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RoadUser {
-    Vehicle,
-    Pedestrian,
-}
-
 /// An area of the network delimited by one or more entry/exit points, where
-/// traffic is considered to be waiting. Exported in `.waiting-zones.add.xml`
-/// (see the `zone_output` module) as an intermediate format; turning that
-/// into whatever a specific user-facing app needs happens outside this
-/// project.
+/// vehicles are considered to be waiting. Exported in
+/// `.waiting-zones.add.xml` (see the `zone_output` module) as an
+/// intermediate format; turning that into whatever a specific user-facing
+/// app needs happens outside this project.
+///
+/// Only vehicles, for now — see the README's "Status" section for why
+/// pedestrian waiting zones aren't generated.
 #[derive(Debug, Clone, PartialEq)]
 pub struct WaitingZone {
     pub id: WaitingZoneId,
     pub entries: Vec<ZoneBoundary>,
     pub exits: Vec<ZoneBoundary>,
-    pub road_user: RoadUser,
     /// Where to draw this zone's detector icon in editors like netedit
     /// (SUMO's `e3Detector/@pos`) — always the position of the junction the
-    /// zone belongs to, so every zone at the same junction (vehicle and
-    /// pedestrian alike) shares one icon instead of overlapping icons
-    /// scattered along different lanes. Purely cosmetic: SUMO itself only
-    /// uses each [`ZoneBoundary`]'s `lane`/`position` for actual detection.
+    /// zone belongs to, so every zone at the same junction shares one icon
+    /// instead of overlapping icons scattered along different lanes.
+    /// Purely cosmetic: SUMO itself only uses each [`ZoneBoundary`]'s
+    /// `lane`/`position` for actual detection.
     pub icon_position: Point,
 }

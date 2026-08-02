@@ -84,18 +84,6 @@
     <detExit lane="C3B3_1" pos="87.5999984741211" />
     <detExit lane="A3B3_1" pos="87.5999984741211" />
   </e3Detector>
-  <e3Detector id="B3_ped_0" file="detector_output/B3_ped_0.xml" detectPersons="walk" pos="100,300">
-    <detEntry lane=":B3_w0_0" pos="0" />
-    <detEntry lane=":B3_w2_0" pos="0" />
-    <detExit lane=":B3_w0_0" pos="3.299999952316284" />
-    <detExit lane=":B3_w2_0" pos="3.299999952316284" />
-  </e3Detector>
-  <e3Detector id="B3_ped_1" file="detector_output/B3_ped_1.xml" detectPersons="walk" pos="100,300">
-    <detEntry lane=":B3_w1_0" pos="0" />
-    <detEntry lane=":B3_w3_0" pos="0" />
-    <detExit lane=":B3_w1_0" pos="3.299999952316284" />
-    <detExit lane=":B3_w3_0" pos="3.299999952316284" />
-  </e3Detector>
   <e3Detector id="B4_0" file="detector_output/B4_0.xml" pos="100,400">
     <detEntry lane="A4B4_0" pos="0" />
     <detExit lane="A4B4_0" pos="89.5999984741211" />
