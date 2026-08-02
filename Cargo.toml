@@ -1,0 +1,17 @@
+[package]
+name = "waiting_zones"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.4", features = ["derive"] }
+derive_more = { version = "2.1.1", features = ["display", "from", "as_ref"] }
+uom = "0.38.0"
+xsd-parser-types = { version = "0.2.1", features = ["quick-xml"] }
+yaserde = { version = "0.12.0", features = ["derive"] }
+
+[build-dependencies]
+xsd-parser = "1.5.2"
+anyhow = "1.0.104"
+Inflector = "0.11.4"

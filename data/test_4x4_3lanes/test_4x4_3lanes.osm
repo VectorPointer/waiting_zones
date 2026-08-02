@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="hand-crafted">
+  <bounds minlat="41.392250" minlon="2.173700" maxlat="41.397150" maxlon="2.180100"/>
+
+  <!--
+    4×4 grid of signalised intersections (~150 m spacing), 3 lanes per
+    direction. Derived from test_4x4.osm's layout, but each physical
+    street is ONE bidirectional way (lanes=6, turn:lanes:forward/
+    turn:lanes:backward = left|through|right) instead of two coincident
+    oneway ways — netconvert only spreads opposite-direction lanes
+    apart from a single tagged bidirectional way; two independently
+    authored oneway ways sharing endpoints collapse onto the same
+    physical lanes once lane count > 1.
+
+    All <node> elements are declared before any <way>: netconvert's OSM
+    reader silently drops a way whose node(s) appear later in the
+    document, so nodes and ways cannot be interleaved per-street.
+
+    Intersection nodes C[row,col] use ids 5001-5016 (row-major, row 1 = bottom).
+    Each node carries highway=traffic_signals so SUMO treats it as a junction.
+
+    col:   1         2         3         4
+    row 4: 5013 == 5014 == 5015 == 5016
+           |         |         |         |
+    row 3: 5009 == 5010 == 5011 == 5012
+           |         |         |         |
+    row 2: 5005 == 5006 == 5007 == 5008
+           |         |         |         |
+    row 1: 5001 == 5002 == 5003 == 5004
+
+    Row ways (1XX) digitized west->east = forward; column ways (3XX)
+    digitized south->north = forward. netconvert derives the opposite
+    direction as edge "-1XX"/"-3XX". External terminal stubs (9XX) let
+    vehicles enter/leave off the grid, forward = entering the grid.
+  -->
+
+  <!-- Intersection nodes -->
+  <node id="5001" lat="41.392679" lon="2.174207"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5002" lat="41.392679" lon="2.176002"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5003" lat="41.392679" lon="2.177798"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5004" lat="41.392679" lon="2.179593"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5005" lat="41.394026" lon="2.174207"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5006" lat="41.394026" lon="2.176002"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5007" lat="41.394026" lon="2.177798"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5008" lat="41.394026" lon="2.179593"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5009" lat="41.395374" lon="2.174207"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5010" lat="41.395374" lon="2.176002"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5011" lat="41.395374" lon="2.177798"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5012" lat="41.395374" lon="2.179593"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5013" lat="41.396721" lon="2.174207"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5014" lat="41.396721" lon="2.176002"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5015" lat="41.396721" lon="2.177798"><tag k="highway" v="traffic_signals"/></node>
+  <node id="5016" lat="41.396721" lon="2.179593"><tag k="highway" v="traffic_signals"/></node>
+
+  <!-- External terminal nodes (7XXX): one per grid-boundary approach,
+       forward direction of every stub way is external->grid = entering. -->
+  <node id="7001" lat="41.392679" lon="2.173700"/>
+  <node id="7002" lat="41.394026" lon="2.173700"/>
+  <node id="7003" lat="41.395374" lon="2.173700"/>
+  <node id="7004" lat="41.396721" lon="2.173700"/>
+  <node id="7005" lat="41.392679" lon="2.180100"/>
+  <node id="7006" lat="41.394026" lon="2.180100"/>
+  <node id="7007" lat="41.395374" lon="2.180100"/>
+  <node id="7008" lat="41.396721" lon="2.180100"/>
+  <node id="7009" lat="41.392250" lon="2.174207"/>
+  <node id="7010" lat="41.392250" lon="2.176002"/>
+  <node id="7011" lat="41.392250" lon="2.177798"/>
+  <node id="7012" lat="41.392250" lon="2.179593"/>
+  <node id="7013" lat="41.397150" lon="2.174207"/>
+  <node id="7014" lat="41.397150" lon="2.176002"/>
+  <node id="7015" lat="41.397150" lon="2.177798"/>
+  <node id="7016" lat="41.397150" lon="2.179593"/>
+
+  <!-- Exterior visual block nodes -->
+  <node id="8001" lat="41.393000" lon="2.173820"/>
+  <node id="8002" lat="41.393000" lon="2.174090"/>
+  <node id="8003" lat="41.393700" lon="2.174090"/>
+  <node id="8004" lat="41.393700" lon="2.173820"/>
+  <node id="8005" lat="41.395650" lon="2.173820"/>
+  <node id="8006" lat="41.395650" lon="2.174090"/>
+  <node id="8007" lat="41.396420" lon="2.174090"/>
+  <node id="8008" lat="41.396420" lon="2.173820"/>
+  <node id="8009" lat="41.393000" lon="2.179760"/>
+  <node id="8010" lat="41.393000" lon="2.180030"/>
+  <node id="8011" lat="41.393700" lon="2.180030"/>
+  <node id="8012" lat="41.393700" lon="2.179760"/>
+  <node id="8013" lat="41.395650" lon="2.179760"/>
+  <node id="8014" lat="41.395650" lon="2.180030"/>
+  <node id="8015" lat="41.396420" lon="2.180030"/>
+  <node id="8016" lat="41.396420" lon="2.179760"/>
+  <node id="8017" lat="41.392320" lon="2.174500"/>
+  <node id="8018" lat="41.392320" lon="2.175520"/>
+  <node id="8019" lat="41.392570" lon="2.175520"/>
+  <node id="8020" lat="41.392570" lon="2.174500"/>
+  <node id="8021" lat="41.392320" lon="2.178300"/>
+  <node id="8022" lat="41.392320" lon="2.179320"/>
+  <node id="8023" lat="41.392570" lon="2.179320"/>
+  <node id="8024" lat="41.392570" lon="2.178300"/>
+  <node id="8025" lat="41.396830" lon="2.174500"/>
+  <node id="8026" lat="41.396830" lon="2.175520"/>
+  <node id="8027" lat="41.397080" lon="2.175520"/>
+  <node id="8028" lat="41.397080" lon="2.174500"/>
+  <node id="8029" lat="41.396830" lon="2.178300"/>
+  <node id="8030" lat="41.396830" lon="2.179320"/>
+  <node id="8031" lat="41.397080" lon="2.179320"/>
+  <node id="8032" lat="41.397080" lon="2.178300"/>
+
+  <!-- Row ways, bidirectional, west->east forward (1XX) -->
+  <way id="101" version="1"><nd ref="5001"/><nd ref="5002"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="102" version="1"><nd ref="5002"/><nd ref="5003"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="103" version="1"><nd ref="5003"/><nd ref="5004"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="104" version="1"><nd ref="5005"/><nd ref="5006"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="105" version="1"><nd ref="5006"/><nd ref="5007"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="106" version="1"><nd ref="5007"/><nd ref="5008"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="107" version="1"><nd ref="5009"/><nd ref="5010"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="108" version="1"><nd ref="5010"/><nd ref="5011"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="109" version="1"><nd ref="5011"/><nd ref="5012"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="110" version="1"><nd ref="5013"/><nd ref="5014"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="111" version="1"><nd ref="5014"/><nd ref="5015"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="112" version="1"><nd ref="5015"/><nd ref="5016"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+
+  <!-- Column ways, bidirectional, south->north forward (3XX) -->
+  <way id="301" version="1"><nd ref="5001"/><nd ref="5005"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="302" version="1"><nd ref="5002"/><nd ref="5006"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="303" version="1"><nd ref="5003"/><nd ref="5007"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="304" version="1"><nd ref="5004"/><nd ref="5008"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="305" version="1"><nd ref="5005"/><nd ref="5009"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="306" version="1"><nd ref="5006"/><nd ref="5010"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="307" version="1"><nd ref="5007"/><nd ref="5011"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="308" version="1"><nd ref="5008"/><nd ref="5012"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="309" version="1"><nd ref="5009"/><nd ref="5013"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="310" version="1"><nd ref="5010"/><nd ref="5014"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="311" version="1"><nd ref="5011"/><nd ref="5015"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+  <way id="312" version="1"><nd ref="5012"/><nd ref="5016"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/><tag k="turn:lanes:backward" v="left|through|right"/></way>
+
+  <!-- Left-side stubs: forward = enter grid (7001-7004 -> col-1 nodes) -->
+  <way id="901" version="1"><nd ref="7001"/><nd ref="5001"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <way id="902" version="1"><nd ref="7002"/><nd ref="5005"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <way id="903" version="1"><nd ref="7003"/><nd ref="5009"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <way id="904" version="1"><nd ref="7004"/><nd ref="5013"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <!-- Right-side stubs: forward = enter grid (7005-7008 -> col-4 nodes) -->
+  <way id="911" version="1"><nd ref="7005"/><nd ref="5004"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <way id="912" version="1"><nd ref="7006"/><nd ref="5008"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <way id="913" version="1"><nd ref="7007"/><nd ref="5012"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <way id="914" version="1"><nd ref="7008"/><nd ref="5016"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <!-- Bottom-row stubs: forward = enter grid (7009-7012 -> row-1 nodes) -->
+  <way id="921" version="1"><nd ref="7009"/><nd ref="5001"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <way id="922" version="1"><nd ref="7010"/><nd ref="5002"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <way id="923" version="1"><nd ref="7011"/><nd ref="5003"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <way id="924" version="1"><nd ref="7012"/><nd ref="5004"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <!-- Top-row stubs: forward = enter grid (7013-7016 -> row-4 nodes) -->
+  <way id="931" version="1"><nd ref="7013"/><nd ref="5013"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <way id="932" version="1"><nd ref="7014"/><nd ref="5014"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <way id="933" version="1"><nd ref="7015"/><nd ref="5015"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+  <way id="934" version="1"><nd ref="7016"/><nd ref="5016"/><tag k="highway" v="residential"/><tag k="lanes" v="6"/><tag k="turn:lanes:forward" v="left|through|right"/></way>
+
+  <!-- Exterior visual blocks -->
+  <way id="8001" version="1"><nd ref="8001"/><nd ref="8002"/><nd ref="8003"/><nd ref="8004"/><nd ref="8001"/><tag k="building" v="yes"/></way>
+  <way id="8002" version="1"><nd ref="8005"/><nd ref="8006"/><nd ref="8007"/><nd ref="8008"/><nd ref="8005"/><tag k="building" v="yes"/></way>
+  <way id="8003" version="1"><nd ref="8009"/><nd ref="8010"/><nd ref="8011"/><nd ref="8012"/><nd ref="8009"/><tag k="building" v="yes"/></way>
+  <way id="8004" version="1"><nd ref="8013"/><nd ref="8014"/><nd ref="8015"/><nd ref="8016"/><nd ref="8013"/><tag k="building" v="yes"/></way>
+  <way id="8005" version="1"><nd ref="8017"/><nd ref="8018"/><nd ref="8019"/><nd ref="8020"/><nd ref="8017"/><tag k="building" v="yes"/></way>
+  <way id="8006" version="1"><nd ref="8021"/><nd ref="8022"/><nd ref="8023"/><nd ref="8024"/><nd ref="8021"/><tag k="building" v="yes"/></way>
+  <way id="8007" version="1"><nd ref="8025"/><nd ref="8026"/><nd ref="8027"/><nd ref="8028"/><nd ref="8025"/><tag k="building" v="yes"/></way>
+  <way id="8008" version="1"><nd ref="8029"/><nd ref="8030"/><nd ref="8031"/><nd ref="8032"/><nd ref="8029"/><tag k="building" v="yes"/></way>
+</osm>
