@@ -25,12 +25,23 @@
 //! but the entry moves to `length - max_zone_length` (clamped to the
 //! lane's start) instead of the lane's start outright.
 //!
-//! A junction is only grouped this way if its `tlLogic` program can be
-//! found (by matching `TrafficLightProgram::id` to the junction's id, the
-//! SUMO convention for junction-level traffic lights); if it can't
-//! (`JunctionKind::TrafficLightUnregulated`, or an incomplete `.net.xml`),
-//! we can't group correctly, so a warning is printed and that junction is
-//! skipped entirely rather than guessing.
+//! Each signal-controlled [`Connection`] names its own controlling program
+//! directly (`connection.traffic_light`, SUMO's `tl` attribute) — that, not
+//! the junction's own id, is what resolves a lane's phase-state sequence.
+//! It has to be: SUMO can merge several physically adjacent junctions under
+//! one shared program (`joinTLS`), in which case the program's id is a
+//! combined one (`joinedS_<id>_<id>_..._#Nmore`, `#Nmore` truncating the
+//! list once it gets long — the abbreviated member ids don't even appear in
+//! the string), and none of the junctions it covers have a program of their
+//! own named after them. Matching by the junction's id instead — this
+//! module's first approach — silently produced zero waiting zones for every
+//! joined junction: correct-looking code (a real lane, a real program,
+//! individually plausible), wrong on any network that actually uses
+//! `joinTLS`, which real-world SUMO networks (Barcelona among them) do
+//! heavily. A lane whose connections don't resolve a controlling program at
+//! all (an unsignalized approach, or `JunctionKind::TrafficLightUnregulated`
+//! — a kind that legitimately has none) is skipped with a per-lane warning
+//! rather than guessing.
 //!
 //! Pedestrian waiting zones (at signalized crossings) aren't generated —
 //! see the README's "Status" section for why.
@@ -90,8 +101,9 @@ fn signal_key_for_link(program: &TrafficLightProgram, link_index: LinkIndex) -> 
 }
 
 /// Generates vehicle waiting zones for every traffic-light junction in
-/// `network` whose `tlLogic` program can be found. Junctions without one
-/// are skipped, with a warning printed to stderr (see the module docs).
+/// `network`. A lane whose connections resolve no controlling program is
+/// skipped, with a warning printed to stderr (see the module docs for why
+/// that's a per-lane check, not a per-junction one).
 ///
 /// `max_zone_length` caps how far each zone's entry extends from the stop
 /// line; `None` means the full lane, as before.
@@ -141,8 +153,11 @@ pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<E3Det
         }
     }
 
-    // A `tlLogic` id can repeat (multiple programs); keep the first one
-    // encountered, in file order.
+    // A `tlLogic` id can repeat (multiple programs sharing one id, e.g. a
+    // normal one and a night-time one); keep the first one encountered, in
+    // file order. Keyed by whatever `connection.traffic_light` names —
+    // which, for a joined program, is the combined `joinedS_...` id, not
+    // any one junction's own id (see the module docs).
     let mut programs_by_id: HashMap<&TrafficLightId, &TrafficLightProgram> = HashMap::new();
     for program in &network.traffic_light_programs {
         programs_by_id.entry(&program.id).or_insert(program);
@@ -153,16 +168,13 @@ pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<E3Det
         .iter()
         .filter(|junction| is_traffic_light(junction.kind))
         .flat_map(|junction| {
-            let tl_id = TrafficLightId(junction.id.0.clone());
-            let Some(program) = programs_by_id.get(&tl_id) else {
-                eprintln!(
-                    "warning: no tlLogic program found for traffic light \"{tl_id}\" — skipping waiting zones for junction \"{}\"",
-                    junction.id
-                );
-                return Vec::new();
-            };
-
-            vehicle_zones(junction, &lanes, &connections_by_from_lane, program, max_zone_length)
+            vehicle_zones(
+                junction,
+                &lanes,
+                &connections_by_from_lane,
+                &programs_by_id,
+                max_zone_length,
+            )
         })
         .collect()
 }
@@ -220,17 +232,28 @@ fn full_lane_boundaries(
 /// forms its own group distinct from lanes with a single movement — it
 /// never changes state independently of either.
 ///
-/// `None` if `lane_id` has no signal-controlled connection at all — the
-/// caller should skip the lane (and warn) rather than lump it in.
+/// Each connection's controlling program is looked up by its own
+/// `traffic_light` id in `programs` — not assumed to be a single program
+/// shared by the whole lane — so a lane whose connections are split across
+/// more than one program (unusual, but the data model doesn't rule it out)
+/// still gets a correct, if unusual, key instead of a wrong one silently
+/// computed against the wrong program.
+///
+/// `None` if `lane_id` has no connection that resolves a controlling
+/// program at all — the caller should skip the lane (and warn) rather than
+/// lump it in.
 fn group_key_for_lane(
     lane_id: &LaneId,
     connections_by_from_lane: &HashMap<&LaneId, Vec<&Connection>>,
-    program: &TrafficLightProgram,
+    programs: &HashMap<&TrafficLightId, &TrafficLightProgram>,
 ) -> Option<Vec<SignalKey>> {
     let mut keys: Vec<SignalKey> = connections_by_from_lane
         .get(lane_id)?
         .iter()
-        .filter_map(|connection| signal_key_for_link(program, connection.link_index?))
+        .filter_map(|connection| {
+            let program = programs.get(connection.traffic_light.as_ref()?)?;
+            signal_key_for_link(program, connection.link_index?)
+        })
         .collect();
 
     if keys.is_empty() {
@@ -248,7 +271,7 @@ fn vehicle_zones(
     junction: &Junction,
     lanes: &HashMap<&LaneId, LaneInfo>,
     connections_by_from_lane: &HashMap<&LaneId, Vec<&Connection>>,
-    program: &TrafficLightProgram,
+    programs: &HashMap<&TrafficLightId, &TrafficLightProgram>,
     max_zone_length: Option<Length>,
 ) -> Vec<E3Detector> {
     let mut groups: HashMap<Vec<SignalKey>, Vec<LaneId>> = HashMap::new();
@@ -258,7 +281,7 @@ fn vehicle_zones(
             continue; // sidewalk/walkingarea lane feeding into the junction, not a vehicle lane
         }
 
-        match group_key_for_lane(lane_id, connections_by_from_lane, program) {
+        match group_key_for_lane(lane_id, connections_by_from_lane, programs) {
             Some(key) => groups.entry(key).or_default().push(lane_id.clone()),
             None => eprintln!(
                 "warning: lane \"{lane_id}\" at traffic light \"{}\" has no signal-controlled connection — skipping it",
@@ -478,7 +501,7 @@ mod tests {
     }
 
     #[test]
-    fn skips_junction_and_warns_when_no_matching_tl_logic_program() {
+    fn skips_every_lane_when_the_network_has_no_traffic_light_programs_at_all() {
         let network = Network {
             edges: vec![edge("e0", vec![indexed_lane("e0_0", 0, 25.0)])],
             junctions: vec![junction(
@@ -492,6 +515,35 @@ mod tests {
         };
 
         assert!(generate(&network, None).is_empty());
+    }
+
+    /// Regression test for the bug this module's docs describe at length:
+    /// matching a lane's controlling program by the *junction's* id instead
+    /// of the *connection's* `tl` silently produced zero zones for every
+    /// SUMO `joinTLS`-merged junction — no error, just nothing generated,
+    /// on real networks (Barcelona among them) where that's the majority of
+    /// traffic lights, not an edge case.
+    #[test]
+    fn resolves_a_lanes_program_from_its_connections_tl_not_the_junctions_own_id() {
+        // No `tlLogic` here has id "j0" at all — only the connection says
+        // which program actually controls it, the way a joined program's
+        // id never matches any one of the junctions it covers.
+        let network = Network {
+            edges: vec![edge("e0", vec![indexed_lane("e0_0", 0, 25.0)])],
+            junctions: vec![junction("j0", JunctionKind::TrafficLight, vec!["e0_0"])],
+            connections: vec![vehicle_connection("e0", 0, "joinedS_j0_j1", 0)],
+            traffic_light_programs: vec![program("joinedS_j0_j1", vec!["G"])],
+            ..Default::default()
+        };
+
+        let zones = generate(&network, None);
+
+        assert_eq!(
+            zones.len(),
+            1,
+            "the connection names \"joinedS_j0_j1\" as its controlling program directly; \
+             the junction's own id (\"j0\") never has to match anything"
+        );
     }
 
     #[test]
