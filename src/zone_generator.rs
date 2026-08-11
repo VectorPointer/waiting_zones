@@ -46,6 +46,8 @@
 //! Pedestrian waiting zones (at signalized crossings) aren't generated —
 //! see the README's "Status" section for why.
 
+use anstream::eprintln;
+use anstyle::{AnsiColor, Style};
 use std::collections::HashMap;
 use sumo_types::additional::domain::{DetectorGate, DetectorId, E3Detector, LanePosition, LaneRef};
 use sumo_types::domain::{
@@ -54,6 +56,18 @@ use sumo_types::domain::{
 };
 use sumo_types::uom::si::f64::Length;
 use sumo_types::uom::si::length::meter;
+
+/// Styles the "warning:" prefix on this module's own messages the way
+/// `cargo`/`rustc` style theirs — bold yellow — so a skipped junction/lane
+/// reads as a warning at a glance rather than blending into the rest of the
+/// line. `{WARNING}` switches it on, `{WARNING:#}` (the alternate format)
+/// resets it — `anstyle::Style`'s own `Display` impl.
+///
+/// The `eprintln!` these are used with is [`anstream`]'s, shadowing
+/// `std`'s: it strips the escape codes when stderr isn't a terminal
+/// (redirected to a file, `NO_COLOR` set, piped into another program, ...),
+/// so non-interactive output isn't full of raw `\x1b[...m` sequences.
+const WARNING: Style = AnsiColor::Yellow.on_default().bold();
 
 /// Junction kinds that control right-of-way with a traffic light, i.e. the
 /// ones where vehicles queue up waiting for a green phase. Rail-specific
@@ -226,12 +240,6 @@ fn full_lane_boundaries(
         .unzip()
 }
 
-/// The combined [`SignalKey`]s (sorted, deduplicated) of every
-/// signal-controlled connection originating from `lane_id`. A lane can have
-/// more than one (e.g. a shared straight+right lane), in which case it
-/// forms its own group distinct from lanes with a single movement — it
-/// never changes state independently of either.
-///
 /// Why [`group_key_for_lane`] couldn't compute a group for a lane. Named
 /// (rather than a bare `None`) so the warning at the call site says which
 /// of three genuinely different things actually happened, instead of one
@@ -360,7 +368,7 @@ fn vehicle_zones(
         match group_key_for_lane(lane_id, connections_by_from_lane, programs) {
             Ok(key) => groups.entry(key).or_default().push(lane_id.clone()),
             Err(reason) => eprintln!(
-                "warning: lane \"{lane_id}\" at junction \"{}\" skipped: {reason}",
+                "{WARNING}warning:{WARNING:#} lane \"{lane_id}\" at junction \"{}\" skipped: {reason}",
                 junction.id
             ),
         }

@@ -5,6 +5,13 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.104"
+# Style the "warning:" prefix `zone_generator` prints for a skipped
+# junction/lane, the way `cargo`/`rustc` style theirs. Free rather than a new
+# dependency: `clap`'s own colored `--help` output already pulls both of
+# these in (via `clap_builder`'s default `color` feature), so this only
+# names crates already being compiled instead of leaving them transitive.
+anstream = "1"
+anstyle = "1"
 clap = { version = "4.6.4", features = ["derive"] }
 derive_more = { version = "2.1.1", features = ["display", "from", "as_ref"] }
 # A general-purpose SUMO reader/writer with no notion of waiting zones,
