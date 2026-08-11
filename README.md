@@ -29,32 +29,32 @@ cargo run -- path/to/network.net.xml --max-zone-length 20
 
 ## How it works
 
-SUMO ships XML Schema (XSD) definitions for its file formats under `xsd/`.
-At build time, `build.rs` feeds `xsd/net_file.xsd` to
-[`xsd-parser`](https://crates.io/crates/xsd-parser) to generate matching Rust
-types, patching a few SUMO-specific XSD quirks along the way (unresolved DTD
-entities, type names that collide with XSD primitives, and a custom naming
-strategy that keeps case-sensitive enumeration values like `state="M"` vs.
-`state="m"` from colliding into the same Rust identifier).
+Reading and modelling the SUMO network, and writing the `.add.xml` back out,
+are **not** part of this repository: both are
+[`sumo-types`](https://crates.io/crates/sumo-types), a separate crate
+published to crates.io, resolved from there in `Cargo.toml` rather than by
+path — a standalone clone of this repository builds on its own. It turns a
+`.net.xml` into well-typed Rust structs (`Network`, `Edge`, `Lane`,
+`Junction`, `Connection`, ...) and an E3 detector zone into `.add.xml`
+(`additional::domain::E3Detector`/`DetectorGate`), and knows nothing about
+waiting zones specifically — there's no "waiting zone" type of its own to
+find in this crate either: an `E3Detector` already models exactly what one
+is, so `zone_generator` builds `sumo_types` values directly instead of
+maintaining a parallel type.
 
-The project follows a 3-layer model:
+Everything left here is specific to waiting zones:
 
-1. **`schema`** (generated, see `build.rs`) — an almost literal mirror of the
-   SUMO XSDs. Not meant to be used directly outside of the conversion layer.
-2. **`domain`** (`src/domain.rs`) — the project's own types (`Network`,
-   `Edge`, `Lane`, `Junction`, `Connection`, ...), independent of SUMO/XSD.
-   This is what the rest of the project is meant to build on.
-3. **`schema_mapper`** (`src/schema_mapper.rs`) — converts layer 1 into
-   layer 2, interpreting SUMO's text-encoded positions, shapes, boundaries,
-   and enumerations along the way.
-
-`src/processor.rs` drives the actual `.net.xml` → `.waiting-zones.add.xml`
-conversion, and `src/config.rs` handles CLI argument parsing.
+- `src/zone_generator.rs` — derives `E3Detector`s from a
+  `sumo_types::Network`.
+- `src/zone_output.rs` — fills in each detector's output-file path and
+  writes them out as `.waiting-zones.add.xml`.
+- `src/processor.rs` — drives the `.net.xml` → `.waiting-zones.add.xml`
+  conversion, and `src/config.rs` handles CLI argument parsing.
 
 ## Status
 
-The schema generation, the schema-to-domain conversion layer, and the
-`.net.xml` read / `.waiting-zones.add.xml` write pipeline in
+The `.net.xml` reader (now in `sumo-types`) and the
+`.waiting-zones.add.xml` write pipeline in
 `src/processor.rs` are in place and tested. `src/zone_generator.rs`
 generates, per traffic-light junction, one vehicle waiting zone per
 incoming lane's **signal group** (lanes whose `tlLogic` state character is
@@ -95,4 +95,12 @@ waiting zones will be revisited once SUMO has reliable native support.
 cargo build
 cargo test
 cargo clippy
+```
+
+`sumo-types` is resolved from crates.io (see "How it works" above), not a
+workspace member, so its own tests aren't run by the commands above. Run
+those from its own directory if you're changing it too:
+
+```sh
+cd ../sumo-types && cargo test
 ```

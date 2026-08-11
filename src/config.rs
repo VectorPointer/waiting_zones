@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::path::PathBuf;
-use uom::si::f64::Length;
-use uom::si::length::meter;
+use sumo_types::uom::si::f64::Length;
+use sumo_types::uom::si::length::meter;
 
 const NET_XML_SUFFIX: &str = ".net.xml";
 

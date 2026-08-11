@@ -1,4 +1,15 @@
-//! Generates vehicle [`WaitingZone`]s at traffic-light-controlled junctions.
+//! Generates vehicle waiting zones — one
+//! [`E3Detector`](sumo_types::additional::domain::E3Detector) per zone — at
+//! traffic-light-controlled junctions.
+//!
+//! There's no project-specific "waiting zone" type: `sumo_types` already
+//! models exactly what one is (an area delimited by entry/exit gates), so
+//! this module builds its `E3Detector` values directly rather than
+//! maintaining a parallel type that would only ever get converted into one.
+//! `id`/`entries`/`exits`/`icon_position` are set here; `file` (SUMO
+//! requires the attribute, but the destination path is
+//! [`crate::zone_output`]'s concern, not this module's) is left empty and
+//! patched in before writing — see that module's own docs.
 //!
 //! Zones are grouped by **signal head**, not just by junction: two lanes
 //! only belong to the same zone if they always share the exact same
@@ -24,13 +35,14 @@
 //! Pedestrian waiting zones (at signalized crossings) aren't generated —
 //! see the README's "Status" section for why.
 
-use crate::domain::{
-    Connection, EdgeId, Junction, JunctionKind, LaneId, LaneIndex, Network, TrafficLightId,
-    TrafficLightProgram, WaitingZone, WaitingZoneId, ZoneBoundary,
-};
 use std::collections::HashMap;
-use uom::si::f64::Length;
-use uom::si::length::meter;
+use sumo_types::additional::domain::{DetectorGate, DetectorId, E3Detector, LanePosition, LaneRef};
+use sumo_types::domain::{
+    Connection, EdgeId, Junction, JunctionKind, LaneId, LaneIndex, LinkIndex, Network,
+    TrafficLightId, TrafficLightProgram,
+};
+use sumo_types::uom::si::f64::Length;
+use sumo_types::uom::si::length::meter;
 
 /// Junction kinds that control right-of-way with a traffic light, i.e. the
 /// ones where vehicles queue up waiting for a green phase. Rail-specific
@@ -68,18 +80,22 @@ type SignalKey = Vec<char>;
 /// `None` if `link_index` is out of range for any phase (malformed input):
 /// safer to fail the grouping for that link than to silently compare a
 /// truncated key.
-fn signal_key_for_link(program: &TrafficLightProgram, link_index: crate::domain::LinkIndex) -> Option<SignalKey> {
+fn signal_key_for_link(program: &TrafficLightProgram, link_index: LinkIndex) -> Option<SignalKey> {
     let index = usize::try_from(link_index.0).ok()?;
-    program.phases.iter().map(|state| state.chars().nth(index)).collect()
+    program
+        .phases
+        .iter()
+        .map(|phase| phase.state.chars().nth(index))
+        .collect()
 }
 
-/// Generates vehicle [`WaitingZone`]s for every traffic-light junction in
+/// Generates vehicle waiting zones for every traffic-light junction in
 /// `network` whose `tlLogic` program can be found. Junctions without one
 /// are skipped, with a warning printed to stderr (see the module docs).
 ///
 /// `max_zone_length` caps how far each zone's entry extends from the stop
 /// line; `None` means the full lane, as before.
-pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<WaitingZone> {
+pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<E3Detector> {
     let lanes: HashMap<&LaneId, LaneInfo> = network
         .edges
         .iter()
@@ -101,7 +117,11 @@ pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<Waiti
     let lane_ids_by_edge_and_index: HashMap<(&EdgeId, LaneIndex), &LaneId> = network
         .edges
         .iter()
-        .flat_map(|edge| edge.lanes.iter().map(move |lane| ((&edge.id, lane.index), &lane.id)))
+        .flat_map(|edge| {
+            edge.lanes
+                .iter()
+                .map(move |lane| ((&edge.id, lane.index), &lane.id))
+        })
         .collect();
 
     // Every connection originating from a given lane, indexed once up
@@ -111,8 +131,13 @@ pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<Waiti
     // on a real city-scale network (multiple minutes on ~10k junctions).
     let mut connections_by_from_lane: HashMap<&LaneId, Vec<&Connection>> = HashMap::new();
     for connection in &network.connections {
-        if let Some(&lane_id) = lane_ids_by_edge_and_index.get(&(&connection.from_edge, connection.from_lane)) {
-            connections_by_from_lane.entry(lane_id).or_default().push(connection);
+        if let Some(&lane_id) =
+            lane_ids_by_edge_and_index.get(&(&connection.from_edge, connection.from_lane))
+        {
+            connections_by_from_lane
+                .entry(lane_id)
+                .or_default()
+                .push(connection);
         }
     }
 
@@ -142,15 +167,19 @@ pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<Waiti
         .collect()
 }
 
-/// Builds entry/exit boundary pairs for each lane in `lane_ids` that's
-/// known to `lanes`. The exit always sits at the lane's end (the stop
-/// line); the entry sits at the lane's start, unless `max_zone_length`
-/// caps it closer to the exit (clamped so it never goes past it).
+/// Builds entry/exit detector gates for each lane in `lane_ids` that's known
+/// to `lanes`. The exit always sits at the lane's end (the stop line); the
+/// entry sits at the lane's start, unless `max_zone_length` caps it closer
+/// to the exit (clamped so it never goes past it).
+///
+/// Both are always [`LanePosition::FromStart`]: a waiting zone's boundaries
+/// are computed from the lane's own length, so there's never a reason to
+/// express one as `FromEnd` instead.
 fn full_lane_boundaries(
     lane_ids: &[LaneId],
     lanes: &HashMap<&LaneId, LaneInfo>,
     max_zone_length: Option<Length>,
-) -> (Vec<ZoneBoundary>, Vec<ZoneBoundary>) {
+) -> (Vec<DetectorGate>, Vec<DetectorGate>) {
     lane_ids
         .iter()
         .filter_map(|lane_id| {
@@ -159,13 +188,16 @@ fn full_lane_boundaries(
                 Some(max) if max < length => length - max,
                 _ => Length::new::<meter>(0.0),
             };
-            let entry = ZoneBoundary {
-                lane: lane_id.clone(),
-                position: entry_position,
+            let lane = LaneRef(lane_id.0.clone());
+            let entry = DetectorGate {
+                lane: lane.clone(),
+                position: LanePosition::FromStart(entry_position),
+                friendly_position: None,
             };
-            let exit = ZoneBoundary {
-                lane: lane_id.clone(),
-                position: length,
+            let exit = DetectorGate {
+                lane,
+                position: LanePosition::FromStart(length),
+                friendly_position: None,
             };
             Some((entry, exit))
         })
@@ -208,7 +240,7 @@ fn vehicle_zones(
     connections_by_from_lane: &HashMap<&LaneId, Vec<&Connection>>,
     program: &TrafficLightProgram,
     max_zone_length: Option<Length>,
-) -> Vec<WaitingZone> {
+) -> Vec<E3Detector> {
     let mut groups: HashMap<Vec<SignalKey>, Vec<LaneId>> = HashMap::new();
 
     for lane_id in &junction.incoming_lanes {
@@ -237,11 +269,19 @@ fn vehicle_zones(
                 return None;
             }
 
-            Some(WaitingZone {
-                id: WaitingZoneId(format!("{}_{index}", junction.id.0)),
+            Some(E3Detector {
+                id: DetectorId(format!("{}_{index}", junction.id.0)),
                 entries,
                 exits,
-                icon_position: junction.position,
+                // Not this module's concern — see the module docs.
+                // `zone_output::write` fills this in before serializing.
+                file: String::new(),
+                icon_position: Some(junction.position),
+                period: None,
+                name: None,
+                speed_threshold: None,
+                time_threshold: None,
+                open_entry: None,
             })
         })
         .collect()
@@ -250,12 +290,13 @@ fn vehicle_zones(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{
+    use sumo_types::domain::{
         ConnectionDirection, Edge, EdgeFunction, EdgeId, Junction, JunctionId, JunctionKind, Lane,
-        LaneId, LaneIndex, LinkIndex, LinkState, Point, TrafficLightId,
+        LaneId, LaneIndex, LinkIndex, LinkState, Phase, Point, TrafficLightId, TrafficLightKind,
     };
-    use uom::si::f64::Velocity;
-    use uom::si::velocity::meter_per_second;
+    use sumo_types::uom::si::f64::{Time, Velocity};
+    use sumo_types::uom::si::time::second;
+    use sumo_types::uom::si::velocity::meter_per_second;
 
     fn lane(id: &str, length_m: f64) -> Lane {
         Lane {
@@ -307,19 +348,38 @@ mod tests {
     fn junction(id: &str, kind: JunctionKind, incoming_lanes: Vec<&str>) -> Junction {
         Junction {
             id: JunctionId(id.into()),
-            position: Point { x: 0.0, y: 0.0, z: 0.0 },
+            position: Point {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
             kind,
-            incoming_lanes: incoming_lanes.into_iter().map(|l| LaneId(l.into())).collect(),
+            incoming_lanes: incoming_lanes
+                .into_iter()
+                .map(|l| LaneId(l.into()))
+                .collect(),
             internal_lanes: vec![],
             shape: None,
             name: None,
         }
     }
 
+    /// Only `state` matters to the grouping under test, so every phase gets
+    /// the same placeholder duration; `program_id` is the id SUMO gives a
+    /// junction's first program.
     fn program(id: &str, phases: Vec<&str>) -> TrafficLightProgram {
         TrafficLightProgram {
             id: TrafficLightId(id.into()),
-            phases: phases.into_iter().map(String::from).collect(),
+            program_id: "0".into(),
+            kind: Some(TrafficLightKind::Static),
+            offset: None,
+            phases: phases
+                .into_iter()
+                .map(|state| Phase {
+                    duration: Time::new::<second>(30.0),
+                    state: state.into(),
+                })
+                .collect(),
         }
     }
 
@@ -351,7 +411,11 @@ mod tests {
                 edge("e0", vec![indexed_lane("e0_0", 0, 25.0)]),
                 edge("e1", vec![indexed_lane("e1_0", 0, 40.0)]),
             ],
-            junctions: vec![junction("j0", JunctionKind::TrafficLight, vec!["e0_0", "e1_0"])],
+            junctions: vec![junction(
+                "j0",
+                JunctionKind::TrafficLight,
+                vec!["e0_0", "e1_0"],
+            )],
             connections: vec![
                 vehicle_connection("e0", 0, "j0", 0),
                 vehicle_connection("e1", 0, "j0", 1),
@@ -362,7 +426,11 @@ mod tests {
 
         let zones = generate(&network, None);
 
-        assert_eq!(zones.len(), 1, "link 0 and link 1 always share state -> one zone");
+        assert_eq!(
+            zones.len(),
+            1,
+            "link 0 and link 1 always share state -> one zone"
+        );
         assert_eq!(zones[0].entries.len(), 2);
     }
 
@@ -375,7 +443,11 @@ mod tests {
                 edge("e0", vec![indexed_lane("e0_0", 0, 25.0)]),
                 edge("e1", vec![indexed_lane("e1_0", 0, 40.0)]),
             ],
-            junctions: vec![junction("j0", JunctionKind::TrafficLight, vec!["e0_0", "e1_0"])],
+            junctions: vec![junction(
+                "j0",
+                JunctionKind::TrafficLight,
+                vec!["e0_0", "e1_0"],
+            )],
             connections: vec![
                 vehicle_connection("e0", 0, "j0", 0),
                 vehicle_connection("e1", 0, "j0", 1),
@@ -386,16 +458,24 @@ mod tests {
 
         let zones = generate(&network, None);
 
-        assert_eq!(zones.len(), 2, "link 0 and link 1 diverge in phase 2 -> two zones");
-        assert_eq!(zones[0].id, WaitingZoneId("j0_0".into()));
-        assert_eq!(zones[1].id, WaitingZoneId("j0_1".into()));
+        assert_eq!(
+            zones.len(),
+            2,
+            "link 0 and link 1 diverge in phase 2 -> two zones"
+        );
+        assert_eq!(zones[0].id, DetectorId("j0_0".into()));
+        assert_eq!(zones[1].id, DetectorId("j0_1".into()));
     }
 
     #[test]
     fn skips_junction_and_warns_when_no_matching_tl_logic_program() {
         let network = Network {
             edges: vec![edge("e0", vec![indexed_lane("e0_0", 0, 25.0)])],
-            junctions: vec![junction("j0", JunctionKind::TrafficLightUnregulated, vec!["e0_0"])],
+            junctions: vec![junction(
+                "j0",
+                JunctionKind::TrafficLightUnregulated,
+                vec!["e0_0"],
+            )],
             connections: vec![vehicle_connection("e0", 0, "j0", 0)],
             traffic_light_programs: vec![], // no program at all
             ..Default::default()
@@ -444,7 +524,7 @@ mod tests {
 
         assert_eq!(zones.len(), 1, "the walkingarea lane isn't a vehicle lane");
         assert_eq!(zones[0].entries.len(), 1);
-        assert_eq!(zones[0].entries[0].lane, LaneId("e0_0".into()));
+        assert_eq!(zones[0].entries[0].lane, LaneRef("e0_0".into()));
     }
 
     #[test]
@@ -460,8 +540,14 @@ mod tests {
         let zones = generate(&network, Some(Length::new::<meter>(20.0)));
 
         assert_eq!(zones.len(), 1);
-        assert_eq!(zones[0].entries[0].position, Length::new::<meter>(80.0));
-        assert_eq!(zones[0].exits[0].position, Length::new::<meter>(100.0));
+        assert_eq!(
+            zones[0].entries[0].position,
+            LanePosition::FromStart(Length::new::<meter>(80.0))
+        );
+        assert_eq!(
+            zones[0].exits[0].position,
+            LanePosition::FromStart(Length::new::<meter>(100.0))
+        );
     }
 
     #[test]
@@ -476,7 +562,10 @@ mod tests {
 
         let zones = generate(&network, Some(Length::new::<meter>(1000.0)));
 
-        assert_eq!(zones[0].entries[0].position, Length::new::<meter>(0.0));
+        assert_eq!(
+            zones[0].entries[0].position,
+            LanePosition::FromStart(Length::new::<meter>(0.0))
+        );
     }
 
     #[test]
@@ -488,7 +577,11 @@ mod tests {
             ],
             junctions: vec![Junction {
                 id: JunctionId("j0".into()),
-                position: Point { x: 42.0, y: 7.0, z: 0.0 },
+                position: Point {
+                    x: 42.0,
+                    y: 7.0,
+                    z: 0.0,
+                },
                 kind: JunctionKind::TrafficLight,
                 incoming_lanes: vec![LaneId("e0_0".into()), LaneId("e1_0".into())],
                 internal_lanes: vec![],
@@ -510,7 +603,11 @@ mod tests {
         for zone in &zones {
             assert_eq!(
                 zone.icon_position,
-                Point { x: 42.0, y: 7.0, z: 0.0 },
+                Some(Point {
+                    x: 42.0,
+                    y: 7.0,
+                    z: 0.0
+                }),
                 "zone {:?} should be anchored at the junction's own position",
                 zone.id
             );

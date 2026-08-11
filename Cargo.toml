@@ -7,11 +7,29 @@ edition = "2024"
 anyhow = "1.0.104"
 clap = { version = "4.6.4", features = ["derive"] }
 derive_more = { version = "2.1.1", features = ["display", "from", "as_ref"] }
-uom = "0.38.0"
-xsd-parser-types = { version = "0.2.1", features = ["quick-xml"] }
-yaserde = { version = "0.12.0", features = ["derive"] }
-
-[build-dependencies]
-xsd-parser = "1.5.2"
-anyhow = "1.0.104"
-Inflector = "0.11.4"
+# A general-purpose SUMO reader/writer with no notion of waiting zones,
+# published separately so other Verdi components can depend on it too.
+#
+# Resolved from crates.io rather than `../sumo-types`: a path dependency made
+# every local edit to that crate silently land here, which is convenient while
+# co-developing and misleading afterwards — this builds against exactly what a
+# third party would get.
+#
+# `additional` + `write` on top of the default `net`: `zone_output` builds
+# `additional::Additional` values and writes them out, instead of the
+# hand-rolled `e3Detector` mirror it used to carry. `routes` isn't used.
+#
+# There is deliberately no direct `uom` entry. `uom` leaks into sumo-types'
+# public API (`Length`, `Velocity` on `domain::Lane`), and two different
+# majors of it resolve to two distinct crates whose `Length`s are unrelated
+# types — a confusing error right at the crate boundary. Every `uom` path
+# here goes through `sumo_types::uom` instead, so there is no second version
+# number to keep in sync: the constraint is structural rather than a comment
+# asking the next person to remember. Add `uom` back only if this crate ever
+# needs it for something unrelated to sumo-types.
+#
+# (`derive_more` below is *not* in that category, despite appearances: its
+# `Display`/`From`/`AsRef` derives generate impls of the std traits, so
+# nothing from it crosses the boundary. That copy is purely for this crate's
+# own types and its version is free.)
+sumo-types = { version = "0.2.0", features = ["additional", "write"] }
