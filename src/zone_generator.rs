@@ -232,6 +232,60 @@ fn full_lane_boundaries(
 /// forms its own group distinct from lanes with a single movement — it
 /// never changes state independently of either.
 ///
+/// Why [`group_key_for_lane`] couldn't compute a group for a lane. Named
+/// (rather than a bare `None`) so the warning at the call site says which
+/// of three genuinely different things actually happened, instead of one
+/// generic "no signal-controlled connection" for all of them — the
+/// difference matters: only [`Self::LinkIndexOutOfRange`] points at a
+/// malformed `.net.xml`, the other two are ordinary network shapes.
+#[derive(Debug, PartialEq)]
+enum UngroupedReason {
+    /// The lane has no outgoing connection in the network at all. Real
+    /// networks have these — a lane SUMO's own import kept geometrically
+    /// but never gave a legal movement — there's nothing to group either
+    /// way.
+    NoOutgoingConnection,
+    /// The lane has outgoing connections, but none of them are
+    /// signal-controlled: no `tl` attribute at all (e.g. a connection into
+    /// a walkingarea), or the `tl` they do name isn't any program this
+    /// file defines — which, before `connection.traffic_light` replaced
+    /// matching by the junction's own id, was silently the common case for
+    /// every `joinTLS`-merged junction (see the module docs).
+    NoResolvableProgram,
+    /// A connection named a real program, but its `linkIndex` doesn't
+    /// index into any of that program's phases — the program's `state`
+    /// strings are shorter than the network's connections claim. Unlike
+    /// the other two, this *is* a malformed-input signal.
+    LinkIndexOutOfRange {
+        program: TrafficLightId,
+        index: LinkIndex,
+    },
+}
+
+impl std::fmt::Display for UngroupedReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NoOutgoingConnection => {
+                write!(f, "no outgoing connection in the network at all")
+            }
+            Self::NoResolvableProgram => write!(
+                f,
+                "none of its connections are signal-controlled (no `tl` naming a program this file defines)"
+            ),
+            Self::LinkIndexOutOfRange { program, index } => write!(
+                f,
+                "connection's linkIndex {index} is out of range for tlLogic \"{program}\"'s phases"
+            ),
+        }
+    }
+}
+
+/// The combined [`SignalKey`]s (sorted, deduplicated) of every
+/// signal-controlled connection originating from `lane_id`. A lane can have
+/// more than one (e.g. a shared straight+right lane), in which case it
+/// forms its own group distinct from lanes with a single movement — it
+/// never changes state independently of either.
+///
 /// Each connection's controlling program is looked up by its own
 /// `traffic_light` id in `programs` — not assumed to be a single program
 /// shared by the whole lane — so a lane whose connections are split across
@@ -239,30 +293,52 @@ fn full_lane_boundaries(
 /// still gets a correct, if unusual, key instead of a wrong one silently
 /// computed against the wrong program.
 ///
-/// `None` if `lane_id` has no connection that resolves a controlling
-/// program at all — the caller should skip the lane (and warn) rather than
-/// lump it in.
+/// `Err` if `lane_id` has no connection that resolves a controlling program
+/// at all — the caller should skip the lane (and warn, naming the
+/// [`UngroupedReason`]) rather than lump it in. When more than one
+/// connection fails, [`UngroupedReason::LinkIndexOutOfRange`] wins over
+/// [`UngroupedReason::NoResolvableProgram`] in the reported reason: it's
+/// the more specific, more actionable diagnosis of the two.
 fn group_key_for_lane(
     lane_id: &LaneId,
     connections_by_from_lane: &HashMap<&LaneId, Vec<&Connection>>,
     programs: &HashMap<&TrafficLightId, &TrafficLightProgram>,
-) -> Option<Vec<SignalKey>> {
-    let mut keys: Vec<SignalKey> = connections_by_from_lane
-        .get(lane_id)?
-        .iter()
-        .filter_map(|connection| {
-            let program = programs.get(connection.traffic_light.as_ref()?)?;
-            signal_key_for_link(program, connection.link_index?)
-        })
-        .collect();
+) -> Result<Vec<SignalKey>, UngroupedReason> {
+    let connections = connections_by_from_lane
+        .get(lane_id)
+        .ok_or(UngroupedReason::NoOutgoingConnection)?;
 
-    if keys.is_empty() {
-        return None;
+    let mut keys = Vec::new();
+    let mut out_of_range = None;
+
+    for connection in connections {
+        let (Some(tl_id), Some(link_index)) =
+            (connection.traffic_light.as_ref(), connection.link_index)
+        else {
+            continue;
+        };
+        let Some(program) = programs.get(tl_id) else {
+            continue;
+        };
+
+        match signal_key_for_link(program, link_index) {
+            Some(key) => keys.push(key),
+            None => {
+                out_of_range.get_or_insert_with(|| (tl_id.clone(), link_index));
+            }
+        }
     }
 
-    keys.sort();
-    keys.dedup();
-    Some(keys)
+    if !keys.is_empty() {
+        keys.sort();
+        keys.dedup();
+        return Ok(keys);
+    }
+
+    Err(match out_of_range {
+        Some((program, index)) => UngroupedReason::LinkIndexOutOfRange { program, index },
+        None => UngroupedReason::NoResolvableProgram,
+    })
 }
 
 /// The vehicle waiting zones queued on `junction`'s incoming lanes, one per
@@ -282,9 +358,9 @@ fn vehicle_zones(
         }
 
         match group_key_for_lane(lane_id, connections_by_from_lane, programs) {
-            Some(key) => groups.entry(key).or_default().push(lane_id.clone()),
-            None => eprintln!(
-                "warning: lane \"{lane_id}\" at traffic light \"{}\" has no signal-controlled connection — skipping it",
+            Ok(key) => groups.entry(key).or_default().push(lane_id.clone()),
+            Err(reason) => eprintln!(
+                "warning: lane \"{lane_id}\" at junction \"{}\" skipped: {reason}",
                 junction.id
             ),
         }
@@ -674,5 +750,65 @@ mod tests {
                 zone.id
             );
         }
+    }
+
+    // The three tests below exercise `group_key_for_lane` directly rather
+    // than through `generate()`: the only way `generate()`'s own tests can
+    // observe *why* a lane was skipped is by reading the warning printed to
+    // stderr, and asserting on that would make the test suite fragile
+    // against wording changes for no real gain. Calling the private
+    // function itself and matching on the returned `UngroupedReason` checks
+    // the thing that actually matters — which diagnosis a given network
+    // shape produces — without caring how it's phrased.
+
+    #[test]
+    fn group_key_for_lane_reports_no_outgoing_connection_at_all() {
+        let lane_id = LaneId("e0_0".into());
+        let connections_by_from_lane = HashMap::new();
+        let programs = HashMap::new();
+
+        assert_eq!(
+            group_key_for_lane(&lane_id, &connections_by_from_lane, &programs),
+            Err(UngroupedReason::NoOutgoingConnection)
+        );
+    }
+
+    #[test]
+    fn group_key_for_lane_reports_no_resolvable_program() {
+        let lane_id = LaneId("e0_0".into());
+        // Names "j0" as its controlling program, but `programs` below is
+        // empty — mirrors a `.net.xml` where the connection's `tl` doesn't
+        // match any `tlLogic` this crate could find (including, before the
+        // fix documented at the top of this module, every `joinTLS`-merged
+        // junction).
+        let connection = vehicle_connection("e0", 0, "j0", 0);
+        let connections_by_from_lane = HashMap::from([(&lane_id, vec![&connection])]);
+        let programs = HashMap::new();
+
+        assert_eq!(
+            group_key_for_lane(&lane_id, &connections_by_from_lane, &programs),
+            Err(UngroupedReason::NoResolvableProgram)
+        );
+    }
+
+    #[test]
+    fn group_key_for_lane_reports_link_index_out_of_range() {
+        let lane_id = LaneId("e0_0".into());
+        // linkIndex 5, but the program's own phases are 1 character long —
+        // a malformed `.net.xml`, the one case of the three that actually
+        // is one.
+        let connection = vehicle_connection("e0", 0, "j0", 5);
+        let connections_by_from_lane = HashMap::from([(&lane_id, vec![&connection])]);
+        let prog = program("j0", vec!["G"]);
+        let tl_id = TrafficLightId("j0".into());
+        let programs = HashMap::from([(&tl_id, &prog)]);
+
+        assert_eq!(
+            group_key_for_lane(&lane_id, &connections_by_from_lane, &programs),
+            Err(UngroupedReason::LinkIndexOutOfRange {
+                program: TrafficLightId("j0".into()),
+                index: LinkIndex(5),
+            })
+        );
     }
 }
