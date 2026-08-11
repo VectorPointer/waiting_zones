@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: fmt, clippy, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      # Best-effort, not required: this crate has no other dependency on a
+      # real SUMO install, only `tests/sumo_validates_output.rs`'s check that
+      # the generated `.add.xml` loads cleanly through SUMO's own engine
+      # (the same validation `netedit` does, but `netedit` is a GUI app with
+      # no headless way to script it). That test checks for `sumo` on `PATH`
+      # itself and skips with a visible message if it isn't there, so a
+      # failed install here degrades this job to "unit tests only" instead
+      # of taking CI down — see that test's own doc comment for why a hard
+      # requirement would be the wrong default.
+      - name: Install SUMO
+        continue-on-error: true
+        run: sudo apt-get update && sudo apt-get install -y sumo
+
+      # `--nocapture`: the integration test's skip message is only worth
+      # having if it's actually visible in the log — without it, cargo test
+      # swallows a passing test's output, and there'd be no way to tell from
+      # this job's log whether the install above worked or the check was
+      # silently skipped.
+      - name: Test
+        run: cargo test --all-targets -- --nocapture
