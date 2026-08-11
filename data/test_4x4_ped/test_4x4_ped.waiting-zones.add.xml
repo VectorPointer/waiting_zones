@@ -1,399 +1,399 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <additional>
     <e3Detector id="A1_0" file="detector_output/A1_0.xml" pos="0,100">
-        <detEntry lane="A0A1_0" pos="0">
+        <detEntry lane="A0A1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="A0A1_0" pos="89.5999984741211">
+        <detExit lane="A0A1_0" pos="89.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="A1_1" file="detector_output/A1_1.xml" pos="0,100">
-        <detEntry lane="A2A1_0" pos="0">
+        <detEntry lane="A2A1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="A2A1_0" pos="85.5999984741211">
+        <detExit lane="A2A1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="A1_2" file="detector_output/A1_2.xml" pos="0,100">
-        <detEntry lane="B1A1_0" pos="0">
+        <detEntry lane="B1A1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="B1A1_0" pos="85.5999984741211">
+        <detExit lane="B1A1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="A2_0" file="detector_output/A2_0.xml" pos="0,200">
-        <detEntry lane="A1A2_0" pos="0">
+        <detEntry lane="A1A2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="A1A2_0" pos="85.5999984741211">
+        <detExit lane="A1A2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="A2_1" file="detector_output/A2_1.xml" pos="0,200">
-        <detEntry lane="A3A2_0" pos="0">
+        <detEntry lane="A3A2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="A3A2_0" pos="85.5999984741211">
+        <detExit lane="A3A2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="A2_2" file="detector_output/A2_2.xml" pos="0,200">
-        <detEntry lane="B2A2_0" pos="0">
+        <detEntry lane="B2A2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="B2A2_0" pos="85.5999984741211">
+        <detExit lane="B2A2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="A3_0" file="detector_output/A3_0.xml" pos="0,300">
-        <detEntry lane="A2A3_0" pos="0">
+        <detEntry lane="A2A3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="A2A3_0" pos="85.5999984741211">
+        <detExit lane="A2A3_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="A3_1" file="detector_output/A3_1.xml" pos="0,300">
-        <detEntry lane="A4A3_0" pos="0">
+        <detEntry lane="A4A3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="A4A3_0" pos="89.5999984741211">
+        <detExit lane="A4A3_0" pos="89.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="A3_2" file="detector_output/A3_2.xml" pos="0,300">
-        <detEntry lane="B3A3_1" pos="0">
+        <detEntry lane="B3A3_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="B3A3_1" pos="87.5999984741211">
+        <detExit lane="B3A3_1" pos="87.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="B0_0" file="detector_output/B0_0.xml" pos="100,0">
-        <detEntry lane="C0B0_0" pos="0">
+        <detEntry lane="C0B0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="C0B0_0" pos="85.5999984741211">
+        <detExit lane="C0B0_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="B0_1" file="detector_output/B0_1.xml" pos="100,0">
-        <detEntry lane="A0B0_0" pos="0">
+        <detEntry lane="A0B0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="A0B0_0" pos="89.5999984741211">
+        <detExit lane="A0B0_0" pos="89.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="B0_2" file="detector_output/B0_2.xml" pos="100,0">
-        <detEntry lane="B1B0_0" pos="0">
+        <detEntry lane="B1B0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="B1B0_0" pos="85.5999984741211">
+        <detExit lane="B1B0_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="B1_0" file="detector_output/B1_0.xml" pos="100,100">
-        <detEntry lane="B2B1_0" pos="0">
+        <detEntry lane="B2B1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="B0B1_0" pos="0">
+        <detEntry lane="B0B1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="B2B1_0" pos="87.5999984741211">
+        <detExit lane="B2B1_0" pos="87.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="B0B1_0" pos="85.5999984741211">
+        <detExit lane="B0B1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="B1_1" file="detector_output/B1_1.xml" pos="100,100">
-        <detEntry lane="C1B1_0" pos="0">
+        <detEntry lane="C1B1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="A1B1_0" pos="0">
+        <detEntry lane="A1B1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="C1B1_0" pos="85.5999984741211">
+        <detExit lane="C1B1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="A1B1_0" pos="85.5999984741211">
+        <detExit lane="A1B1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="B2_0" file="detector_output/B2_0.xml" pos="100,200">
-        <detEntry lane="B3B2_1" pos="0">
+        <detEntry lane="B3B2_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="B1B2_0" pos="0">
+        <detEntry lane="B1B2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="B3B2_1" pos="87.5999984741211">
+        <detExit lane="B3B2_1" pos="87.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="B1B2_0" pos="87.5999984741211">
+        <detExit lane="B1B2_0" pos="87.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="B2_1" file="detector_output/B2_1.xml" pos="100,200">
-        <detEntry lane="C2B2_0" pos="0">
+        <detEntry lane="C2B2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="A2B2_0" pos="0">
+        <detEntry lane="A2B2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="C2B2_0" pos="85.5999984741211">
+        <detExit lane="C2B2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="A2B2_0" pos="85.5999984741211">
+        <detExit lane="A2B2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="B3_0" file="detector_output/B3_0.xml" pos="100,300">
-        <detEntry lane="B4B3_1" pos="0">
+        <detEntry lane="B4B3_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="B2B3_1" pos="0">
+        <detEntry lane="B2B3_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="B4B3_1" pos="87.5999984741211">
+        <detExit lane="B4B3_1" pos="87.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="B2B3_1" pos="87.5999984741211">
+        <detExit lane="B2B3_1" pos="87.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="B3_1" file="detector_output/B3_1.xml" pos="100,300">
-        <detEntry lane="C3B3_1" pos="0">
+        <detEntry lane="C3B3_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="A3B3_1" pos="0">
+        <detEntry lane="A3B3_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="C3B3_1" pos="87.5999984741211">
+        <detExit lane="C3B3_1" pos="87.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="A3B3_1" pos="87.5999984741211">
+        <detExit lane="A3B3_1" pos="87.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="B4_0" file="detector_output/B4_0.xml" pos="100,400">
-        <detEntry lane="A4B4_0" pos="0">
+        <detEntry lane="A4B4_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="A4B4_0" pos="89.5999984741211">
+        <detExit lane="A4B4_0" pos="89.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="B4_1" file="detector_output/B4_1.xml" pos="100,400">
-        <detEntry lane="C4B4_0" pos="0">
+        <detEntry lane="C4B4_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="C4B4_0" pos="85.5999984741211">
+        <detExit lane="C4B4_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="B4_2" file="detector_output/B4_2.xml" pos="100,400">
-        <detEntry lane="B3B4_1" pos="0">
+        <detEntry lane="B3B4_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="B3B4_1" pos="87.5999984741211">
+        <detExit lane="B3B4_1" pos="87.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="C0_0" file="detector_output/C0_0.xml" pos="200,0">
-        <detEntry lane="D0C0_0" pos="0">
+        <detEntry lane="D0C0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="D0C0_0" pos="85.5999984741211">
+        <detExit lane="D0C0_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="C0_1" file="detector_output/C0_1.xml" pos="200,0">
-        <detEntry lane="B0C0_0" pos="0">
+        <detEntry lane="B0C0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="B0C0_0" pos="85.5999984741211">
+        <detExit lane="B0C0_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="C0_2" file="detector_output/C0_2.xml" pos="200,0">
-        <detEntry lane="C1C0_0" pos="0">
+        <detEntry lane="C1C0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="C1C0_0" pos="85.5999984741211">
+        <detExit lane="C1C0_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="C1_0" file="detector_output/C1_0.xml" pos="200,100">
-        <detEntry lane="C2C1_0" pos="0">
+        <detEntry lane="C2C1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="C0C1_0" pos="0">
+        <detEntry lane="C0C1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="C2C1_0" pos="85.5999984741211">
+        <detExit lane="C2C1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="C0C1_0" pos="85.5999984741211">
+        <detExit lane="C0C1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="C1_1" file="detector_output/C1_1.xml" pos="200,100">
-        <detEntry lane="D1C1_0" pos="0">
+        <detEntry lane="D1C1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="B1C1_0" pos="0">
+        <detEntry lane="B1C1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="D1C1_0" pos="85.5999984741211">
+        <detExit lane="D1C1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="B1C1_0" pos="85.5999984741211">
+        <detExit lane="B1C1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="C2_0" file="detector_output/C2_0.xml" pos="200,200">
-        <detEntry lane="C3C2_0" pos="0">
+        <detEntry lane="C3C2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="C1C2_0" pos="0">
+        <detEntry lane="C1C2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="C3C2_0" pos="85.5999984741211">
+        <detExit lane="C3C2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="C1C2_0" pos="85.5999984741211">
+        <detExit lane="C1C2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="C2_1" file="detector_output/C2_1.xml" pos="200,200">
-        <detEntry lane="D2C2_0" pos="0">
+        <detEntry lane="D2C2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="B2C2_0" pos="0">
+        <detEntry lane="B2C2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="D2C2_0" pos="85.5999984741211">
+        <detExit lane="D2C2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="B2C2_0" pos="85.5999984741211">
+        <detExit lane="B2C2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="C3_0" file="detector_output/C3_0.xml" pos="200,300">
-        <detEntry lane="C4C3_0" pos="0">
+        <detEntry lane="C4C3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="C2C3_0" pos="0">
+        <detEntry lane="C2C3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="C4C3_0" pos="85.5999984741211">
+        <detExit lane="C4C3_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="C2C3_0" pos="85.5999984741211">
+        <detExit lane="C2C3_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="C3_1" file="detector_output/C3_1.xml" pos="200,300">
-        <detEntry lane="D3C3_0" pos="0">
+        <detEntry lane="D3C3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="B3C3_1" pos="0">
+        <detEntry lane="B3C3_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="D3C3_0" pos="87.5999984741211">
+        <detExit lane="D3C3_0" pos="87.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="B3C3_1" pos="87.5999984741211">
+        <detExit lane="B3C3_1" pos="87.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="C4_0" file="detector_output/C4_0.xml" pos="200,400">
-        <detEntry lane="B4C4_0" pos="0">
+        <detEntry lane="B4C4_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="B4C4_0" pos="85.5999984741211">
+        <detExit lane="B4C4_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="C4_1" file="detector_output/C4_1.xml" pos="200,400">
-        <detEntry lane="D4C4_0" pos="0">
+        <detEntry lane="D4C4_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="D4C4_0" pos="85.5999984741211">
+        <detExit lane="D4C4_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="C4_2" file="detector_output/C4_2.xml" pos="200,400">
-        <detEntry lane="C3C4_0" pos="0">
+        <detEntry lane="C3C4_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="C3C4_0" pos="85.5999984741211">
+        <detExit lane="C3C4_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="D0_0" file="detector_output/D0_0.xml" pos="300,0">
-        <detEntry lane="E0D0_0" pos="0">
+        <detEntry lane="E0D0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="E0D0_0" pos="89.5999984741211">
+        <detExit lane="E0D0_0" pos="89.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="D0_1" file="detector_output/D0_1.xml" pos="300,0">
-        <detEntry lane="C0D0_0" pos="0">
+        <detEntry lane="C0D0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="C0D0_0" pos="85.5999984741211">
+        <detExit lane="C0D0_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="D0_2" file="detector_output/D0_2.xml" pos="300,0">
-        <detEntry lane="D1D0_0" pos="0">
+        <detEntry lane="D1D0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="D1D0_0" pos="85.5999984741211">
+        <detExit lane="D1D0_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="D1_0" file="detector_output/D1_0.xml" pos="300,100">
-        <detEntry lane="D2D1_0" pos="0">
+        <detEntry lane="D2D1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="D0D1_0" pos="0">
+        <detEntry lane="D0D1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="D2D1_0" pos="85.5999984741211">
+        <detExit lane="D2D1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="D0D1_0" pos="85.5999984741211">
+        <detExit lane="D0D1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="D1_1" file="detector_output/D1_1.xml" pos="300,100">
-        <detEntry lane="E1D1_0" pos="0">
+        <detEntry lane="E1D1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="C1D1_0" pos="0">
+        <detEntry lane="C1D1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="E1D1_0" pos="85.5999984741211">
+        <detExit lane="E1D1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="C1D1_0" pos="85.5999984741211">
+        <detExit lane="C1D1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="D2_0" file="detector_output/D2_0.xml" pos="300,200">
-        <detEntry lane="D3D2_0" pos="0">
+        <detEntry lane="D3D2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="D1D2_0" pos="0">
+        <detEntry lane="D1D2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="D3D2_0" pos="85.5999984741211">
+        <detExit lane="D3D2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="D1D2_0" pos="85.5999984741211">
+        <detExit lane="D1D2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="D2_1" file="detector_output/D2_1.xml" pos="300,200">
-        <detEntry lane="E2D2_0" pos="0">
+        <detEntry lane="E2D2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="C2D2_0" pos="0">
+        <detEntry lane="C2D2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="E2D2_0" pos="85.5999984741211">
+        <detExit lane="E2D2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="C2D2_0" pos="85.5999984741211">
+        <detExit lane="C2D2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="D3_0" file="detector_output/D3_0.xml" pos="300,300">
-        <detEntry lane="D4D3_0" pos="0">
+        <detEntry lane="D4D3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="D2D3_0" pos="0">
+        <detEntry lane="D2D3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="D4D3_0" pos="85.5999984741211">
+        <detExit lane="D4D3_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="D2D3_0" pos="85.5999984741211">
+        <detExit lane="D2D3_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="D3_1" file="detector_output/D3_1.xml" pos="300,300">
-        <detEntry lane="E3D3_0" pos="0">
+        <detEntry lane="E3D3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="C3D3_0" pos="0">
+        <detEntry lane="C3D3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="E3D3_0" pos="85.5999984741211">
+        <detExit lane="E3D3_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="C3D3_0" pos="87.5999984741211">
+        <detExit lane="C3D3_0" pos="87.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="D4_0" file="detector_output/D4_0.xml" pos="300,400">
-        <detEntry lane="C4D4_0" pos="0">
+        <detEntry lane="C4D4_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="C4D4_0" pos="85.5999984741211">
+        <detExit lane="C4D4_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="D4_1" file="detector_output/D4_1.xml" pos="300,400">
-        <detEntry lane="E4D4_0" pos="0">
+        <detEntry lane="E4D4_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="E4D4_0" pos="89.5999984741211">
+        <detExit lane="E4D4_0" pos="89.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="D4_2" file="detector_output/D4_2.xml" pos="300,400">
-        <detEntry lane="D3D4_0" pos="0">
+        <detEntry lane="D3D4_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="D3D4_0" pos="85.5999984741211">
+        <detExit lane="D3D4_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="E1_0" file="detector_output/E1_0.xml" pos="400,100">
-        <detEntry lane="E2E1_0" pos="0">
+        <detEntry lane="E2E1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="E2E1_0" pos="85.5999984741211">
+        <detExit lane="E2E1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="E1_1" file="detector_output/E1_1.xml" pos="400,100">
-        <detEntry lane="E0E1_0" pos="0">
+        <detEntry lane="E0E1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="E0E1_0" pos="89.5999984741211">
+        <detExit lane="E0E1_0" pos="89.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="E1_2" file="detector_output/E1_2.xml" pos="400,100">
-        <detEntry lane="D1E1_0" pos="0">
+        <detEntry lane="D1E1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="D1E1_0" pos="85.5999984741211">
+        <detExit lane="D1E1_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="E2_0" file="detector_output/E2_0.xml" pos="400,200">
-        <detEntry lane="E3E2_0" pos="0">
+        <detEntry lane="E3E2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="E3E2_0" pos="85.5999984741211">
+        <detExit lane="E3E2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="E2_1" file="detector_output/E2_1.xml" pos="400,200">
-        <detEntry lane="E1E2_0" pos="0">
+        <detEntry lane="E1E2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="E1E2_0" pos="85.5999984741211">
+        <detExit lane="E1E2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="E2_2" file="detector_output/E2_2.xml" pos="400,200">
-        <detEntry lane="D2E2_0" pos="0">
+        <detEntry lane="D2E2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="D2E2_0" pos="85.5999984741211">
+        <detExit lane="D2E2_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="E3_0" file="detector_output/E3_0.xml" pos="400,300">
-        <detEntry lane="E4E3_0" pos="0">
+        <detEntry lane="E4E3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="E4E3_0" pos="89.5999984741211">
+        <detExit lane="E4E3_0" pos="89.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="E3_1" file="detector_output/E3_1.xml" pos="400,300">
-        <detEntry lane="E2E3_0" pos="0">
+        <detEntry lane="E2E3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="E2E3_0" pos="85.5999984741211">
+        <detExit lane="E2E3_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="E3_2" file="detector_output/E3_2.xml" pos="400,300">
-        <detEntry lane="D3E3_0" pos="0">
+        <detEntry lane="D3E3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detExit lane="D3E3_0" pos="85.5999984741211">
+        <detExit lane="D3E3_0" pos="85.5999984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
 </additional>

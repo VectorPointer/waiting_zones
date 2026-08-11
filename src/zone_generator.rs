@@ -175,6 +175,16 @@ pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<E3Det
 /// Both are always [`LanePosition::FromStart`]: a waiting zone's boundaries
 /// are computed from the lane's own length, so there's never a reason to
 /// express one as `FromEnd` instead.
+///
+/// Both also set `friendlyPos`: the exit sits at exactly `length`, the
+/// `.net.xml`'s own reported lane length, but netedit computes a lane's
+/// *geometric* length from its shape, which can differ from that attribute
+/// by the last handful of floating-point digits. Without `friendlyPos`,
+/// netedit rejects a `pos` fractionally beyond what it computes as "Invalid
+/// position over lane" — real Barcelona data hits this. `friendlyPos`
+/// clamps a mismatch like that into range instead of erroring, which is
+/// exactly what it exists for (see `DetectorGate::friendly_position`'s own
+/// docs) and costs nothing when the two lengths already agree.
 fn full_lane_boundaries(
     lane_ids: &[LaneId],
     lanes: &HashMap<&LaneId, LaneInfo>,
@@ -192,12 +202,12 @@ fn full_lane_boundaries(
             let entry = DetectorGate {
                 lane: lane.clone(),
                 position: LanePosition::FromStart(entry_position),
-                friendly_position: None,
+                friendly_position: Some(true),
             };
             let exit = DetectorGate {
                 lane,
                 position: LanePosition::FromStart(length),
-                friendly_position: None,
+                friendly_position: Some(true),
             };
             Some((entry, exit))
         })
