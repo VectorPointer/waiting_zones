@@ -18,12 +18,20 @@ struct Cli {
     /// exit anchored at the stop line / crossing.
     #[arg(long, value_name = "METERS")]
     max_zone_length: Option<f64>,
+
+    /// Also write the waiting zones as a GeoJSON `FeatureCollection` at this
+    /// path, reprojected to WGS84 lon/lat (see `geojson_output`'s own
+    /// docs). Requires the input network to be georeferenced
+    /// (`location/@projParameter` other than `"!"`).
+    #[arg(long, value_name = "PATH")]
+    geojson: Option<PathBuf>,
 }
 
 pub struct Config {
     pub input: PathBuf,
     pub output: PathBuf,
     pub max_zone_length: Option<Length>,
+    pub geojson_output: Option<PathBuf>,
 }
 
 impl Config {
@@ -51,6 +59,7 @@ impl Config {
             input: raw.input,
             output,
             max_zone_length: raw.max_zone_length.map(Length::new::<meter>),
+            geojson_output: raw.geojson,
         }
     }
 }

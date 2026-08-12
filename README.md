@@ -27,6 +27,20 @@ crossing:
 cargo run -- path/to/network.net.xml --max-zone-length 20
 ```
 
+Use `--geojson` to also write the zones as a GeoJSON `FeatureCollection`,
+reprojected to WGS84 lon/lat for a client that geofences from its own GPS:
+
+```sh
+cargo run -- path/to/network.net.xml --geojson path/to/zones.geojson
+```
+
+This requires the input network to be georeferenced (`.net.xml`'s
+`location/@projParameter` other than `"!"`, which every real `netconvert`
+import produces) — there's no lon/lat to give for a synthetic, unprojected
+network, so this fails outright rather than emit coordinates that look like
+lon/lat but aren't. See `src/geojson_output.rs`'s own docs for how the
+reprojection and the per-lane geometry work.
+
 ## How it works
 
 Reading and modelling the SUMO network, and writing the `.add.xml` back out,
@@ -48,8 +62,12 @@ Everything left here is specific to waiting zones:
   `sumo_types::Network`.
 - `src/zone_output.rs` — fills in each detector's output-file path and
   writes them out as `.waiting-zones.add.xml`.
+- `src/geojson_output.rs` — reprojects the same zones to WGS84 lon/lat and
+  writes them out as a GeoJSON `FeatureCollection`, for the client-facing
+  path rather than SUMO's own.
 - `src/processor.rs` — drives the `.net.xml` → `.waiting-zones.add.xml`
-  conversion, and `src/config.rs` handles CLI argument parsing.
+  (and, optionally, → GeoJSON) conversion, and `src/config.rs` handles CLI
+  argument parsing.
 
 ## Status
 

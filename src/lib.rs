@@ -12,6 +12,8 @@
 //! [`sumo_types::Network`], and [`zone_output`], which writes them out.
 
 pub mod config;
+/// Writes waiting zones out as a client-facing GeoJSON `FeatureCollection`.
+pub mod geojson_output;
 pub mod processor;
 /// Generates waiting zones (as `sumo_types` `E3Detector`s) from a
 /// [`sumo_types::Network`].

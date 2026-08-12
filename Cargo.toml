@@ -12,7 +12,7 @@ anyhow = "1.0.104"
 # names crates already being compiled instead of leaving them transitive.
 anstream = "1"
 anstyle = "1"
-clap = { version = "4.6.4", features = ["derive"] }
+clap = { version = "4.6.6", features = ["derive"] }
 derive_more = { version = "2.1.1", features = ["display", "from", "as_ref"] }
 # A general-purpose SUMO reader/writer with no notion of waiting zones,
 # published separately so other Verdi components can depend on it too.
@@ -40,3 +40,20 @@ derive_more = { version = "2.1.1", features = ["display", "from", "as_ref"] }
 # nothing from it crosses the boundary. That copy is purely for this crate's
 # own types and its version is free.)
 sumo-types = { version = "0.2.0", features = ["additional", "write"] }
+# Reprojects a network's local/projected coordinates (`.net.xml`'s own CRS,
+# e.g. UTM) back to WGS84 lon/lat for the GeoJSON output — the coordinate
+# system GPS and GeoJSON both assume. Pure Rust, no `libproj` system
+# dependency. Default features off: `binaries` builds CLI tools this crate
+# never calls, and `multi-thread` only affects NAD grid loading, which this
+# crate's UTM/lonlat transforms never touch.
+proj4rs = { version = "0.1.10", default-features = false }
+# The GeoJSON `FeatureCollection`/`Feature`/`Geometry` types themselves —
+# `geojson_output` builds these directly rather than hand-writing JSON text,
+# the same reasoning `zone_output` already applies to `.add.xml` via
+# `sumo_types`. Default features off: this crate never needs `geo-types`
+# interop.
+geojson = { version = "1.0.0", default-features = false }
+# `geojson`'s own `properties`/`stop_line` values are `serde_json::Value`
+# (`geojson::JsonObject`/`JsonValue`); declared directly rather than only
+# transitively so `geojson_output` can build them with `serde_json::json!`.
+serde_json = "1.0.151"
