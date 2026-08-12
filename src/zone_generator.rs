@@ -11,12 +11,23 @@
 //! [`crate::zone_output`]'s concern, not this module's) is left empty and
 //! patched in before writing — see that module's own docs.
 //!
-//! Zones are grouped by **signal head**, not just by junction: two lanes
-//! only belong to the same zone if they always share the exact same
-//! character, in every phase of the junction's `tlLogic` program (i.e.
-//! they're always red/green/yellow together). A junction with independent
-//! signals for "straight" and "right turn" therefore gets two zones, not
-//! one.
+//! Zones are grouped — and identified — by **movement**: two lanes belong
+//! to the same zone only if they carry traffic from the same source edge in
+//! the same turn direction(s). A junction with independent signals for
+//! "straight" and "right turn" still gets two zones, not one, but that now
+//! falls out of the lanes turning differently, not of the signal program
+//! giving them different characters.
+//!
+//! This is deliberately decoupled from `tlLogic`. An earlier version grouped
+//! (and named) zones by shared signal head — lanes that carry the same
+//! character in every phase, in program order — but a signal program is
+//! edited far more often than the road itself: reordering or adding a phase
+//! left the junction physically untouched yet changed which lanes counted as
+//! sharing a head, and the identity built on that reshuffled with it. Edge
+//! and turn direction are geometry, not program, so [`vehicle_zones`] never
+//! reads what state a phase assigns — only whether a connection's
+//! `linkIndex` resolves at all, which is still the test for "is this
+//! genuinely signal-controlled".
 //!
 //! Each zone spans the full length of its underlying lane by default: the
 //! entry boundary sits at the lane's start and the exit boundary at its
@@ -51,8 +62,8 @@ use anstyle::{AnsiColor, Style};
 use std::collections::HashMap;
 use sumo_types::additional::domain::{DetectorGate, DetectorId, E3Detector, LanePosition, LaneRef};
 use sumo_types::domain::{
-    Connection, EdgeId, Junction, JunctionKind, LaneId, LaneIndex, LinkIndex, Network,
-    TrafficLightId, TrafficLightProgram,
+    Connection, ConnectionDirection, EdgeId, Junction, JunctionKind, LaneId, LaneIndex, LinkIndex,
+    Network, TrafficLightId, TrafficLightProgram,
 };
 use sumo_types::uom::si::f64::Length;
 use sumo_types::uom::si::length::meter;
@@ -97,21 +108,18 @@ fn is_pedestrian_only(allow: &[String]) -> bool {
     !allow.is_empty() && allow.iter().all(|vclass| vclass == "pedestrian")
 }
 
-/// The sequence of `state` characters, one per phase (in program order), at
-/// a single `linkIndex`. Two links with an equal `SignalKey` are always
-/// red/green/yellow together — i.e. controlled by the same signal head.
-type SignalKey = Vec<char>;
-
-/// `None` if `link_index` is out of range for any phase (malformed input):
-/// safer to fail the grouping for that link than to silently compare a
-/// truncated key.
-fn signal_key_for_link(program: &TrafficLightProgram, link_index: LinkIndex) -> Option<SignalKey> {
-    let index = usize::try_from(link_index.0).ok()?;
+/// Whether `link_index` indexes into every phase of `program` — i.e.
+/// whether the connection naming it is genuinely resolvable. This is the
+/// only thing grouping still needs from the program; it never reads what
+/// state any phase actually assigns (see the module docs).
+fn link_index_in_range(program: &TrafficLightProgram, link_index: LinkIndex) -> bool {
+    let Ok(index) = usize::try_from(link_index.0) else {
+        return false;
+    };
     program
         .phases
         .iter()
-        .map(|phase| phase.state.chars().nth(index))
-        .collect()
+        .all(|phase| phase.state.chars().nth(index).is_some())
 }
 
 /// Generates vehicle waiting zones for every traffic-light junction in
@@ -288,18 +296,26 @@ impl std::fmt::Display for UngroupedReason {
     }
 }
 
-/// The combined [`SignalKey`]s (sorted, deduplicated) of every
-/// signal-controlled connection originating from `lane_id`. A lane can have
-/// more than one (e.g. a shared straight+right lane), in which case it
+/// The source edge and the combined turn directions (sorted, deduplicated)
+/// of every signal-controlled connection originating from `lane_id` — the
+/// movement side of a waiting zone's identity. A lane can carry more than
+/// one direction (e.g. a shared straight+right lane), in which case it
 /// forms its own group distinct from lanes with a single movement — it
 /// never changes state independently of either.
+///
+/// Every connection from one lane shares the same source edge by
+/// construction (`connections_by_from_lane` is built from it), so the first
+/// one resolved is as good as any.
 ///
 /// Each connection's controlling program is looked up by its own
 /// `traffic_light` id in `programs` — not assumed to be a single program
 /// shared by the whole lane — so a lane whose connections are split across
 /// more than one program (unusual, but the data model doesn't rule it out)
 /// still gets a correct, if unusual, key instead of a wrong one silently
-/// computed against the wrong program.
+/// computed against the wrong program. The program itself is consulted only
+/// to confirm a connection's `linkIndex` actually resolves — never to read
+/// what a phase assigns it, which is exactly what made the old scheme
+/// unstable across a signal-program edit.
 ///
 /// `Err` if `lane_id` has no connection that resolves a controlling program
 /// at all — the caller should skip the lane (and warn, naming the
@@ -311,12 +327,13 @@ fn group_key_for_lane(
     lane_id: &LaneId,
     connections_by_from_lane: &HashMap<&LaneId, Vec<&Connection>>,
     programs: &HashMap<&TrafficLightId, &TrafficLightProgram>,
-) -> Result<Vec<SignalKey>, UngroupedReason> {
+) -> Result<(EdgeId, Vec<ConnectionDirection>), UngroupedReason> {
     let connections = connections_by_from_lane
         .get(lane_id)
         .ok_or(UngroupedReason::NoOutgoingConnection)?;
 
-    let mut keys = Vec::new();
+    let mut from_edge = None;
+    let mut directions = Vec::new();
     let mut out_of_range = None;
 
     for connection in connections {
@@ -329,28 +346,29 @@ fn group_key_for_lane(
             continue;
         };
 
-        match signal_key_for_link(program, link_index) {
-            Some(key) => keys.push(key),
-            None => {
-                out_of_range.get_or_insert_with(|| (tl_id.clone(), link_index));
-            }
+        if link_index_in_range(program, link_index) {
+            from_edge.get_or_insert_with(|| connection.from_edge.clone());
+            directions.push(connection.direction);
+        } else {
+            out_of_range.get_or_insert_with(|| (tl_id.clone(), link_index));
         }
     }
 
-    if !keys.is_empty() {
-        keys.sort();
-        keys.dedup();
-        return Ok(keys);
+    match from_edge {
+        Some(from_edge) => {
+            directions.sort();
+            directions.dedup();
+            Ok((from_edge, directions))
+        }
+        None => Err(match out_of_range {
+            Some((program, index)) => UngroupedReason::LinkIndexOutOfRange { program, index },
+            None => UngroupedReason::NoResolvableProgram,
+        }),
     }
-
-    Err(match out_of_range {
-        Some((program, index)) => UngroupedReason::LinkIndexOutOfRange { program, index },
-        None => UngroupedReason::NoResolvableProgram,
-    })
 }
 
 /// The vehicle waiting zones queued on `junction`'s incoming lanes, one per
-/// distinct signal group.
+/// distinct movement.
 fn vehicle_zones(
     junction: &Junction,
     lanes: &HashMap<&LaneId, LaneInfo>,
@@ -358,7 +376,7 @@ fn vehicle_zones(
     programs: &HashMap<&TrafficLightId, &TrafficLightProgram>,
     max_zone_length: Option<Length>,
 ) -> Vec<E3Detector> {
-    let mut groups: HashMap<Vec<SignalKey>, Vec<LaneId>> = HashMap::new();
+    let mut groups: HashMap<(EdgeId, Vec<ConnectionDirection>), Vec<LaneId>> = HashMap::new();
 
     for lane_id in &junction.incoming_lanes {
         if lanes.get(lane_id).is_some_and(|info| info.pedestrian_only) {
@@ -374,20 +392,22 @@ fn vehicle_zones(
         }
     }
 
+    // Sorted only for reproducible output ordering between runs — the id
+    // itself no longer comes from this position, so nothing about identity
+    // depends on it.
     let mut groups: Vec<_> = groups.into_iter().collect();
     groups.sort_by(|(a, _), (b, _)| a.cmp(b));
 
     groups
         .into_iter()
-        .enumerate()
-        .filter_map(|(index, (_, lane_ids))| {
+        .filter_map(|((from_edge, directions), lane_ids)| {
             let (entries, exits) = full_lane_boundaries(&lane_ids, lanes, max_zone_length);
             if entries.is_empty() {
                 return None;
             }
 
             Some(E3Detector {
-                id: DetectorId(format!("{}_{index}", junction.id.0)),
+                id: DetectorId(movement_id(&from_edge, &directions)),
                 entries,
                 exits,
                 // Not this module's concern — see the module docs.
@@ -402,6 +422,32 @@ fn vehicle_zones(
             })
         })
         .collect()
+}
+
+/// A waiting zone's id: the source edge and its turn direction(s), joined
+/// deterministically. Never the junction id (regeneration can change it)
+/// and never a position in a sorted list (a signal-program edit can change
+/// what that list contains without the road changing at all) — both were
+/// the prior scheme's actual failure modes.
+fn movement_id(from_edge: &EdgeId, directions: &[ConnectionDirection]) -> String {
+    let directions = directions
+        .iter()
+        .map(|direction| direction_label(*direction))
+        .collect::<Vec<_>>()
+        .join("+");
+    format!("{}_{directions}", from_edge.0)
+}
+
+fn direction_label(direction: ConnectionDirection) -> &'static str {
+    match direction {
+        ConnectionDirection::Straight => "straight",
+        ConnectionDirection::Turn => "turn",
+        ConnectionDirection::TurnLeftHand => "turn_left_hand",
+        ConnectionDirection::Left => "left",
+        ConnectionDirection::Right => "right",
+        ConnectionDirection::PartialLeft => "partial_left",
+        ConnectionDirection::PartialRight => "partial_right",
+    }
 }
 
 #[cfg(test)]
@@ -522,7 +568,42 @@ mod tests {
     }
 
     #[test]
-    fn groups_lanes_with_identical_state_across_all_phases_into_one_zone() {
+    fn groups_lanes_from_the_same_edge_and_direction_into_one_zone() {
+        let network = Network {
+            edges: vec![edge(
+                "e0",
+                vec![indexed_lane("e0_0", 0, 25.0), indexed_lane("e0_1", 1, 25.0)],
+            )],
+            junctions: vec![junction(
+                "j0",
+                JunctionKind::TrafficLight,
+                vec!["e0_0", "e0_1"],
+            )],
+            connections: vec![
+                vehicle_connection("e0", 0, "j0", 0),
+                vehicle_connection("e0", 1, "j0", 1),
+            ],
+            traffic_light_programs: vec![program("j0", vec!["GG", "rr"])],
+            ..Default::default()
+        };
+
+        let zones = generate(&network, None);
+
+        assert_eq!(
+            zones.len(),
+            1,
+            "both lanes are on e0 going straight -> one movement, one zone"
+        );
+        assert_eq!(zones[0].entries.len(), 2);
+        assert_eq!(zones[0].id, DetectorId("e0_straight".into()));
+    }
+
+    #[test]
+    fn keeps_lanes_from_different_edges_in_separate_zones_even_with_identical_signal_state() {
+        // link 0 and link 1 share the exact same character in every phase --
+        // under the old signal-head scheme that merged them into one zone.
+        // Identity no longer reads `tlLogic` at all, so two different
+        // approaches never merge just because they happen to move together.
         let network = Network {
             edges: vec![
                 edge("e0", vec![indexed_lane("e0_0", 0, 25.0)]),
@@ -543,19 +624,19 @@ mod tests {
 
         let zones = generate(&network, None);
 
-        assert_eq!(
-            zones.len(),
-            1,
-            "link 0 and link 1 always share state -> one zone"
-        );
-        assert_eq!(zones[0].entries.len(), 2);
+        assert_eq!(zones.len(), 2, "different edges are different movements");
+        assert_eq!(zones[0].id, DetectorId("e0_straight".into()));
+        assert_eq!(zones[1].id, DetectorId("e1_straight".into()));
     }
 
+    /// Regression test for the bug the movement-based scheme replaces: the id
+    /// used to be `{junction_id}_{index}` after sorting groups by their
+    /// phase-state signature, so reordering the phases in a `tlLogic`
+    /// program — junction and lanes completely untouched — could reshuffle
+    /// which id pointed at which group.
     #[test]
-    fn splits_lanes_with_different_state_in_any_phase_into_separate_zones() {
-        // link 0 (straight) and link 1 (protected right turn) diverge in the
-        // second phase: 'G' vs 'r'.
-        let network = Network {
+    fn waiting_zone_id_is_unaffected_by_reordering_the_signal_program() {
+        let network_with_phases = |phases: Vec<&str>| Network {
             edges: vec![
                 edge("e0", vec![indexed_lane("e0_0", 0, 25.0)]),
                 edge("e1", vec![indexed_lane("e1_0", 0, 40.0)]),
@@ -569,19 +650,24 @@ mod tests {
                 vehicle_connection("e0", 0, "j0", 0),
                 vehicle_connection("e1", 0, "j0", 1),
             ],
-            traffic_light_programs: vec![program("j0", vec!["GG", "Gr"])],
+            traffic_light_programs: vec![program("j0", phases)],
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let original = generate(&network_with_phases(vec!["Gr", "rG"]), None);
+        let reordered = generate(&network_with_phases(vec!["rG", "Gr"]), None);
+
+        let ids = |zones: &[E3Detector]| {
+            let mut ids: Vec<_> = zones.iter().map(|z| z.id.0.clone()).collect();
+            ids.sort();
+            ids
+        };
 
         assert_eq!(
-            zones.len(),
-            2,
-            "link 0 and link 1 diverge in phase 2 -> two zones"
+            ids(&original),
+            ids(&reordered),
+            "swapping the two phases must not rename either zone"
         );
-        assert_eq!(zones[0].id, DetectorId("j0_0".into()));
-        assert_eq!(zones[1].id, DetectorId("j0_1".into()));
     }
 
     #[test]

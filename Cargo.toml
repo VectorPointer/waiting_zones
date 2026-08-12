@@ -39,7 +39,7 @@ derive_more = { version = "2.1.1", features = ["display", "from", "as_ref"] }
 # `Display`/`From`/`AsRef` derives generate impls of the std traits, so
 # nothing from it crosses the boundary. That copy is purely for this crate's
 # own types and its version is free.)
-sumo-types = { version = "0.2.0", features = ["additional", "write"] }
+sumo-types = { version = "0.2.1", features = ["additional", "write"] }
 # Reprojects a network's local/projected coordinates (`.net.xml`'s own CRS,
 # e.g. UTM) back to WGS84 lon/lat for the GeoJSON output — the coordinate
 # system GPS and GeoJSON both assume. Pure Rust, no `libproj` system
