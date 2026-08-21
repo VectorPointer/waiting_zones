@@ -15,7 +15,7 @@ anstyle = "1"
 clap = { version = "4.6.6", features = ["derive"] }
 derive_more = { version = "2.1.1", features = ["display", "from", "as_ref"] }
 # A general-purpose SUMO reader/writer with no notion of waiting zones,
-# published separately so other Verdi components can depend on it too.
+# published separately so other Leave components can depend on it too.
 #
 # Resolved from crates.io rather than `../sumo-types`: a path dependency made
 # every local edit to that crate silently land here, which is convenient while
