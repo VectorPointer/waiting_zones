@@ -76,6 +76,7 @@ mod tests {
             speed_threshold: None,
             time_threshold: None,
             open_entry: None,
+            detect_persons: Vec::new(),
         }
     }
 

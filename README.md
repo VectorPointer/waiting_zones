@@ -90,22 +90,41 @@ belonging to that junction shares one icon in the editor instead of each
 rendering separately along its own lane. Purely cosmetic: SUMO itself
 ignores `pos` for detection.
 
-### Pedestrian waiting zones: on hold
+### Pedestrian waiting zones
 
-Pedestrian waiting zones (at signalized crossings) were implemented and
-then removed. SUMO 1.26.0 has a reproducible crash in
-`MSE3Collector::detectorUpdate` (confirmed with a gdb backtrace) when an
-`e3Detector` with `detectPersons="walk"` is combined with real pedestrian
-traffic. A workaround (`--pedestrian.model nonInteracting`) avoids the
-crash, but then silently stops counting anyone — consistent with an
-upstream comment noting that model doesn't fire the moveReminders detectors
-rely on.
+`zone_generator::pedestrian_zones` generates one zone per walkingarea
+leading into a signalized crossing (`detectPersons="walk"` on the same
+`e3Detector` machinery `vehicle_zones` uses — see that function's module
+docs for why nothing pedestrian-specific was needed beyond the lane filter
+and two field values). This was implemented once already, then removed:
+SUMO 1.26.0 has a reproducible crash in `MSE3Collector::detectorUpdate`
+(confirmed with a gdb backtrace) when an `e3Detector` with
+`detectPersons="walk"` is combined with real pedestrian traffic, filed as
+<https://github.com/eclipse-sumo/sumo/issues/18230>.
 
-This looks like an architectural mismatch (vehicle-oriented detectors
-retrofitted for pedestrians) rather than something fixable from this
-project's side. Filed as a feature request for a dedicated pedestrian
-detector: <https://github.com/eclipse-sumo/sumo/issues/18230>. Pedestrian
-waiting zones will be revisited once SUMO has reliable native support.
+That crash is now fixed upstream — [`d283025`](https://github.com/eclipse-sumo/sumo/commit/d2830252325a016cd8963b7dd88a4af1138edd09),
+merged 2026-08-19 — and generation was reinstated once that fix could be
+verified end to end: built SUMO from `main` at that commit, ran the
+`test_4x4_ped` fixture's `pedestrian_crossing` scenario (a person crossing
+a signalized junction under real traffic) against the regenerated
+`.waiting-zones.add.xml`, and confirmed no crash and sane detector output
+(a clean pass recorded a realistic `meanTravelTime`/`meanSpeed`; a person
+whose walk ends inside the zone's area is reported via the same "arrived
+inside" path SUMO already uses for vehicles, not silently miscounted).
+
+**This needs a SUMO built from a commit at or after `d283025` — no tagged
+release contains it yet.** SUMO 1.26.0 (the latest release as of this
+writing) will still crash with a `detectPersons="walk"` zone in a
+network with real pedestrian traffic. Check `sumo --version` before relying
+on pedestrian zones against a real SUMO install; upgrade once a release
+containing the fix ships.
+
+The engine side of this — `territory::zones::derive_zones` handing these
+zones to the control loop, `control_loop::runner` polling them and scoring
+phases against real pedestrian occupancy rather than only vehicle
+occupancy — now exists too, in the `engine` repo (`territory`/
+`control_loop`). Generating the zone here is what makes that possible; it
+doesn't do it itself.
 
 ## Development
 

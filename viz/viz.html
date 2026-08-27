@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>waiting_zones — generated GeoJSON</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+    #status { position: absolute; top: 10px; left: 10px; z-index: 1000; background: white; padding: 6px 10px; border-radius: 6px; font: 13px sans-serif; box-shadow: 0 1px 6px rgba(0,0,0,0.3); }
+    #error {
+      display: none; position: absolute; top: 50px; left: 10px; z-index: 1000; max-width: 320px;
+      background: white; padding: 8px 12px; border-radius: 6px; font: 13px sans-serif;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.3); color: #c0392b;
+    }
+    #search-box {
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000;
+      background: white; border-radius: 6px; box-shadow: 0 1px 6px rgba(0,0,0,0.3);
+      font: 13px sans-serif; width: 360px;
+    }
+    #search-input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: none; border-radius: 6px; font: 13px sans-serif; outline: none; }
+    #search-results { max-height: 260px; overflow-y: auto; border-top: 1px solid #eee; }
+    #search-results div { padding: 6px 10px; cursor: pointer; }
+    #search-results div:hover, #search-results div.active { background: #f0f0f0; }
+    #search-empty { padding: 6px 10px; color: #999; display: none; }
+
+    #layers-panel {
+      position: absolute; bottom: 10px; left: 10px; z-index: 1000;
+      background: white; border-radius: 6px; box-shadow: 0 1px 6px rgba(0,0,0,0.3);
+      font: 13px sans-serif; overflow: hidden;
+    }
+    #layers-toggle {
+      display: block; width: 100%; box-sizing: border-box; padding: 6px 10px;
+      background: none; border: none; font: 13px sans-serif; text-align: left; cursor: pointer;
+    }
+    #layers-body { padding: 0 10px 8px; }
+    #layers-panel.collapsed #layers-body { display: none; }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<div id="status">Loading zones.geojson…</div>
+<div id="error">
+  Couldn't fetch <code>zones.geojson</code> — this page needs to be served
+  over <code>http://</code>, not opened directly as a <code>file://</code>
+  URL (browsers block local fetches for that). From this directory, run:
+  <pre>python3 -m http.server 8000</pre>
+  then open <code>http://localhost:8000/viz.html</code>.
+</div>
+<div id="search-box">
+  <input id="search-input" type="text" placeholder="Buscar zona por id… (p.ej. 30112795#1_straight)" autocomplete="off" />
+  <div id="search-results"></div>
+  <div id="search-empty">Sin resultados</div>
+</div>
+<div id="layers-panel">
+  <button id="layers-toggle">▾ Layers</button>
+  <div id="layers-body">
+    <label><input type="checkbox" id="toggle-ped" checked /> pedestrian</label><br/>
+    <label><input type="checkbox" id="toggle-veh" checked /> vehicle</label>
+  </div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+<script>
+const PEDESTRIAN_COLOR = "#8e44ad";
+const VEHICLE_COLOR = "#2980b9";
+const HIGHLIGHT_COLOR = "#e74c3c";
+
+function isPedestrian(feature) {
+  return feature.properties.waiting_zone_id.endsWith("_ped");
+}
+
+/**
+ * `feature`, with its own MultiPolygon geometry dissolved into a single
+ * shape wherever its own sub-polygons touch or overlap — waiting_zones
+ * itself deliberately keeps a zone's extended-ancestor segments as
+ * separate, non-overlapping pieces rather than one merged ring (correct,
+ * and enough, for a client's own point-in-polygon geofencing: which of a
+ * zone's own segments a GPS point lands in doesn't matter, only that it's
+ * in *a* segment of the right zone — see chain_shape's own module docs),
+ * but Leaflet strokes every one of a MultiPolygon's own sub-paths
+ * independently, so the *seams* between touching segments still draw as
+ * visible lines cutting across what should read as one shape. turf.union
+ * (loaded above) dissolves exactly those seams for display, without
+ * needing waiting_zones itself to compute a true polygon union just to
+ * make this debugging view look right — the underlying data, used for
+ * anything other than drawing it here, is untouched.
+ *
+ * properties are copied over unchanged; only geometry differs, so
+ * search/click/popup (all keyed on feature.properties) don't need to know
+ * this happened at all.
+ */
+function dissolvedFeature(feature) {
+  const polygons = feature.geometry.coordinates;
+  if (feature.geometry.type !== "MultiPolygon" || polygons.length < 2) {
+    return feature;
+  }
+  // `chain_shape`'s own segments meet each other at a single shared point
+  // (a via's own endpoint) at least as often as along a real shared edge —
+  // `turf.union` dissolves the latter cleanly but generally can't merge
+  // two polygons that only *touch* at one point, since there's no actual
+  // overlapping area or boundary segment for it to combine. A hairline
+  // buffer first turns "touches at a point" into "genuinely overlaps by a
+  // centimetre", which is enough for the union to go through — 1cm is far
+  // below anything visible at any zoom level this map renders at, the
+  // same "not worth reproducing" scale `simplify_points`'s own tolerance
+  // already treats as noise.
+  const buffered = (polygon) => turf.buffer(polygon, 0.01, { units: "meters" });
+
+  let merged = buffered(turf.polygon(polygons[0]));
+  for (const coordinates of polygons.slice(1)) {
+    try {
+      const next = turf.union(merged, buffered(turf.polygon(coordinates)));
+      if (next) merged = next;
+    } catch (error) {
+      // A real polygon union can fail on degenerate input (e.g. a sliver
+      // thinner than turf's own floating-point tolerance) -- keep
+      // whatever's merged so far rather than losing the whole shape over
+      // one bad segment.
+      console.warn(`union failed for ${feature.properties.waiting_zone_id}:`, error);
+    }
+  }
+  return { type: "Feature", properties: feature.properties, geometry: merged.geometry };
+}
+
+const map = L.map("map");
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  // The map itself allows zooming past 19 (useful for eyeballing lane-level
+  // geometry), but OSM's own tile server stops serving new tiles at 19 —
+  // without `maxNativeZoom`, Leaflet requests (nonexistent) z20/z21 tiles
+  // and gets nothing back, so the basemap goes blank past that point.
+  // `maxNativeZoom` tells it to keep reusing z19 tiles, upscaled, instead.
+  maxZoom: 21,
+  maxNativeZoom: 19,
+  attribution: "&copy; OpenStreetMap contributors"
+}).addTo(map);
+
+const style = (feature) => {
+  const c = isPedestrian(feature) ? PEDESTRIAN_COLOR : VEHICLE_COLOR;
+  // A multi-lane zone is a MultiPolygon of one rectangle *per lane*
+  // (waiting_zones deliberately doesn't merge them into a single ring —
+  // see zone_feature's own docs). Two of the same zone's own lane
+  // rectangles are built to share their edge exactly, but the browser
+  // still anti-aliases that shared edge as if it were a real boundary —
+  // an unavoidable sub-pixel rounding artifact of rendering two touching
+  // filled shapes, not a gap in the underlying geometry (verified against
+  // the actual .net.xml: adjacent lanes here are ~3.2m apart, matching
+  // their combined half-widths to within a few centimetres). Stroking
+  // each shape in its *own* fill colour, opaque, paints over exactly that
+  // sliver instead of leaving it transparent — the standard fix for this
+  // "choropleth seam" effect. Overlap between *different* zones still
+  // shows as a visibly darker patch where two fills stack.
+  // Leaflet's own default SVG fill-rule for a path is "evenodd" — meant
+  // for a polygon-with-holes (an interior ring cut *out* of an exterior
+  // one), which this crate never produces (every sub-polygon here is a
+  // single ring, always meant to be filled solid, never a hole). Under
+  // evenodd, a point enclosed by an *even* number of a MultiPolygon's own
+  // rings counts as outside — so wherever two of a zone's own extended-
+  // ancestor segments happen to touch or slightly overlap (a real street
+  // bend, or the seam where the last segment meets the zone's own
+  // controlled lane — see `zone_feature`'s own docs on why a *little*
+  // overlap there is an accepted trade-off, not a bug), that ground was
+  // rendering as an unfilled hole even though the underlying geometry was
+  // never actually claiming it twice as "empty". "nonzero" instead only
+  // ever *adds* coverage from an overlap, matching what every ring here
+  // actually means: solid, independently-filled ground, never a cutout.
+  return { color: c, weight: 1, opacity: 1, fillColor: c, fillOpacity: 0.35, fillRule: 'nonzero' };
+};
+
+let pedLayer, vehLayer, allData;
+let layerById = new Map();      // waiting_zone_id -> leaflet layer, for search and click-select
+let highlightLayer = null;      // the one currently boosted by a search or click selection
+
+/// Restyles `layer` as the selected one, tracking it as `highlightLayer` so
+/// a later selection (search or another click) knows to restore this one
+/// to its normal colour first — shared by both selection paths so a search
+/// pick and a direct map click can't leave two zones highlighted at once.
+function applyHighlight(layer) {
+  clearHighlight();
+  layer.setStyle({
+    color: HIGHLIGHT_COLOR,
+    weight: 2,
+    fillColor: HIGHLIGHT_COLOR,
+    fillOpacity: 0.55,
+    fillRule: 'nonzero', // see style()'s own comment on why evenodd's default is wrong here
+  });
+  layer.bringToFront();
+  highlightLayer = layer;
+  searchInput.value = layer.feature.properties.waiting_zone_id;
+  resultsBox.innerHTML = "";
+  emptyBox.style.display = "none";
+}
+
+// Google's own "Urls" API for a Street View deep link: `map_action=pano`
+// with a bare lat/lng opens the nearest available panorama to that point,
+// no panorama id needed up front. https://developers.google.com/maps/documentation/urls/get-started#street-view-action
+function streetViewUrl(latlng) {
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${latlng.lat},${latlng.lng}`;
+}
+
+// Shared by the map's own click and every zone layer's click (below): a
+// ctrl+click anywhere opens Street View at that point *instead of* the
+// layer's normal click behaviour (selecting a zone), not in addition to
+// it — returns whether it handled the click, so a caller can bail out of
+// its own handler when it did.
+function maybeOpenStreetView(e) {
+  if (!e.originalEvent.ctrlKey) return false;
+  window.open(streetViewUrl(e.latlng), "_blank", "noopener");
+  return true;
+}
+
+map.on("click", (e) => {
+  maybeOpenStreetView(e);
+});
+
+const onEachFeature = (feature, layer) => {
+  layer.bindPopup(feature.properties.waiting_zone_id);
+  layer.on("click", (e) => {
+    // A zone shape's click event also bubbles up to the map's own click
+    // handler above by default (Leaflet's `bubblingMouseEvents`) — stopped
+    // here so a click on a shape never fires *both* this handler and the
+    // map's, which would otherwise open Street View twice on ctrl+click.
+    L.DomEvent.stopPropagation(e);
+    if (maybeOpenStreetView(e)) return;
+    applyHighlight(layer);
+  });
+};
+
+fetch("./zones.geojson")
+  .then((response) => {
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  })
+  .then((data) => {
+    allData = data;
+    document.getElementById("status").textContent =
+      `${data.features.length} zones`;
+
+    // Dissolved once, up front, rather than per-render: `turf.union` over
+    // a zone with several segments isn't free, and nothing here ever
+    // needs the pre-dissolve version again (`dissolvedFeature`'s own docs
+    // on why properties/search are unaffected).
+    const dissolved = data.features.map(dissolvedFeature);
+    const pedestrian = { type: "FeatureCollection", features: dissolved.filter(isPedestrian) };
+    const vehicle = { type: "FeatureCollection", features: dissolved.filter((f) => !isPedestrian(f)) };
+
+    const indexLayer = (feature, layer) => {
+      onEachFeature(feature, layer);
+      layerById.set(feature.properties.waiting_zone_id, layer);
+    };
+
+    pedLayer = L.geoJSON(pedestrian, { style, onEachFeature: indexLayer }).addTo(map);
+    vehLayer = L.geoJSON(vehicle, { style, onEachFeature: indexLayer }).addTo(map);
+
+    const bounds = L.geoJSON(data).getBounds();
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [40, 40] });
+    } else {
+      map.setView([0, 0], 2);
+    }
+  })
+  .catch((err) => {
+    document.getElementById("status").textContent = "Failed to load";
+    document.getElementById("error").style.display = "block";
+    console.error(err);
+  });
+
+document.getElementById("toggle-ped").addEventListener("change", (e) => {
+  if (!pedLayer) return;
+  if (e.target.checked) map.addLayer(pedLayer); else map.removeLayer(pedLayer);
+});
+document.getElementById("toggle-veh").addEventListener("change", (e) => {
+  if (!vehLayer) return;
+  if (e.target.checked) map.addLayer(vehLayer); else map.removeLayer(vehLayer);
+});
+
+const layersPanel = document.getElementById("layers-panel");
+const layersToggle = document.getElementById("layers-toggle");
+layersToggle.addEventListener("click", () => {
+  const collapsed = layersPanel.classList.toggle("collapsed");
+  layersToggle.textContent = (collapsed ? "▸" : "▾") + " Layers";
+});
+
+// --- search: filter ids as you type, click (or Enter) to centre & highlight ---
+
+const searchInput = document.getElementById("search-input");
+const resultsBox = document.getElementById("search-results");
+const emptyBox = document.getElementById("search-empty");
+const MAX_RESULTS = 25;
+
+function clearHighlight() {
+  if (highlightLayer) {
+    highlightLayer.setStyle(style(highlightLayer.feature));
+    highlightLayer = null;
+  }
+}
+
+// Search picks a zone that might be off-screen, so it also re-centres the
+// map; a direct click on the map (see `applyHighlight`, shared by both)
+// doesn't need or want that — the user is already looking right at it.
+function selectZone(id) {
+  const layer = layerById.get(id);
+  if (!layer) return;
+  applyHighlight(layer);
+  map.fitBounds(layer.getBounds(), { maxZoom: 19, padding: [60, 60] });
+  layer.openPopup();
+}
+
+function renderResults(matches) {
+  resultsBox.innerHTML = "";
+  emptyBox.style.display = matches.length === 0 ? "block" : "none";
+  matches.slice(0, MAX_RESULTS).forEach((id) => {
+    const row = document.createElement("div");
+    row.textContent = id;
+    row.addEventListener("click", () => selectZone(id));
+    resultsBox.appendChild(row);
+  });
+}
+
+searchInput.addEventListener("input", () => {
+  const q = searchInput.value.trim().toLowerCase();
+  clearHighlight();
+  if (q.length < 2 || !allData) {
+    resultsBox.innerHTML = "";
+    emptyBox.style.display = "none";
+    return;
+  }
+  const matches = allData.features
+    .map((f) => f.properties.waiting_zone_id)
+    .filter((id) => id.toLowerCase().includes(q));
+  renderResults(matches);
+});
+
+searchInput.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  const first = resultsBox.querySelector("div");
+  if (first) selectZone(first.textContent);
+});
+</script>
+</body>
+</html>

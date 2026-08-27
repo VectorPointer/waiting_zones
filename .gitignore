@@ -1,2 +1,8 @@
 /target
 detector_output/
+
+# viz.html itself is checked in (dev tooling); the data it fetches is a
+# regeneratable build artifact -- see viz/README.md.
+/viz/zones.add.xml
+/viz/zones.geojson
+/viz/server.log

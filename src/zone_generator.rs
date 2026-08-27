@@ -30,11 +30,34 @@
 //! genuinely signal-controlled".
 //!
 //! Each zone spans the full length of its underlying lane by default: the
-//! entry boundary sits at the lane's start and the exit boundary at its
-//! end, so a vehicle counts as "waiting" for as long as it's on that lane.
-//! `max_zone_length` caps that: the exit stays anchored at the stop line,
-//! but the entry moves to `length - max_zone_length` (clamped to the
-//! lane's start) instead of the lane's start outright.
+//! exit boundary sits at the lane's end (the stop line) and the entry at
+//! its start — kept exactly as before *and* extended, via
+//! [`extended_entry_lanes`], with one more entry gate on every predecessor
+//! lane that feeds unambiguously into that start, and their own
+//! predecessors in turn, for as long as each step is a real 1:1 hand-off
+//! (a predecessor with exactly one outgoing connection, so *all* of its own
+//! traffic is headed here) rather than a fork — additive, not a
+//! replacement, so a vehicle spawned directly on the original short lane
+//! (never having driven the extended approach at all) is still detected
+//! exactly as it always was. A short lane is real
+//! Barcelona `netconvert` output more often than not — a turn pocket or a
+//! stub `netconvert` split off right at a junction, sometimes under a
+//! metre long — and without this, a zone's own reported size would be
+//! capped at that stub's own tiny length even though the traffic actually
+//! queuing for it plainly extends much further back, all the way to the
+//! last real fork in the road. This is a maximization, applied to every
+//! *vehicle* zone rather than only ones that look suspiciously short: a
+//! longer lane with a long, fork-free approach of its own genuinely does
+//! queue that far back too — but not to pedestrian zones at all (see
+//! [`full_lane_boundaries`]'s own docs on `extend_backward`): a fork-free
+//! stretch of sidewalk doesn't mean "committed to this crossing" the way a
+//! fork-free stretch of road means "committed to this queue" for a driver,
+//! since a pedestrian can stop, turn around, or peel off into a shop
+//! anywhere along it. `max_zone_length` still caps the *innermost* lane's
+//! own entry the way it always has (`length - max_zone_length`, clamped to
+//! the lane's start); extension (where it applies at all) only kicks in
+//! once that capped entry actually reaches position 0, i.e. there's
+//! nothing for `max_zone_length` left to cut short.
 //!
 //! Each signal-controlled [`Connection`] names its own controlling program
 //! directly (`connection.traffic_light`, SUMO's `tl` attribute) — that, not
@@ -54,16 +77,28 @@
 //! — a kind that legitimately has none) is skipped with a per-lane warning
 //! rather than guessing.
 //!
-//! Pedestrian waiting zones (at signalized crossings) aren't generated —
-//! see the README's "Status" section for why.
+//! Pedestrian waiting zones follow the exact same movement identity: SUMO
+//! already lists a walkingarea lane among a signalized junction's
+//! `incLanes`, right alongside the vehicle lanes it shares the junction
+//! with, and gives the walkingarea's connection into the crossing the same
+//! `tl`/`linkIndex` a vehicle connection would get (leaving the crossing
+//! again is unconstrained, so that connection never resolves a program and
+//! plays no part in grouping). [`group_key_for_lane`] and
+//! [`full_lane_boundaries`] therefore apply completely unchanged — only
+//! which lanes qualify ([`is_pedestrian_only`] instead of its negation) and
+//! what marks the resulting `E3Detector` as a pedestrian zone
+//! (`detectPersons="walk"`, an `_ped`-suffixed id) differ, in
+//! [`pedestrian_zones`] itself. The zone's lane is the walkingarea
+//! *before* the crossing, not the crossing itself: a pedestrian on the
+//! crossing is actively walking across, not waiting for it.
 
 use anstream::eprintln;
 use anstyle::{AnsiColor, Style};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use sumo_types::additional::domain::{DetectorGate, DetectorId, E3Detector, LanePosition, LaneRef};
 use sumo_types::domain::{
-    Connection, ConnectionDirection, EdgeId, Junction, JunctionKind, LaneId, LaneIndex, LinkIndex,
-    Network, TrafficLightId, TrafficLightProgram,
+    Connection, ConnectionDirection, EdgeFunction, EdgeId, Junction, JunctionKind, LaneId,
+    LaneIndex, LinkIndex, Network, TrafficLightId, TrafficLightProgram,
 };
 use sumo_types::uom::si::f64::Length;
 use sumo_types::uom::si::length::meter;
@@ -158,13 +193,37 @@ pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<E3Det
         })
         .collect();
 
+    // Every edge SUMO itself generated to model the physical path *through*
+    // a junction (a turn's curve, e.g. `:12913883279_0`) rather than a real
+    // stretch of road — excluded below from every connection index this
+    // function builds. `.net.xml` already encodes the useful part of that
+    // path — one real edge to the next — directly on the real-to-real
+    // connection itself (SUMO's own `via` attribute names the internal
+    // lane, but the connection endpoints stay real), and *also* emits the
+    // internal lane's own connections to/from it as further, separate
+    // entries; walking through the latter instead would mean
+    // `extended_entry_lanes` doesn't stop at the near edge of the junction
+    // behind this one, but threads all the way through *its* own internal
+    // turning geometry too — which real junctions cram at close quarters,
+    // so two zones extended through different turns of the very same
+    // upstream junction routinely ended up with wildly overlapping
+    // polygons before this filter existed.
+    let internal_edges: HashSet<&EdgeId> = network
+        .edges
+        .iter()
+        .filter(|edge| edge.function == EdgeFunction::Internal)
+        .map(|edge| &edge.id)
+        .collect();
+    let is_real_to_real =
+        |c: &&Connection| !internal_edges.contains(&c.from_edge) && !internal_edges.contains(&c.to_edge);
+
     // Every connection originating from a given lane, indexed once up
     // front. Without this, grouping lanes by signal (see
     // `group_key_for_lane`) would re-scan every connection in the network
     // for every lane — quadratic in network size, and prohibitively slow
     // on a real city-scale network (multiple minutes on ~10k junctions).
     let mut connections_by_from_lane: HashMap<&LaneId, Vec<&Connection>> = HashMap::new();
-    for connection in &network.connections {
+    for connection in network.connections.iter().filter(is_real_to_real) {
         if let Some(&lane_id) =
             lane_ids_by_edge_and_index.get(&(&connection.from_edge, connection.from_lane))
         {
@@ -174,6 +233,66 @@ pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<E3Det
                 .push(connection);
         }
     }
+
+    // The reverse of `connections_by_from_lane`: every lane that feeds
+    // directly into a given lane. Needed by `extended_entry_lanes` to walk
+    // a zone's entry backward (see the module docs); built once up front
+    // for the same quadratic-blowup reason `connections_by_from_lane` is.
+    let mut predecessors_by_lane: HashMap<&LaneId, HashSet<&LaneId>> = HashMap::new();
+    for connection in network.connections.iter().filter(is_real_to_real) {
+        if let (Some(&from_lane), Some(&to_lane)) = (
+            lane_ids_by_edge_and_index.get(&(&connection.from_edge, connection.from_lane)),
+            lane_ids_by_edge_and_index.get(&(&connection.to_edge, connection.to_lane)),
+        ) {
+            predecessors_by_lane.entry(to_lane).or_default().insert(from_lane);
+        }
+    }
+
+    // The internal lane (if any) SUMO's own `via` names for a real-to-real
+    // hop `(from, to)` — the physical curve *through* the junction between
+    // them, excluded above from `predecessors_by_lane` itself (walking it
+    // as its own hop is exactly what let `extended_entry_lanes` wander
+    // into a different junction's own turning geometry — see the module
+    // docs), but still real ground the zone's own polygon needs to cover:
+    // without it, `geojson_output` draws the lane on each side of a
+    // junction as its own disconnected rectangle, visibly not touching,
+    // even though they're the same zone. `extended_entry_lanes` adds an
+    // entry for it alongside `from` itself for every hop it actually
+    // walks, purely to fill that gap — it plays no part in the walk's own
+    // stop/continue decision, which stays entirely about the real lanes on
+    // either side of it.
+    let mut via_lane_between: HashMap<(&LaneId, &LaneId), &LaneId> = HashMap::new();
+    for connection in network.connections.iter().filter(is_real_to_real) {
+        if let (Some(&from_lane), Some(&to_lane), Some(via)) = (
+            lane_ids_by_edge_and_index.get(&(&connection.from_edge, connection.from_lane)),
+            lane_ids_by_edge_and_index.get(&(&connection.to_edge, connection.to_lane)),
+            connection.via.as_ref(),
+        ) {
+            via_lane_between.insert((from_lane, to_lane), via);
+        }
+    }
+
+    // Every lane that's itself someone's own signal-controlled approach —
+    // a real `tl`/`linkIndex` connection out of it, at any junction, not
+    // just the one `generate` happens to be building this particular
+    // zone for. `extended_entry_lanes` never walks through one: it
+    // already has (or, once `generate` gets to its own junction, will
+    // have) a waiting zone of its own, and a lane can only ever be one
+    // zone's own controlled approach — extending through it here would
+    // draw a rectangle directly on top of that zone's own, not adjacent
+    // to it. This is the same idea as excluding internal edges above,
+    // just at the *other* junction's real, named approach lane rather
+    // than its internal turning geometry.
+    let signal_controlled_lanes: HashSet<&LaneId> = network
+        .connections
+        .iter()
+        .filter(is_real_to_real)
+        .filter(|connection| connection.traffic_light.is_some() && connection.link_index.is_some())
+        .filter_map(|connection| {
+            lane_ids_by_edge_and_index.get(&(&connection.from_edge, connection.from_lane))
+        })
+        .copied()
+        .collect();
 
     // A `tlLogic` id can repeat (multiple programs sharing one id, e.g. a
     // normal one and a night-time one); keep the first one encountered, in
@@ -185,67 +304,241 @@ pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<E3Det
         programs_by_id.entry(&program.id).or_insert(program);
     }
 
+    let graph = ConnectivityGraph {
+        lane_ids_by_edge_and_index: &lane_ids_by_edge_and_index,
+        connections_by_from_lane: &connections_by_from_lane,
+        predecessors_by_lane: &predecessors_by_lane,
+        signal_controlled_lanes: &signal_controlled_lanes,
+        via_lane_between: &via_lane_between,
+        lanes: &lanes,
+    };
+
     network
         .junctions
         .iter()
         .filter(|junction| is_traffic_light(junction.kind))
         .flat_map(|junction| {
-            vehicle_zones(
+            let mut zones = vehicle_zones(junction, &lanes, &graph, &programs_by_id, max_zone_length);
+            zones.extend(pedestrian_zones(
                 junction,
                 &lanes,
-                &connections_by_from_lane,
+                &graph,
                 &programs_by_id,
                 max_zone_length,
-            )
+            ));
+            zones
         })
         .collect()
 }
 
+/// The lane-connectivity indices [`full_lane_boundaries`] needs to walk a
+/// zone's entry backward (see the module docs) and [`group_key_for_lane`]
+/// already needed for grouping — bundled together so neither function's own
+/// signature has to grow a parameter for each one individually.
+struct ConnectivityGraph<'a> {
+    lane_ids_by_edge_and_index: &'a HashMap<(&'a EdgeId, LaneIndex), &'a LaneId>,
+    connections_by_from_lane: &'a HashMap<&'a LaneId, Vec<&'a Connection>>,
+    predecessors_by_lane: &'a HashMap<&'a LaneId, HashSet<&'a LaneId>>,
+    signal_controlled_lanes: &'a HashSet<&'a LaneId>,
+    via_lane_between: &'a HashMap<(&'a LaneId, &'a LaneId), &'a LaneId>,
+    /// Every lane's own length — [`extended_entry_lanes`]'s own budget
+    /// accounting needs each predecessor's real length as it walks
+    /// backward, the same source [`full_lane_boundaries`] already reads
+    /// lengths from for every other lane.
+    lanes: &'a HashMap<&'a LaneId, LaneInfo>,
+}
+
 /// Builds entry/exit detector gates for each lane in `lane_ids` that's known
-/// to `lanes`. The exit always sits at the lane's end (the stop line); the
-/// entry sits at the lane's start, unless `max_zone_length` caps it closer
-/// to the exit (clamped so it never goes past it).
+/// to `lanes`. The exit always sits at the lane's end (the stop line), one
+/// per lane in `lane_ids` — unchanged by extension, always the group's own
+/// controlled lane. The entry normally sits at the lane's own start too,
+/// but when `reach.extend_backward` is set, is instead one gate per lane
+/// [`extended_entry_lanes`] finds walking backward from there (see the
+/// module docs) whenever that start isn't itself capped short by
+/// `reach.max_zone_length`: a cap narrow enough to keep the entry inside
+/// `lane_id` itself already answers "how far back does this zone reach" on
+/// its own, so extension only adds gates once there's nothing left for it
+/// to cut short.
 ///
-/// Both are always [`LanePosition::FromStart`]: a waiting zone's boundaries
-/// are computed from the lane's own length, so there's never a reason to
+/// `extend_backward` is `false` for [`pedestrian_zones`]: a vehicle lane is
+/// a one-way commitment — once a driver has taken it, `netconvert`'s own
+/// routing means every metre back to the last real fork genuinely is the
+/// same queue — but a walkingarea isn't. A pedestrian can stop, turn
+/// around, or peel off into a shop at any point along a sidewalk, so
+/// "unambiguous, fork-free" doesn't mean "committed to this crossing" the
+/// way it does for a vehicle, and chaining across a whole block's worth of
+/// fork-free sidewalk (common — a single stretch of pavement between two
+/// corners rarely branches) produced a "waiting zone" that was really just
+/// most of the block, several times too generous to mean anything.
+///
+/// Every gate is [`LanePosition::FromStart`]: a waiting zone's boundaries
+/// are computed from a lane's own length, so there's never a reason to
 /// express one as `FromEnd` instead.
 ///
-/// Both also set `friendlyPos`: the exit sits at exactly `length`, the
-/// `.net.xml`'s own reported lane length, but netedit computes a lane's
-/// *geometric* length from its shape, which can differ from that attribute
-/// by the last handful of floating-point digits. Without `friendlyPos`,
-/// netedit rejects a `pos` fractionally beyond what it computes as "Invalid
-/// position over lane" — real Barcelona data hits this. `friendlyPos`
-/// clamps a mismatch like that into range instead of erroring, which is
-/// exactly what it exists for (see `DetectorGate::friendly_position`'s own
-/// docs) and costs nothing when the two lengths already agree.
+/// Every gate also sets `friendlyPos`: an exit sits at exactly `length`,
+/// the `.net.xml`'s own reported lane length, but netedit computes a
+/// lane's *geometric* length from its shape, which can differ from that
+/// attribute by the last handful of floating-point digits. Without
+/// `friendlyPos`, netedit rejects a `pos` fractionally beyond what it
+/// computes as "Invalid position over lane" — real Barcelona data hits
+/// this. `friendlyPos` clamps a mismatch like that into range instead of
+/// erroring, which is exactly what it exists for (see
+/// `DetectorGate::friendly_position`'s own docs) and costs nothing when
+/// the two lengths already agree.
 fn full_lane_boundaries(
     lane_ids: &[LaneId],
     lanes: &HashMap<&LaneId, LaneInfo>,
-    max_zone_length: Option<Length>,
+    graph: &ConnectivityGraph<'_>,
+    reach: EntryReach,
 ) -> (Vec<DetectorGate>, Vec<DetectorGate>) {
-    lane_ids
-        .iter()
-        .filter_map(|lane_id| {
-            let length = lanes.get(lane_id)?.length;
-            let entry_position = match max_zone_length {
-                Some(max) if max < length => length - max,
-                _ => Length::new::<meter>(0.0),
-            };
-            let lane = LaneRef(lane_id.0.clone());
-            let entry = DetectorGate {
-                lane: lane.clone(),
-                position: LanePosition::FromStart(entry_position),
-                friendly_position: Some(true),
-            };
-            let exit = DetectorGate {
-                lane,
-                position: LanePosition::FromStart(length),
-                friendly_position: Some(true),
-            };
-            Some((entry, exit))
+    let gate = |lane_id: &LaneId, position: Length| DetectorGate {
+        lane: LaneRef(lane_id.0.clone()),
+        position: LanePosition::FromStart(position),
+        friendly_position: Some(true),
+    };
+
+    let mut entries = Vec::with_capacity(lane_ids.len());
+    let mut exits = Vec::with_capacity(lane_ids.len());
+
+    for lane_id in lane_ids {
+        let Some(length) = lanes.get(lane_id).map(|info| info.length) else {
+            continue;
+        };
+        exits.push(gate(lane_id, length));
+
+        let entry_position = match reach.max_zone_length {
+            Some(max) if max < length => length - max,
+            _ => Length::new::<meter>(0.0),
+        };
+        if entry_position > Length::new::<meter>(0.0) {
+            entries.push(gate(lane_id, entry_position));
+            continue;
+        }
+
+        // The lane's own start always gets a gate — unchanged from before
+        // extension existed, so a vehicle spawned directly on `lane_id`
+        // (never having driven through any ancestor) is still detected —
+        // plus, for a vehicle zone, one more for every ancestor
+        // `extended_entry_lanes` can reach, covering the *whole*
+        // unambiguous approach with no gap for `geojson_output`'s own
+        // polygon to fall into.
+        entries.push(gate(lane_id, Length::new::<meter>(0.0)));
+        if reach.extend_backward {
+            let mut visited = HashSet::new();
+            let budget = reach.max_zone_length.unwrap_or(Length::new::<meter>(DEFAULT_EXTENSION_METERS));
+            for ancestor in extended_entry_lanes(lane_id, graph, &mut visited, budget) {
+                entries.push(gate(ancestor, Length::new::<meter>(0.0)));
+            }
+        }
+    }
+
+    (entries, exits)
+}
+
+/// Every distinct lane a connection targets from `lane_id` — used only to
+/// tell "exactly one" (safe to walk through backward — see
+/// [`extended_entry_lanes`]) from "more than one" (a real fork); the
+/// specific count past 1 is never otherwise meaningful.
+fn successor_lane_count(lane_id: &LaneId, graph: &ConnectivityGraph<'_>) -> usize {
+    graph
+        .connections_by_from_lane
+        .get(lane_id)
+        .map(|connections| {
+            connections
+                .iter()
+                .filter_map(|connection| {
+                    graph
+                        .lane_ids_by_edge_and_index
+                        .get(&(&connection.to_edge, connection.to_lane))
+                })
+                .collect::<HashSet<_>>()
+                .len()
         })
-        .unzip()
+        .unwrap_or(0)
+}
+
+/// Every predecessor lane reachable from `lane_id` by walking backward
+/// through connections that don't fork and aren't already spoken for —
+/// stopping at whichever comes first of:
+///
+/// - A predecessor with more than one outgoing connection: a real fork, so
+///   only *some* of its traffic is actually headed here, not all of it —
+///   walking through it would silently claim traffic that's headed
+///   somewhere else as part of this zone.
+/// - A predecessor that's itself a signal-controlled approach lane at some
+///   junction (any junction, not only the one this zone belongs to) — it
+///   already has its own waiting zone, and extending through it would draw
+///   a rectangle right on top of that zone's own rather than next to it
+///   (`signal_controlled_lanes`, checked via `graph`).
+///
+/// Every lane along the way up to (but not past) either stopping point is
+/// included, not only the furthest-back one — [`full_lane_boundaries`]
+/// adds an entry gate for each, so the zone's approach is covered with no
+/// gap for `geojson_output`'s own polygon to fall into. That includes the
+/// internal lane (if any — `graph.via_lane_between`) physically bridging
+/// each hop: real edges only meet at a junction *through* the curve of
+/// their own internal geometry, so a hop from one real lane to the next
+/// without it would leave a real, visible gap between the two — the same
+/// zone's own polygon looking like two disconnected ones. It's included
+/// purely to fill that gap, never consulted for the walk's own stop/go
+/// decision, which stays entirely about the real lane on each side of it.
+/// Doesn't include `lane_id` itself — every lane always gets an entry gate
+/// on its own start regardless of extension, so [`full_lane_boundaries`]
+/// adds that one separately.
+///
+/// `visited` guards against a cycle — a single-lane roundabout with no
+/// other connections is the only real-world shape that could otherwise
+/// loop forever — by treating a lane already on the current path as
+/// nothing further to add, stopping the walk there instead.
+///
+/// `remaining_budget` is the third stopping condition, and the one that
+/// actually bounds a real walk rather than just a pathological one: a
+/// long, straight street whose only cross traffic comes from minor,
+/// unsignalized side streets (never adding a second outgoing connection to
+/// the *through* lane itself, so `successor_lane_count` never trips) has
+/// no fork and no signal to stop at for block after block — confirmed on
+/// real Barcelona data, where this walked clean across a dozen-plus
+/// unrelated blocks before this budget existed, several hundred metres
+/// past anything a real queue could be. A predecessor that would exceed
+/// what's left is skipped outright (not partially included): every lane
+/// this function returns gets a *whole*-lane entry gate
+/// ([`full_lane_boundaries`]'s own docs), so there's no way to claim only
+/// part of one.
+fn extended_entry_lanes<'a>(
+    lane_id: &'a LaneId,
+    graph: &ConnectivityGraph<'a>,
+    visited: &mut HashSet<&'a LaneId>,
+    remaining_budget: Length,
+) -> Vec<&'a LaneId> {
+    if remaining_budget <= Length::new::<meter>(0.0) || !visited.insert(lane_id) {
+        return Vec::new();
+    }
+    let Some(predecessors) = graph.predecessors_by_lane.get(lane_id) else {
+        return Vec::new();
+    };
+
+    let mut extended = Vec::new();
+    for &predecessor in predecessors {
+        let already_has_its_own_zone = graph.signal_controlled_lanes.contains(predecessor);
+        let predecessor_length = graph.lanes.get(predecessor).map(|info| info.length);
+        let Some(predecessor_length) = predecessor_length else { continue };
+        if !already_has_its_own_zone
+            && successor_lane_count(predecessor, graph) == 1
+            && predecessor_length < remaining_budget
+        {
+            if let Some(&via) = graph.via_lane_between.get(&(predecessor, lane_id)) {
+                extended.push(via);
+            }
+            extended.push(predecessor);
+            extended.extend(extended_entry_lanes(
+                predecessor,
+                graph,
+                visited,
+                remaining_budget - predecessor_length,
+            ));
+        }
+    }
+    extended
 }
 
 /// Why [`group_key_for_lane`] couldn't compute a group for a lane. Named
@@ -323,11 +616,16 @@ impl std::fmt::Display for UngroupedReason {
 /// connection fails, [`UngroupedReason::LinkIndexOutOfRange`] wins over
 /// [`UngroupedReason::NoResolvableProgram`] in the reported reason: it's
 /// the more specific, more actionable diagnosis of the two.
+/// A waiting zone's movement identity before it's formatted into an id
+/// string (see [`movement_id`]): the source edge and the combined turn
+/// direction(s) a lane's signal-controlled connections carry.
+type MovementKey = (EdgeId, Vec<ConnectionDirection>);
+
 fn group_key_for_lane(
     lane_id: &LaneId,
     connections_by_from_lane: &HashMap<&LaneId, Vec<&Connection>>,
     programs: &HashMap<&TrafficLightId, &TrafficLightProgram>,
-) -> Result<(EdgeId, Vec<ConnectionDirection>), UngroupedReason> {
+) -> Result<MovementKey, UngroupedReason> {
     let connections = connections_by_from_lane
         .get(lane_id)
         .ok_or(UngroupedReason::NoOutgoingConnection)?;
@@ -367,22 +665,25 @@ fn group_key_for_lane(
     }
 }
 
-/// The vehicle waiting zones queued on `junction`'s incoming lanes, one per
-/// distinct movement.
-fn vehicle_zones(
+/// Groups `lane_ids` — every incoming lane of `junction` the caller has
+/// already filtered to the ones it cares about — by movement (see
+/// [`group_key_for_lane`]), skipping (and warning about) any that don't
+/// resolve one. Shared by [`vehicle_zones`] and [`pedestrian_zones`]:
+/// grouping is identical for both, only which lanes qualify and what
+/// becomes of each group differs.
+///
+/// Sorted only for reproducible output ordering between runs — the id
+/// itself no longer comes from this position, so nothing about identity
+/// depends on it.
+fn group_lanes<'a>(
     junction: &Junction,
-    lanes: &HashMap<&LaneId, LaneInfo>,
+    lane_ids: impl Iterator<Item = &'a LaneId>,
     connections_by_from_lane: &HashMap<&LaneId, Vec<&Connection>>,
     programs: &HashMap<&TrafficLightId, &TrafficLightProgram>,
-    max_zone_length: Option<Length>,
-) -> Vec<E3Detector> {
-    let mut groups: HashMap<(EdgeId, Vec<ConnectionDirection>), Vec<LaneId>> = HashMap::new();
+) -> Vec<(MovementKey, Vec<LaneId>)> {
+    let mut groups: HashMap<MovementKey, Vec<LaneId>> = HashMap::new();
 
-    for lane_id in &junction.incoming_lanes {
-        if lanes.get(lane_id).is_some_and(|info| info.pedestrian_only) {
-            continue; // sidewalk/walkingarea lane feeding into the junction, not a vehicle lane
-        }
-
+    for lane_id in lane_ids {
         match group_key_for_lane(lane_id, connections_by_from_lane, programs) {
             Ok(key) => groups.entry(key).or_default().push(lane_id.clone()),
             Err(reason) => eprintln!(
@@ -392,34 +693,174 @@ fn vehicle_zones(
         }
     }
 
-    // Sorted only for reproducible output ordering between runs — the id
-    // itself no longer comes from this position, so nothing about identity
-    // depends on it.
     let mut groups: Vec<_> = groups.into_iter().collect();
     groups.sort_by(|(a, _), (b, _)| a.cmp(b));
-
     groups
+}
+
+/// [`extended_entry_lanes`]'s own backward-walk budget when the caller
+/// doesn't set `max_zone_length` at all. Unlike the innermost lane's own
+/// entry — which really is meant to reach the lane's true start when
+/// nothing caps it, per `Config::max_zone_length`'s own CLI docs — an
+/// *unbounded* walk through however many fork-free blocks a real street
+/// happens to have was never a real queue: confirmed on real Barcelona
+/// data walking clean across more than a dozen unrelated blocks before
+/// this existed.
+///
+/// A first pass at this used 300m, reasoning from `engine.md`'s own
+/// "arrive in time not to stop" range (~125m at 30 km/h, ~210m at 50
+/// km/h) — but that range is the length a waiting zone would *need* to
+/// guarantee that property, not a realistic queue's own typical length,
+/// and 300m of accumulated real edges still read as several unrelated
+/// blocks stitched into one zone on a real map, not a single coherent
+/// waiting area. 120m instead: `control_loop::runner::DEFAULT_CONFIG`'s
+/// own vehicle `spacing` (7.5m) times a generously long real queue (16
+/// vehicles) — long enough that a genuinely short stub lane still gets a
+/// meaningfully extended approach, short enough that it stays one
+/// recognizable piece of road.
+const DEFAULT_EXTENSION_METERS: f64 = 120.0;
+
+/// `max_zone_length`/`extend_backward` together — bundled so
+/// [`zone_from_group`] and [`full_lane_boundaries`] each take one
+/// parameter for "how far back does an entry reach" instead of two.
+#[derive(Clone, Copy)]
+struct EntryReach {
+    max_zone_length: Option<Length>,
+    /// `false` for a pedestrian zone — see [`full_lane_boundaries`]'s own
+    /// docs for why a fork-free stretch of sidewalk doesn't mean
+    /// "committed to this crossing" the way a fork-free stretch of road
+    /// means "committed to this queue" for a vehicle.
+    extend_backward: bool,
+}
+
+/// Builds the `E3Detector` for one movement group, or `None` if none of its
+/// lanes are known to `lanes` (mirrors [`full_lane_boundaries`]'s own
+/// empty-entries case). Shared by [`vehicle_zones`] and
+/// [`pedestrian_zones`]; `id` and `detect_persons` are the only things that
+/// actually differ between the two.
+fn zone_from_group(
+    id: String,
+    lane_ids: &[LaneId],
+    lanes: &HashMap<&LaneId, LaneInfo>,
+    graph: &ConnectivityGraph<'_>,
+    junction: &Junction,
+    reach: EntryReach,
+    detect_persons: Vec<String>,
+) -> Option<E3Detector> {
+    let (entries, exits) = full_lane_boundaries(lane_ids, lanes, graph, reach);
+    if entries.is_empty() {
+        return None;
+    }
+
+    Some(E3Detector {
+        id: DetectorId(id),
+        entries,
+        exits,
+        // Not this module's concern — see the module docs.
+        // `zone_output::write` fills this in before serializing.
+        file: String::new(),
+        icon_position: Some(junction.position),
+        period: None,
+        name: None,
+        speed_threshold: None,
+        time_threshold: None,
+        open_entry: None,
+        detect_persons,
+    })
+}
+
+/// The vehicle waiting zones queued on `junction`'s incoming lanes, one per
+/// distinct movement.
+fn vehicle_zones(
+    junction: &Junction,
+    lanes: &HashMap<&LaneId, LaneInfo>,
+    graph: &ConnectivityGraph<'_>,
+    programs: &HashMap<&TrafficLightId, &TrafficLightProgram>,
+    max_zone_length: Option<Length>,
+) -> Vec<E3Detector> {
+    // sidewalk/walkingarea lanes feeding into the junction are pedestrians'
+    // concern (`pedestrian_zones`), not vehicles'.
+    let lane_ids = junction
+        .incoming_lanes
+        .iter()
+        .filter(|lane_id| !lanes.get(lane_id).is_some_and(|info| info.pedestrian_only));
+
+    group_lanes(junction, lane_ids, graph.connections_by_from_lane, programs)
         .into_iter()
         .filter_map(|((from_edge, directions), lane_ids)| {
-            let (entries, exits) = full_lane_boundaries(&lane_ids, lanes, max_zone_length);
-            if entries.is_empty() {
-                return None;
-            }
+            zone_from_group(
+                movement_id(&from_edge, &directions),
+                &lane_ids,
+                lanes,
+                graph,
+                junction,
+                EntryReach { max_zone_length, extend_backward: true },
+                Vec::new(),
+            )
+        })
+        .collect()
+}
 
-            Some(E3Detector {
-                id: DetectorId(movement_id(&from_edge, &directions)),
-                entries,
-                exits,
-                // Not this module's concern — see the module docs.
-                // `zone_output::write` fills this in before serializing.
-                file: String::new(),
-                icon_position: Some(junction.position),
-                period: None,
-                name: None,
-                speed_threshold: None,
-                time_threshold: None,
-                open_entry: None,
-            })
+/// The pedestrian waiting zones approaching `junction`'s signalized
+/// crossings, one per distinct movement — the walkingarea(s) leading into a
+/// given crossing, mirroring how [`vehicle_zones`] groups the lanes leading
+/// into a given turn. See the module docs for why this needs nothing
+/// pedestrian-specific beyond the lane filter and the two fields
+/// [`zone_from_group`] takes.
+///
+/// `detectPersons="walk"` (below) is kept for what it's still good for —
+/// marking a zone as pedestrian (`Zone::is_pedestrian` in `territory`, this
+/// crate's own `E3Detector::detect_persons`) and giving `control_loop` a
+/// real lane/edge and signal phase to drive off — not because SUMO's own
+/// person-tracking on this attribute is trusted. It isn't: `MSE3Collector`'s
+/// per-step person scan (`detectorUpdate` → `notifyMovePerson`) can
+/// permanently miss a pedestrian who's already halted the first time it
+/// reaches them (a real, still-open upstream SUMO defect — see
+/// `traci::Client::edge_last_step_person_ids`'s own docs in `control_loop`
+/// for the mechanism and a reproduction), so this detector's own reported
+/// occupancy (`vehicleSum`, `meanSpeedWithin`, ... in its output XML, or
+/// `multientryexit.getLastStepVehicleIDs` over TraCI) can silently
+/// undercount — down to zero for a crossing people are demonstrably using.
+/// `control_loop::runner::update_occupancy` already never asks this
+/// detector who's inside it for that reason; it polls the walkingarea
+/// edge's own live position (`Edge.getLastStepPersonIDs`) instead. Anything
+/// new reading this attribute's own detection output should do the same,
+/// not trust it directly.
+///
+/// Unlike a vehicle zone's, a pedestrian zone's own entry gates are never
+/// backward-extended (`full_lane_boundaries`'s own `extend_backward` is
+/// `false` here) — see that function's own docs for why a fork-free
+/// stretch of sidewalk doesn't mean "committed to this crossing" the way a
+/// fork-free stretch of road means "committed to this queue" for a
+/// vehicle. The "real lane/edge" `control_loop` polls still comes from the
+/// zone's *exit* side (`territory::zones::Zone::edge`, derived from
+/// `E3Detector::exits`) rather than its entries regardless, on the same
+/// general principle extension exists under: exits are always the group's
+/// own controlled lane, entries aren't guaranteed to be.
+fn pedestrian_zones(
+    junction: &Junction,
+    lanes: &HashMap<&LaneId, LaneInfo>,
+    graph: &ConnectivityGraph<'_>,
+    programs: &HashMap<&TrafficLightId, &TrafficLightProgram>,
+    max_zone_length: Option<Length>,
+) -> Vec<E3Detector> {
+    let lane_ids = junction
+        .incoming_lanes
+        .iter()
+        .filter(|lane_id| lanes.get(lane_id).is_some_and(|info| info.pedestrian_only));
+
+    group_lanes(junction, lane_ids, graph.connections_by_from_lane, programs)
+        .into_iter()
+        .filter_map(|((from_edge, directions), lane_ids)| {
+            zone_from_group(
+                format!("{}_ped", movement_id(&from_edge, &directions)),
+                &lane_ids,
+                lanes,
+                graph,
+                junction,
+                EntryReach { max_zone_length, extend_backward: false },
+                vec!["walk".into()],
+            )
         })
         .collect()
 }
@@ -435,7 +876,20 @@ fn movement_id(from_edge: &EdgeId, directions: &[ConnectionDirection]) -> String
         .map(|direction| direction_label(*direction))
         .collect::<Vec<_>>()
         .join("+");
-    format!("{}_{directions}", from_edge.0)
+    // SUMO spells an internal edge's id with a leading `:` — its own
+    // marker that the edge is internal, not part of the name itself. A
+    // walkingarea (the only kind of edge this function ever sees one of,
+    // via `pedestrian_zones`) is one of these, and keeping the `:` in a
+    // zone id derived from it doesn't just look wrong: `zone_output`
+    // builds the detector's `file` attribute from this same id, and SUMO's
+    // own `OutputDevice` factory reads any `:` in an output filename as a
+    // `host:port` remote-socket spec, not literal text. Left in, this
+    // produces a `.add.xml` real SUMO refuses to load ("Given port number
+    // '...' is not numeric") — caught by `sumo_validates_output`'s
+    // real-loader check, not by this crate's own unit tests, which never
+    // shell out to `sumo` at all.
+    let from_edge = from_edge.0.strip_prefix(':').unwrap_or(&from_edge.0);
+    format!("{from_edge}_{directions}")
 }
 
 fn direction_label(direction: ConnectionDirection) -> &'static str {
@@ -562,6 +1016,29 @@ mod tests {
             via: None,
             traffic_light: Some(TrafficLightId(tl.into())),
             link_index: Some(LinkIndex(link_index)),
+            pass: false,
+            keep_clear: true,
+        }
+    }
+
+    /// A plain, non-signal-controlled connection between two ordinary
+    /// lanes — the kind that links a lane to its predecessor(s) upstream
+    /// of a junction, as opposed to [`vehicle_connection`]'s own
+    /// tl-controlled connection right at one. Exactly what
+    /// [`extended_entry_lanes`]'s own tests need to build a predecessor
+    /// chain without also (accidentally) making every hop of it look
+    /// signal-controlled.
+    fn plain_connection(from_edge: &str, from_lane: usize, to_edge: &str, to_lane: usize) -> Connection {
+        Connection {
+            from_edge: EdgeId(from_edge.into()),
+            to_edge: EdgeId(to_edge.into()),
+            from_lane: LaneIndex(from_lane),
+            to_lane: LaneIndex(to_lane),
+            direction: ConnectionDirection::Straight,
+            state: LinkState::Major,
+            via: None,
+            traffic_light: None,
+            link_index: None,
             pass: false,
             keep_clear: true,
         }
@@ -759,6 +1236,151 @@ mod tests {
         assert_eq!(zones[0].entries[0].lane, LaneRef("e0_0".into()));
     }
 
+    /// Mirrors real SUMO's own shape for a signalized crossing: the
+    /// walkingarea (`:j0_w0_0`) is itself one of the junction's
+    /// `incLanes`, and its tl-controlled connection leads into the
+    /// crossing (`:j0_c0_0`), not into the junction directly — the same
+    /// structure `test_4x4_ped`'s fixture network uses.
+    #[test]
+    fn generates_a_pedestrian_zone_for_a_walkingarea_leading_into_a_crossing() {
+        let network = Network {
+            edges: vec![
+                edge("e0", vec![indexed_lane("e0_0", 0, 25.0)]),
+                edge_with_function(
+                    ":j0_w0",
+                    EdgeFunction::Walkingarea,
+                    vec![pedestrian_lane(":j0_w0_0", 3.3)],
+                ),
+                edge_with_function(
+                    ":j0_c0",
+                    EdgeFunction::Crossing,
+                    vec![pedestrian_lane(":j0_c0_0", 6.4)],
+                ),
+            ],
+            junctions: vec![junction(
+                "j0",
+                JunctionKind::TrafficLight,
+                vec!["e0_0", ":j0_w0_0"],
+            )],
+            connections: vec![
+                vehicle_connection("e0", 0, "j0", 0),
+                vehicle_connection(":j0_w0", 0, "j0", 1), // walkingarea -> crossing, tl-controlled
+            ],
+            traffic_light_programs: vec![program("j0", vec!["GG", "rr"])],
+            ..Default::default()
+        };
+
+        let zones = generate(&network, None);
+        let pedestrian_zone = zones
+            .iter()
+            .find(|zone| zone.detect_persons.contains(&"walk".to_string()))
+            .expect("a pedestrian zone for the walkingarea");
+
+        assert_eq!(zones.len(), 2, "one vehicle zone and one pedestrian zone");
+        assert_eq!(pedestrian_zone.entries.len(), 1);
+        assert_eq!(pedestrian_zone.entries[0].lane, LaneRef(":j0_w0_0".into()));
+        assert!(
+            pedestrian_zone.id.0.ends_with("_ped"),
+            "{:?} should be marked as a pedestrian zone",
+            pedestrian_zone.id
+        );
+        assert!(
+            zones
+                .iter()
+                .all(|zone| zone.detect_persons.is_empty() || zone == pedestrian_zone),
+            "only the pedestrian zone should set detectPersons"
+        );
+    }
+
+    #[test]
+    fn pedestrian_zones_never_extend_backward_even_through_an_unambiguous_chain() {
+        // e_sidewalk -> :j0_w0 is exactly the fork-free, single-predecessor
+        // shape `extends_a_short_lanes_entry_back_through_an_unambiguous_predecessor_chain`
+        // proves a *vehicle* zone does extend through -- a pedestrian zone
+        // must not (see `full_lane_boundaries`'s own docs on
+        // `extend_backward`).
+        let network = Network {
+            edges: vec![
+                edge("e0", vec![indexed_lane("e0_0", 0, 25.0)]),
+                edge_with_function(
+                    "e_sidewalk",
+                    EdgeFunction::Walkingarea,
+                    vec![pedestrian_lane("e_sidewalk_0", 20.0)],
+                ),
+                edge_with_function(
+                    ":j0_w0",
+                    EdgeFunction::Walkingarea,
+                    vec![pedestrian_lane(":j0_w0_0", 0.1)],
+                ),
+            ],
+            junctions: vec![junction(
+                "j0",
+                JunctionKind::TrafficLight,
+                vec!["e0_0", ":j0_w0_0"],
+            )],
+            connections: vec![
+                vehicle_connection("e0", 0, "j0", 0),
+                plain_connection("e_sidewalk", 0, ":j0_w0", 0),
+                vehicle_connection(":j0_w0", 0, "j0", 1),
+            ],
+            traffic_light_programs: vec![program("j0", vec!["GG", "rr"])],
+            ..Default::default()
+        };
+
+        let zones = generate(&network, None);
+        let pedestrian_zone = zones
+            .iter()
+            .find(|zone| zone.detect_persons.contains(&"walk".to_string()))
+            .expect("a pedestrian zone for the walkingarea");
+
+        assert_eq!(
+            pedestrian_zone.entries.len(),
+            1,
+            "e_sidewalk doesn't fork -- a vehicle zone in this exact shape would extend \
+             through it, but a pedestrian zone must stay just its own gate: {:?}",
+            pedestrian_zone.entries
+        );
+        assert_eq!(pedestrian_zone.entries[0].lane, LaneRef(":j0_w0_0".into()));
+    }
+
+    /// Regression test: SUMO spells a walkingarea's own edge id with a
+    /// leading `:` (`:j0_w0`, its own marker for "this is an internal
+    /// edge"), and an earlier version of `movement_id` carried that
+    /// straight into the zone id. `zone_output` builds the detector's
+    /// `file` attribute from that same id, and SUMO's own `OutputDevice`
+    /// factory reads any `:` inside an output filename as a `host:port`
+    /// remote-socket spec rather than literal text — a zone id like
+    /// `:j0_w0_straight_ped` therefore produced a `.add.xml` real SUMO
+    /// refused to load ("Given port number '...' is not numeric"), caught
+    /// by `sumo_validates_output`'s real-loader check rather than by any
+    /// unit test, since none of them shell out to `sumo` at all.
+    #[test]
+    fn pedestrian_zone_id_has_no_leading_colon_despite_the_walkingareas_own_internal_edge_id() {
+        let network = Network {
+            edges: vec![
+                edge("e0", vec![indexed_lane("e0_0", 0, 25.0)]),
+                edge_with_function(
+                    ":j0_w0",
+                    EdgeFunction::Walkingarea,
+                    vec![pedestrian_lane(":j0_w0_0", 3.3)],
+                ),
+            ],
+            junctions: vec![junction(
+                "j0",
+                JunctionKind::TrafficLight,
+                vec!["e0_0", ":j0_w0_0"],
+            )],
+            connections: vec![vehicle_connection(":j0_w0", 0, "j0", 0)],
+            traffic_light_programs: vec![program("j0", vec!["G"])],
+            ..Default::default()
+        };
+
+        let zones = generate(&network, None);
+
+        assert_eq!(zones.len(), 1);
+        assert_eq!(zones[0].id, DetectorId("j0_w0_straight_ped".into()));
+    }
+
     #[test]
     fn max_zone_length_caps_the_entry_but_keeps_the_exit_at_the_stop_line() {
         let network = Network {
@@ -904,5 +1526,348 @@ mod tests {
                 index: LinkIndex(5),
             })
         );
+    }
+
+    // The tests below exercise `extended_entry_lanes` (see the module
+    // docs' "maximizing a waiting zone's own physical size") through
+    // `generate()` end to end, the same way every other test in this file
+    // does — except the last one, which calls it directly to prove
+    // termination on a shape no real network can actually produce (see its
+    // own docs).
+
+    #[test]
+    fn extends_a_short_lanes_entry_back_through_an_unambiguous_predecessor_chain() {
+        // e0 -> e1 is the only way in or out of e1 -- e0 doesn't fork, so
+        // the entry should walk all the way back onto e0's own start
+        // instead of stopping at e1's tiny 0.1m (a real Barcelona
+        // `netconvert` stub-lane length).
+        let network = Network {
+            edges: vec![
+                edge("e0", vec![indexed_lane("e0_0", 0, 25.0)]),
+                edge("e1", vec![indexed_lane("e1_0", 0, 0.1)]),
+            ],
+            junctions: vec![junction("j0", JunctionKind::TrafficLight, vec!["e1_0"])],
+            connections: vec![
+                plain_connection("e0", 0, "e1", 0),
+                vehicle_connection("e1", 0, "j0", 0),
+            ],
+            traffic_light_programs: vec![program("j0", vec!["G"])],
+            ..Default::default()
+        };
+
+        let zones = generate(&network, None);
+        assert_eq!(zones.len(), 1);
+        let zone = &zones[0];
+
+        assert_eq!(zone.exits.len(), 1, "the exit stays on the real controlled lane");
+        assert_eq!(zone.exits[0].lane, LaneRef("e1_0".into()));
+
+        // e1's own gate is kept (so a vehicle spawned directly on it is
+        // still detected) *and* extended onto e0's own start.
+        let mut entry_lanes: Vec<String> = zone.entries.iter().map(|g| g.lane.0.clone()).collect();
+        entry_lanes.sort();
+        assert_eq!(entry_lanes, vec!["e0_0".to_string(), "e1_0".to_string()]);
+        assert!(
+            zone.entries
+                .iter()
+                .all(|g| g.position == LanePosition::FromStart(Length::new::<meter>(0.0)))
+        );
+    }
+
+    #[test]
+    fn extending_through_a_hop_also_adds_its_own_internal_via_lane() {
+        // e0 -> e1 with an internal lane (":j0_0_0") bridging them --
+        // real edges only meet *through* a junction's own internal
+        // geometry, so without this the drawn zone would show a gap
+        // between e0's and e1's own rectangles even though they're the
+        // same zone (see zone_feature's own docs on why `geojson_output`
+        // draws one independent rectangle per entry).
+        let network = Network {
+            edges: vec![
+                edge("e0", vec![indexed_lane("e0_0", 0, 25.0)]),
+                edge_with_function(
+                    ":j0_0",
+                    EdgeFunction::Internal,
+                    vec![indexed_lane(":j0_0_0", 0, 4.0)],
+                ),
+                edge("e1", vec![indexed_lane("e1_0", 0, 0.1)]),
+            ],
+            junctions: vec![junction("j0", JunctionKind::TrafficLight, vec!["e1_0"])],
+            connections: vec![
+                Connection {
+                    via: Some(LaneId(":j0_0_0".into())),
+                    ..plain_connection("e0", 0, "e1", 0)
+                },
+                vehicle_connection("e1", 0, "j0", 0),
+            ],
+            traffic_light_programs: vec![program("j0", vec!["G"])],
+            ..Default::default()
+        };
+
+        let zones = generate(&network, None);
+        let zone = &zones[0];
+
+        let mut entry_lanes: Vec<String> = zone.entries.iter().map(|g| g.lane.0.clone()).collect();
+        entry_lanes.sort();
+        assert_eq!(
+            entry_lanes,
+            vec![":j0_0_0".to_string(), "e0_0".to_string(), "e1_0".to_string()],
+            "the internal lane bridging e0 and e1 should be drawn too, not just the two \
+             real lanes on either side of it"
+        );
+    }
+
+    #[test]
+    fn stops_extending_at_a_predecessor_that_forks() {
+        // e0 leads to *both* e1 and e2 -- not all of e0's own traffic is
+        // headed into this zone, so extension must not walk through it.
+        let network = Network {
+            edges: vec![
+                edge("e0", vec![indexed_lane("e0_0", 0, 25.0)]),
+                edge("e1", vec![indexed_lane("e1_0", 0, 0.1)]),
+                edge("e2", vec![indexed_lane("e2_0", 0, 10.0)]),
+            ],
+            junctions: vec![junction("j0", JunctionKind::TrafficLight, vec!["e1_0"])],
+            connections: vec![
+                plain_connection("e0", 0, "e1", 0),
+                plain_connection("e0", 0, "e2", 0),
+                vehicle_connection("e1", 0, "j0", 0),
+            ],
+            traffic_light_programs: vec![program("j0", vec!["G"])],
+            ..Default::default()
+        };
+
+        let zones = generate(&network, None);
+        let zone = &zones[0];
+
+        assert_eq!(zone.entries.len(), 1);
+        assert_eq!(
+            zone.entries[0].lane,
+            LaneRef("e1_0".into()),
+            "e0 forks (leads to both e1 and e2) -- extension must stop before it, not \
+             silently claim traffic that's actually headed to e2 as part of this zone"
+        );
+    }
+
+    #[test]
+    fn stops_extending_at_a_predecessor_that_already_has_its_own_signal_controlled_zone() {
+        // e0 doesn't fork (its only real-to-real successor is e1), but e0
+        // is *itself* a signal-controlled approach at a different junction
+        // (j_upstream) -- it already gets its own waiting zone there, so
+        // j0's own zone must not also draw a rectangle on top of it.
+        let network = Network {
+            edges: vec![
+                edge("e_further_back", vec![indexed_lane("e_further_back_0", 0, 40.0)]),
+                edge("e0", vec![indexed_lane("e0_0", 0, 25.0)]),
+                edge("e1", vec![indexed_lane("e1_0", 0, 0.1)]),
+            ],
+            junctions: vec![
+                junction("j_upstream", JunctionKind::TrafficLight, vec!["e0_0"]),
+                junction("j0", JunctionKind::TrafficLight, vec!["e1_0"]),
+            ],
+            connections: vec![
+                plain_connection("e_further_back", 0, "e0", 0),
+                vehicle_connection("e0", 0, "j_upstream", 0),
+                plain_connection("e0", 0, "e1", 0),
+                vehicle_connection("e1", 0, "j0", 0),
+            ],
+            traffic_light_programs: vec![
+                program("j_upstream", vec!["G"]),
+                program("j0", vec!["G"]),
+            ],
+            ..Default::default()
+        };
+
+        let zones = generate(&network, None);
+        let j0_zone = zones
+            .iter()
+            .find(|z| z.exits.iter().any(|g| g.lane == LaneRef("e1_0".into())))
+            .expect("a zone for j0");
+
+        let entry_lanes: Vec<String> = j0_zone.entries.iter().map(|g| g.lane.0.clone()).collect();
+        assert!(
+            entry_lanes.contains(&"e1_0".to_string()),
+            "e1's own gate is always kept"
+        );
+        assert!(
+            !entry_lanes.iter().any(|l| l == "e0_0" || l == "e_further_back_0"),
+            "e0 already has its own zone at j_upstream (and doesn't fork) -- j0's zone must \
+             not extend through it (or past it, onto e_further_back) and draw a rectangle on \
+             top of j_upstream's own: {entry_lanes:?}"
+        );
+    }
+
+    #[test]
+    fn extends_through_every_predecessor_that_individually_only_leads_here() {
+        // e0 and e2 both feed *only* into e1 -- a merge, not a fork from
+        // either predecessor's own point of view, so both extend.
+        let network = Network {
+            edges: vec![
+                edge("e0", vec![indexed_lane("e0_0", 0, 25.0)]),
+                edge("e2", vec![indexed_lane("e2_0", 0, 15.0)]),
+                edge("e1", vec![indexed_lane("e1_0", 0, 0.1)]),
+            ],
+            junctions: vec![junction("j0", JunctionKind::TrafficLight, vec!["e1_0"])],
+            connections: vec![
+                plain_connection("e0", 0, "e1", 0),
+                plain_connection("e2", 0, "e1", 0),
+                vehicle_connection("e1", 0, "j0", 0),
+            ],
+            traffic_light_programs: vec![program("j0", vec!["G"])],
+            ..Default::default()
+        };
+
+        let zones = generate(&network, None);
+        let zone = &zones[0];
+
+        let mut entry_lanes: Vec<String> = zone.entries.iter().map(|g| g.lane.0.clone()).collect();
+        entry_lanes.sort();
+        assert_eq!(
+            entry_lanes,
+            vec!["e0_0".to_string(), "e1_0".to_string(), "e2_0".to_string()],
+            "e1's own gate is kept in addition to both extended ancestors"
+        );
+    }
+
+    #[test]
+    fn max_zone_length_suppresses_extension_when_it_caps_the_entry_short_of_the_lanes_own_start() {
+        // 50m lane capped to the last 20m: the entry lands at position 30,
+        // nowhere near e1's own start, so there's nothing for extension to
+        // pick up from -- it should stay exactly where max_zone_length put
+        // it, on e1 itself.
+        let network = Network {
+            edges: vec![
+                edge("e0", vec![indexed_lane("e0_0", 0, 25.0)]),
+                edge("e1", vec![indexed_lane("e1_0", 0, 50.0)]),
+            ],
+            junctions: vec![junction("j0", JunctionKind::TrafficLight, vec!["e1_0"])],
+            connections: vec![
+                plain_connection("e0", 0, "e1", 0),
+                vehicle_connection("e1", 0, "j0", 0),
+            ],
+            traffic_light_programs: vec![program("j0", vec!["G"])],
+            ..Default::default()
+        };
+
+        let zones = generate(&network, Some(Length::new::<meter>(20.0)));
+        let zone = &zones[0];
+
+        assert_eq!(zone.entries.len(), 1);
+        assert_eq!(zone.entries[0].lane, LaneRef("e1_0".into()));
+        assert_eq!(
+            zone.entries[0].position,
+            LanePosition::FromStart(Length::new::<meter>(30.0))
+        );
+    }
+
+    #[test]
+    fn extended_entry_lanes_terminates_on_a_cycle_no_real_network_would_produce() {
+        // A pure a<->b loop with nothing else attached to either lane --
+        // topologically impossible to reach from a real signal-controlled
+        // lane (something has to break the cycle to let traffic leave it
+        // at all, which always shows up as a fork somewhere -- see
+        // `stops_extending_at_a_predecessor_that_forks`), but
+        // `extended_entry_lanes` shouldn't infinite-loop on it regardless
+        // of whether real `netconvert` output could ever produce it.
+        let lane_a = LaneId("a_0".into());
+        let lane_b = LaneId("b_0".into());
+        let edge_a = EdgeId("a".into());
+        let edge_b = EdgeId("b".into());
+
+        let connection_a_to_b = plain_connection("a", 0, "b", 0);
+        let connection_b_to_a = plain_connection("b", 0, "a", 0);
+
+        let lane_ids_by_edge_and_index: HashMap<(&EdgeId, LaneIndex), &LaneId> = HashMap::from([
+            ((&edge_a, LaneIndex(0)), &lane_a),
+            ((&edge_b, LaneIndex(0)), &lane_b),
+        ]);
+        let connections_by_from_lane: HashMap<&LaneId, Vec<&Connection>> = HashMap::from([
+            (&lane_a, vec![&connection_a_to_b]),
+            (&lane_b, vec![&connection_b_to_a]),
+        ]);
+        let predecessors_by_lane: HashMap<&LaneId, HashSet<&LaneId>> = HashMap::from([
+            (&lane_a, HashSet::from([&lane_b])),
+            (&lane_b, HashSet::from([&lane_a])),
+        ]);
+        let signal_controlled_lanes: HashSet<&LaneId> = HashSet::new();
+        let via_lane_between: HashMap<(&LaneId, &LaneId), &LaneId> = HashMap::new();
+        let lanes: HashMap<&LaneId, LaneInfo> = HashMap::from([
+            (&lane_a, LaneInfo { length: Length::new::<meter>(10.0), pedestrian_only: false }),
+            (&lane_b, LaneInfo { length: Length::new::<meter>(10.0), pedestrian_only: false }),
+        ]);
+        let graph = ConnectivityGraph {
+            lane_ids_by_edge_and_index: &lane_ids_by_edge_and_index,
+            connections_by_from_lane: &connections_by_from_lane,
+            predecessors_by_lane: &predecessors_by_lane,
+            signal_controlled_lanes: &signal_controlled_lanes,
+            via_lane_between: &via_lane_between,
+            lanes: &lanes,
+        };
+
+        let mut visited = HashSet::new();
+        let budget = Length::new::<meter>(DEFAULT_EXTENSION_METERS);
+        let frontier = extended_entry_lanes(&lane_a, &graph, &mut visited, budget);
+        assert!(!frontier.is_empty(), "must terminate with a real answer, not hang");
+    }
+
+    #[test]
+    fn extended_entry_lanes_stops_once_the_budget_runs_out() {
+        // A straight chain of three equal-length lanes (c -> b -> a), each
+        // with exactly one outgoing connection and none of them signal-
+        // controlled -- nothing but the budget itself would ever stop this
+        // walk. Each lane is sized to just over half of
+        // `DEFAULT_EXTENSION_METERS`, so a single one fits the budget
+        // (covering `b`) but two in a row don't (excluding `c`, on top of
+        // `b`) -- the exact "long straight street with only minor cross
+        // traffic" shape that walked clean across a dozen-plus real
+        // Barcelona blocks before this budget existed. Expressed as a
+        // fraction of the constant itself, not a hard-coded metre figure,
+        // so this keeps meaning the same thing if that default ever gets
+        // retuned.
+        let segment_length = Length::new::<meter>(DEFAULT_EXTENSION_METERS / 2.0 + 1.0);
+
+        let lane_a = LaneId("a_0".into());
+        let lane_b = LaneId("b_0".into());
+        let lane_c = LaneId("c_0".into());
+        let edge_a = EdgeId("a".into());
+        let edge_b = EdgeId("b".into());
+        let edge_c = EdgeId("c".into());
+
+        let connection_b_to_a = plain_connection("b", 0, "a", 0);
+        let connection_c_to_b = plain_connection("c", 0, "b", 0);
+
+        let lane_ids_by_edge_and_index: HashMap<(&EdgeId, LaneIndex), &LaneId> = HashMap::from([
+            ((&edge_a, LaneIndex(0)), &lane_a),
+            ((&edge_b, LaneIndex(0)), &lane_b),
+            ((&edge_c, LaneIndex(0)), &lane_c),
+        ]);
+        let connections_by_from_lane: HashMap<&LaneId, Vec<&Connection>> = HashMap::from([
+            (&lane_b, vec![&connection_b_to_a]),
+            (&lane_c, vec![&connection_c_to_b]),
+        ]);
+        let predecessors_by_lane: HashMap<&LaneId, HashSet<&LaneId>> = HashMap::from([
+            (&lane_a, HashSet::from([&lane_b])),
+            (&lane_b, HashSet::from([&lane_c])),
+        ]);
+        let signal_controlled_lanes: HashSet<&LaneId> = HashSet::new();
+        let via_lane_between: HashMap<(&LaneId, &LaneId), &LaneId> = HashMap::new();
+        let lanes: HashMap<&LaneId, LaneInfo> = HashMap::from([
+            (&lane_a, LaneInfo { length: segment_length, pedestrian_only: false }),
+            (&lane_b, LaneInfo { length: segment_length, pedestrian_only: false }),
+            (&lane_c, LaneInfo { length: segment_length, pedestrian_only: false }),
+        ]);
+        let graph = ConnectivityGraph {
+            lane_ids_by_edge_and_index: &lane_ids_by_edge_and_index,
+            connections_by_from_lane: &connections_by_from_lane,
+            predecessors_by_lane: &predecessors_by_lane,
+            signal_controlled_lanes: &signal_controlled_lanes,
+            via_lane_between: &via_lane_between,
+            lanes: &lanes,
+        };
+
+        let mut visited = HashSet::new();
+        let budget = Length::new::<meter>(DEFAULT_EXTENSION_METERS);
+        let frontier = extended_entry_lanes(&lane_a, &graph, &mut visited, budget);
+        assert_eq!(frontier, vec![&lane_b], "b (150m) fits the 300m budget, c (300m more) doesn't");
     }
 }

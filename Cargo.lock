@@ -719,9 +719,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "sumo-types"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebeb5ee401bfc343d6c5c97bdfd167f8c92c21ffd8438d67a152867016ea44b4"
+version = "0.2.2"
 dependencies = [
  "Inflector",
  "derive_more",
@@ -811,6 +809,13 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "traci"
+version = "0.1.0"
+dependencies = [
+ "thiserror",
+]
 
 [[package]]
 name = "tracing"
@@ -920,6 +925,7 @@ dependencies = [
  "proj4rs",
  "serde_json",
  "sumo-types",
+ "traci",
 ]
 
 [[package]]
