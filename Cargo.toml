@@ -57,6 +57,32 @@ geojson = { version = "1.0.0", default-features = false }
 # (`geojson::JsonObject`/`JsonValue`); declared directly rather than only
 # transitively so `geojson_output` can build them with `serde_json::json!`.
 serde_json = "1.0.151"
+# `BooleanOps` (union/intersection/difference on `Polygon`/`MultiPolygon`) is
+# what `geojson_output` builds every waiting-zone polygon out of: buffering a
+# lane's shape is "union of one quad per segment", merging a multi-lane zone
+# is "union of each lane's own buffer", and resolving two zones' polygons
+# overlapping is "difference by a cutting half-plane" — all exact for
+# arbitrary (non-convex, multi-part) input by construction, which is the
+# actual property a hand-rolled Sutherland-Hodgman/triangulate/convex-hull
+# pipeline could only ever approximate case by case (see `geojson_output`'s
+# own module docs and git history for what that cost in practice). Default
+# features off: this crate never needs `geo`'s own I/O (`use-proj`),
+# `serde`, or the alternate `spade`/`earcutr` triangulation backends —
+# `BooleanOps`, `Area`, and `Centroid` are all in the base crate.
+geo = { version = "0.33.1", default-features = false }
+# `geo`'s own `BooleanOps` is exactly `i_overlay` under the hood, but `geo`
+# doesn't expose `i_overlay`'s own stroke-offset API (`StrokeOffset`,
+# `StrokeStyle`, `LineJoin`) — `buffer_shape` needs that directly, to
+# offset a lane's own centreline into a polygon with a real join at each
+# bend, rather than approximating one via a union of straight per-segment
+# quads (see `buffer_shape`'s own docs for what that approximation cost in
+# practice on real, sharply-bent Barcelona geometry). Pinned to the *exact*
+# version `geo` 0.33.1 already resolves (checked via `cargo tree`), so
+# Cargo unifies the two into one copy rather than compiling `i_overlay`
+# twice — bumping this without also bumping `geo` would silently reintroduce
+# that duplication. Default features off: this crate never needs
+# `i_overlay`'s own `allow_multithreading`/`glam`/`serde` extras.
+i_overlay = { version = "=4.5.2", default-features = false }
 
 # Temporary, until `sumo-types` 0.2.2 (adding `domain::VClass` /
 # `Lane::permits`, used by `geojson_output`'s own `zone_modes`) is actually

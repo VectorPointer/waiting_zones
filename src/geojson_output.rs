@@ -25,47 +25,68 @@
 //! ## Geometry
 //!
 //! [`E3Detector`]'s gates carry a lane and a linear position on it, not a
-//! polygon — so each lane in a zone contributes its own rectangle: the
-//! lane's shape between the entry and exit stations, offset left/right by
-//! half the lane's width.
+//! polygon — so each lane in a zone contributes its own buffered shape: the
+//! lane's own centreline between the entry and exit stations, offset
+//! left/right by half the lane's width. Building and combining those
+//! shapes is real computational geometry (a bend can make one lane's own
+//! buffer self-overlap; several lanes, or an extended-ancestor chain on a
+//! different edge again, can need merging into one seamless shape; two
+//! different zones' own shapes can need separating so a client's point can
+//! never match both) — geometry this module deliberately does *not*
+//! hand-roll an offset/clip/triangulate pipeline for, using
+//! [`geo::BooleanOps`] instead:
 //!
-//! A zone spanning several lanes (one shared signal group) merges those
-//! rectangles into a single polygon rather than emitting one per lane —
-//! [`merged_zone_ring`] — because a general polygon union is real
-//! computational geometry this module doesn't need to do to get there:
-//! `zone_generator`'s own docs guarantee every lane in one zone is a lane of
-//! the *same edge* (grouping is keyed on `(edge, directions)`), and SUMO
-//! numbers an edge's lanes 0..N from right to left, so "merge N side-by-side
-//! rectangles" reduces to "take the rightmost lane's own right edge and the
-//! leftmost lane's own left edge, and join them at the ends" — no clipping,
-//! no union algorithm, just picking which two of the already-computed
-//! offset boundaries form the outside. [`merged_zone_ring`] verifies the
-//! lane indices are actually contiguous before trusting that (a group
-//! containing lane 0 and lane 2 but not lane 1 would otherwise silently
-//! claim lane 1's own ground) — every zone `zone_generator` has ever
-//! produced for real data satisfies this, so a violation prints an error
-//! (rather than a network-halting `bail!`, matching `zone_generator`'s own
-//! per-lane warnings for a different-but-similarly-shaped "shouldn't
-//! happen, but don't crash the whole run over it" case) and merges anyway,
-//! best-effort — a caller that sees the error on real output has a real
-//! `.net.xml` shape this module's own assumption doesn't hold for, worth
-//! looking at directly rather than papered over by a silent fallback.
+//! - A lane's own buffer ([`buffer_shape`]) is the union of one convex
+//!   quadrilateral per segment of its (entry/exit-trimmed) shape — always a
+//!   valid simple polygon regardless of how sharply the lane bends, because
+//!   `union` resolves however the quads along it overlap or leave a wedge
+//!   correctly by construction, not by a hand-written self-intersection
+//!   splice with its own convex-hull fallback for when that splice cut too
+//!   much away.
+//! - A zone spanning several lanes, or an extended-ancestor chain touching
+//!   the core (see [`chain_shape`]'s own docs), is the union of each
+//!   piece's own buffer ([`zone_polygon`]) — correct regardless of lane
+//!   order or index contiguity, not dependent (as an earlier version of
+//!   this module was) on SUMO happening to number a zone's own lanes
+//!   contiguously.
+//! - Two zones' polygons overlapping is `intersection`, and separating them
+//!   is `difference` against a cutting half-plane ([`resolve_overlaps`]) —
+//!   exact for arbitrary, even non-convex, even multi-part polygons, which
+//!   is what actually lets a busy corner contested by several neighbours at
+//!   once be cut in one pass without an earlier version's own bespoke
+//!   convexity bookkeeping for when that stopped being safe.
+//!
+//! Every polygon above is built and resolved in the network's own local
+//! (projected, metric) coordinates — [`Reprojector::to_lon_lat`] is only
+//! ever applied once, to a ring's finished points, when building the
+//! output `Feature` ([`build_feature`]). Comparing or clipping in metres
+//! throughout means an overlap threshold here is a plain area in m² (see
+//! [`OVERLAP_AREA_THRESHOLD_M2`]), not a deg² figure that has to correct
+//! for a degree of longitude and a degree of latitude covering different
+//! real distances.
 
 use anstream::eprintln;
 use anstyle::{AnsiColor, Style};
 use anyhow::{Context, Result, bail};
+use geo::algorithm::area::Area;
+use geo::{
+    BooleanOps, BoundingRect, Contains, Coord, LineString, MapCoords, MultiPolygon, Point as GeoPoint,
+    Polygon as GeoPolygon, Simplify,
+};
 use geojson::{Feature, FeatureCollection, Geometry, JsonObject, Position};
+use i_overlay::mesh::stroke::offset::StrokeOffset;
+use i_overlay::mesh::style::{LineCap, LineJoin, StrokeStyle};
 use proj4rs::proj::Proj;
 use proj4rs::transform::transform;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
-use sumo_types::additional::domain::{DetectorId, E3Detector, LanePosition};
+use sumo_types::additional::domain::{E3Detector, LanePosition};
 use sumo_types::domain::{EdgeFunction, EdgeId, Lane, LaneIndex, Location, Network, Point, Projection, Shape, VClass};
 use sumo_types::uom::si::f64::Length;
 use sumo_types::uom::si::length::meter;
 
-/// Styles the "error:" prefix on [`merged_zone_ring`]'s own message the way
-/// `cargo`/`rustc` style theirs — bold red — mirroring
+/// Styles the "error:" prefix on [`resolve_overlaps`]'s own messages the
+/// way `cargo`/`rustc` style theirs — bold red — mirroring
 /// `zone_generator::WARNING`'s own reasoning for its (yellow) warnings.
 const ERROR: Style = AnsiColor::Red.on_default().bold();
 
@@ -232,20 +253,6 @@ fn distance_from_start(position: LanePosition, lane_length: Length) -> Length {
     }
 }
 
-/// `point` offset perpendicular to `tangent` by `distance` — to the left of
-/// the direction of travel when `distance` is positive, to the right when
-/// negative. Only `x`/`y` move: `z` (elevation) isn't touched by a
-/// perpendicular offset.
-fn offset_perpendicular(point: Point, tangent: (f64, f64), distance: Length) -> Point {
-    let (dx, dy) = tangent;
-    let d = distance.get::<meter>();
-    Point {
-        x: point.x - dy * d,
-        y: point.y + dx * d,
-        z: point.z,
-    }
-}
-
 /// `shape`'s own segments, each clipped to the arc-length span
 /// `[entry, exit]`, as `(segment_start, segment_end, segment_tangent)` —
 /// a segment fully outside the span is dropped, one straddling an edge of
@@ -339,647 +346,233 @@ fn trimmed_segments(shape: &Shape, entry: Length, exit: Length) -> Vec<(Point, P
     segments
 }
 
-/// One side of a zone's offset boundary — one lane's own shape between
-/// `entry`/`exit` (arc-length from the lane's start — see
-/// [`trimmed_segments`]), offset perpendicular by `half_width` (positive =
-/// left of the segment's own direction of travel, negative = right — see
-/// [`offset_perpendicular`]). For a straight lane this is still exactly the
-/// two corners it always was — `trimmed_segments` returns one segment,
-/// entry to exit — it only grows more corners where the lane itself bends.
-/// Called twice per lane in [`merged_zone_ring`]'s single-lane case (once
-/// each side) and once per side for its multi-lane case (each side then
-/// coming from a *different* lane — the group's own leftmost and
-/// rightmost).
-///
-/// `entry == exit` (or a shape with no segments at all inside the span) has
-/// no segment to offer a direction, so [`point_and_tangent_at`] stands in
-/// for a single degenerate point — the same "collapsed rectangle" a
-/// zero-length zone always produced before this had segments to walk.
-///
-/// Bevel-joining every segment's own offset (above) stops a *sharp* turn
-/// from producing a straight edge that cuts back across the polygon's own
-/// interior, but it isn't sufficient on its own: a real Barcelona
-/// walkingarea can be short and *wide* at once (one seen while fixing this
-/// was 2.9m long, 8 shape points, 4m wide — the width bigger than the
-/// whole path's own length), and offsetting by more than the path's local
-/// turning radius folds the offset boundary back on itself regardless of
-/// how the offset points are joined. [`remove_self_intersections`] (below)
-/// cleans each side's own boundary of exactly that — a convex hull (tried
-/// first) stays simple by construction, but a lane 100m+ long with a gentle
-/// real bend hulls into a shape covering nearly 3x its own true area:
-/// accurate for a short, sharp zigzag is not the same property as accurate
-/// for a long, gentle curve, and this crate needs both.
-fn offset_boundary(shape: &Shape, entry: Length, exit: Length, half_width: Length) -> Vec<Point> {
+/// `shape`'s own centreline between `entry`/`exit`, as the ordered sequence
+/// of distinct points [`trimmed_segments`] walks it through — [`buffer_shape`]'s
+/// own input path, reconstructed from segment endpoints rather than exposing
+/// `trimmed_segments`'s own `(start, end, tangent)` triples directly, since
+/// a real stroke-offset call needs the path as a plain polyline, not
+/// pre-split into segments (a real join, at each interior point, is exactly
+/// what a per-segment split would throw away).
+fn trimmed_path_points(shape: &Shape, entry: Length, exit: Length) -> Vec<Point> {
     let segments = trimmed_segments(shape, entry, exit);
-    if segments.is_empty() {
-        let (point, tangent) = point_and_tangent_at(shape, entry);
-        return vec![offset_perpendicular(point, tangent, half_width)];
-    }
-    let points = segments
-        .iter()
-        .flat_map(|&(start, end, tangent)| {
-            [
-                offset_perpendicular(start, tangent, half_width),
-                offset_perpendicular(end, tangent, half_width),
-            ]
-        })
-        .collect();
-    simplify_points(remove_self_intersections(points), SIMPLIFY_TOLERANCE_METERS)
-}
-
-/// Below this, in metres, [`simplify_points`] treats an intermediate point
-/// as contributing nothing a straight line between its neighbours doesn't
-/// already capture — chosen well under any real visual or geometric
-/// significance (the same "a centimetre is noise" reasoning
-/// [`OVERLAP_AREA_THRESHOLD_DEG2`]'s own docs use), comfortably above the
-/// sub-millimetre float noise [`remove_self_intersections`]'s own line
-/// intersections can introduce.
-const SIMPLIFY_TOLERANCE_METERS: f64 = 0.05;
-
-/// Ramer-Douglas-Peucker simplification of an *open* polyline: `points`
-/// reduced to whichever subset a straight line between the two endpoints
-/// can't already approximate within `tolerance` — recursively finding
-/// whichever intermediate point strays furthest from that line, keeping
-/// only it (and repeating on each half it splits the line into) when that
-/// strays by more than `tolerance`, and dropping the entire interior
-/// otherwise. Always keeps both endpoints, and never reorders anything —
-/// the result is a subsequence of `points`, in the same order.
-///
-/// Why this exists: [`chain_shape`] concatenates however many real lanes'
-/// own shapes a zone's extension walks through end to end, and a real
-/// Barcelona chain often includes several sub-metre "connector" lanes (see
-/// its own module docs) whose shape points land mere centimetres apart
-/// once strung together — real detail `netconvert` recorded, but far finer
-/// than this crate's own output needs to reproduce faithfully, and it only
-/// bloats the GeoJSON a client downloads for no visual or geometric
-/// benefit any of those extra points buy back.
-fn simplify_points(points: Vec<Point>, tolerance: f64) -> Vec<Point> {
-    if points.len() < 3 {
-        return points;
-    }
-
-    let perpendicular_distance = |p: Point, a: Point, b: Point| -> f64 {
-        let (dx, dy) = (b.x - a.x, b.y - a.y);
-        let len = dx.hypot(dy);
-        if len == 0.0 {
-            return (p.x - a.x).hypot(p.y - a.y);
+    let mut points = Vec::with_capacity(segments.len() + 1);
+    for (i, &(start, end, _)) in segments.iter().enumerate() {
+        if i == 0 {
+            points.push(start);
         }
-        ((p.x - a.x) * dy - (p.y - a.y) * dx).abs() / len
-    };
+        points.push(end);
+    }
+    points
+}
 
-    let (first, last) = (points[0], points[points.len() - 1]);
-    let (mut max_dist, mut farthest) = (0.0, 0);
-    for (i, &point) in points.iter().enumerate().take(points.len() - 1).skip(1) {
-        let dist = perpendicular_distance(point, first, last);
-        if dist > max_dist {
-            max_dist = dist;
-            farthest = i;
+/// Below this, in radians, [`LineJoin::Round`]'s own arc at a bend is
+/// approximated by a single straight segment rather than subdividing it
+/// further — the `L / R` ratio [`i_overlay`]'s own docs define it as (max
+/// segment length over arc radius). Small enough that the arc reads as
+/// smooth rather than faceted on any real lane width, comfortably below
+/// the 80° [`MIN_INTERIOR_ANGLE_DEGREES`] this crate's own coherence tests
+/// require of *every* vertex: a round join never contributes a sharp
+/// vertex of its own by construction, however sharply the underlying lane
+/// bends, which is the whole reason this replaces a straight (mitre- or
+/// bevel-style) join for this module's purposes — see [`buffer_shape`]'s
+/// own docs.
+const ROUND_JOIN_SEGMENT_ANGLE_RADIANS: f64 = 0.3;
+
+/// `shapes` (whatever [`i_overlay::mesh::stroke::offset::StrokeOffset::stroke`]
+/// returned), converted into a [`MultiPolygon`] in the same local
+/// coordinates: one [`GeoPolygon`] per shape, its own first contour as the
+/// exterior ring and any further contours as holes (`i_overlay`'s own docs:
+/// "outer boundary paths have a counterclockwise order, and holes have a
+/// clockwise order" — the same convention `geo` itself uses, so nothing
+/// needs correcting here). Every contour is re-closed (its own first point
+/// repeated last) if it doesn't already come that way, matching what every
+/// other ring this module builds needs: `i_overlay`'s own stroke output
+/// doesn't repeat it, `geo::LineString`'s own polygon-membership convention
+/// doesn't strictly require it, but this module's downstream GeoJSON output
+/// does.
+fn shapes_to_multipolygon(shapes: i_overlay::i_shape::base::data::Shapes<[f64; 2]>) -> MultiPolygon<f64> {
+    let close = |points: Vec<[f64; 2]>| -> LineString<f64> {
+        let mut coords: Vec<Coord<f64>> = points.into_iter().map(|[x, y]| Coord { x, y }).collect();
+        if coords.first().is_some() && coords.first() != coords.last() {
+            coords.push(coords[0]);
         }
-    }
-
-    if max_dist > tolerance {
-        let mut kept = simplify_points(points[..=farthest].to_vec(), tolerance);
-        kept.pop(); // shared with the second half's own first point
-        kept.extend(simplify_points(points[farthest..].to_vec(), tolerance));
-        kept
-    } else {
-        vec![first, last]
-    }
-}
-
-/// [`offset_boundary`] on each side of `shape` between `entry`/`exit`,
-/// closed via [`close_ring`] — the rectangle-or-bent-quadrilateral one
-/// lane's own shape contributes, or, when `shape` is several real lanes'
-/// shapes already concatenated end to end ([`chain_shape`]), the single
-/// seamless polygon a whole extended-ancestor *chain* contributes instead
-/// of one independent rectangle per lane in it. A chain that's only one
-/// lane long (no real predecessor within the zone) is simply the `shape`/
-/// `half_width` of that one lane — there's no special one-lane case here,
-/// only a one-lane [`chain_shape`] call.
-fn shape_ring(shape: &Shape, entry: Length, exit: Length, half_width: Length, reproject: &Reprojector) -> Result<Vec<Position>> {
-    let left = offset_boundary(shape, entry, exit, half_width);
-    let right = offset_boundary(shape, entry, exit, -half_width);
-    // A straight lane of this span and width would enclose exactly this —
-    // real bends only ever pull the true area *below* it, never above, so
-    // it's a sound floor for `close_ring`'s own degenerate-collapse check,
-    // not just a rough guess.
-    let naive_area_m2 = (exit - entry).get::<meter>().abs() * half_width.get::<meter>().abs() * 2.0;
-    close_ring(left, right, naive_area_m2, reproject)
-}
-
-/// Below this fraction of `close_ring`'s own naive expected area, its
-/// self-intersection cleanup is judged to have collapsed the ring rather
-/// than merely trimmed it — see its own docs. A real bend can legitimately
-/// give back a fair chunk of the naive rectangle (a tight U costs the most,
-/// and even that rarely halves it), but never anywhere near this little:
-/// the real Barcelona case this constant was chosen against (a 6.7m,
-/// 3.2m-wide chain with two sharp direction changes packed into ~1.5m
-/// segments) collapsed to 0.014% of its own naive area, several orders of
-/// magnitude below any real curve's own cost.
-const MIN_OFFSET_RING_AREA_FRACTION: f64 = 0.1;
-
-/// `left` and `right` (each already [`offset_boundary`]-cleaned, running in
-/// the same direction — entry to exit), closed into one reprojected linear
-/// ring: `right` reversed so the two sides trace the perimeter
-/// consistently, the ring closed (first point repeated last) *before* a
-/// final self-intersection pass so that closing edge — as real as any
-/// other — gets checked too, not just the ones the two sides already
-/// contributed (the two sides can still cross *each other*, e.g. a U-shaped
-/// path narrower than the offset folds one side past where the other now
-/// ends), then reprojected, deduplicated (a tight bevel facet's two
-/// corners — see [`offset_boundary`]'s own docs — can be distinct in local
-/// metres but round to the exact same lon/lat once
-/// [`Reprojector::to_lon_lat`] is done with them, leaving a zero-length
-/// edge that's harmless in itself but can confuse a naive downstream
-/// self-intersection check into a false positive on the vertex it shares),
-/// and re-closed if any of that rounding or dedup disturbed the exact
-/// repeat.
-///
-/// `naive_area_m2` (see [`shape_ring`]'s own docs) guards against
-/// [`remove_self_intersections`]'s own documented weakness: a path whose
-/// bends are tight relative to the offset width can trigger a cascade of
-/// splices that eats into real, non-crossing area along with the actual
-/// bowtie loop, rather than trimming just the loop itself — on one real
-/// Barcelona chain (`1395130587_2`, entries backing a signal-controlled
-/// zone) this collapsed a real ~20m² ribbon down to a 0.003m² sliver, a
-/// visibly broken shape no legitimate bend produces. Checked, not assumed,
-/// the same way [`clip_by_constraints`] checks its own direct clip before
-/// trusting it: if the cleaned ring's area falls below
-/// [`MIN_OFFSET_RING_AREA_FRACTION`] of `naive_area_m2`, this falls back to
-/// the convex hull of the *uncleaned* combined boundary instead — guaranteed
-/// simple by construction, at the cost of claiming a bit more than the
-/// exact bent shape, exactly the tradeoff already made there.
-fn close_ring(left: Vec<Point>, mut right: Vec<Point>, naive_area_m2: f64, reproject: &Reprojector) -> Result<Vec<Position>> {
-    right.reverse();
-    let mut ring_points: Vec<Point> = left.into_iter().chain(right).collect();
-    if let Some(&first) = ring_points.first() {
-        ring_points.push(first);
-    }
-    let cleaned = remove_self_intersections(ring_points.clone());
-
-    let as_xy = |points: &[Point]| -> Vec<(f64, f64)> { points.iter().map(|p| (p.x, p.y)).collect() };
-    let cleaned_area_m2 = signed_area(&as_xy(&cleaned)).abs();
-
-    let final_points = if naive_area_m2 > 0.0 && cleaned_area_m2 < naive_area_m2 * MIN_OFFSET_RING_AREA_FRACTION {
-        convex_hull(&as_xy(&ring_points)).into_iter().map(|(x, y)| Point { x, y, z: 0.0 }).collect()
-    } else {
-        cleaned
+        LineString::new(coords)
     };
-
-    let mut ring = final_points
-        .into_iter()
-        .map(|corner| reproject.to_lon_lat(corner).map(Position::from))
-        .collect::<Result<Vec<_>>>()?;
-    ring.dedup();
-    if ring.first() != ring.last()
-        && let Some(first) = ring.first().cloned()
-    {
-        ring.push(first);
-    }
-    Ok(ring)
-}
-
-/// The single ring covering every lane in `lane_gates` — each `(lane, entry
-/// distance, exit distance)`, as computed per-gate in [`zone_feature`] —
-/// on the assumption, true for every zone `zone_generator` has ever
-/// produced from real data, that they're physically contiguous (see the
-/// module docs). `None` only for `lane_gates` empty, the same "nothing to
-/// build" case [`overlapping_zone_ids`]'s own callers already tolerate for
-/// a zone with no gates at all.
-///
-/// A `zone_id` whose lanes turn out *not* to be contiguous still gets a
-/// ring back — merging its outermost two lanes regardless — but also an
-/// `error:` line on stderr: the ring may be claiming ground belonging to a
-/// lane sitting in between that isn't actually part of this zone (that
-/// lane is presumably a different zone's), which is worth someone looking
-/// at directly rather than either crashing the whole run over it or
-/// papering over it with a silent per-lane fallback.
-fn merged_zone_ring(
-    zone_id: &DetectorId,
-    lane_gates: &[(&Lane, Length, Length)],
-    reproject: &Reprojector,
-) -> Result<Option<Vec<Position>>> {
-    if lane_gates.is_empty() {
-        return Ok(None);
-    }
-
-    let mut sorted: Vec<(&Lane, Length, Length)> = lane_gates.to_vec();
-    sorted.sort_by_key(|(lane, _, _)| lane.index.0);
-    let contiguous = sorted
-        .windows(2)
-        .all(|pair| pair[1].0.index.0 == pair[0].0.index.0 + 1);
-    if !contiguous {
-        let indices: Vec<usize> = sorted.iter().map(|(lane, _, _)| lane.index.0).collect();
-        eprintln!(
-            "{ERROR}error:{ERROR:#} zone \"{zone_id}\" merges non-contiguous lane indices \
-             {indices:?} — the merged polygon may wrongly claim ground belonging to a lane \
-             in between that isn't actually part of this zone"
-        );
-    }
-
-    // SUMO numbers an edge's lanes 0..N from right to left (see the module
-    // docs), and `offset_perpendicular`'s own positive direction is left of
-    // travel — so the rightmost (lowest-index) lane's *outer* edge is its
-    // negative offset, and the leftmost (highest-index) lane's outer edge
-    // is its positive one; the shared edges in between, where one lane's
-    // own inner boundary would touch its neighbour's, are exactly what
-    // merging is for skipping.
-    let (right_lane, right_entry, right_exit) = *sorted.first().expect("checked non-empty above");
-    let (left_lane, left_entry, left_exit) = *sorted.last().expect("checked non-empty above");
-
-    let right = offset_boundary(
-        &right_lane.shape,
-        right_entry,
-        right_exit,
-        -(right_lane.width / 2.0),
-    );
-    let left = offset_boundary(
-        &left_lane.shape,
-        left_entry,
-        left_exit,
-        left_lane.width / 2.0,
-    );
-    // The smaller of the two lanes' own naive rectangles — a safe floor for
-    // [`close_ring`]'s own degenerate-collapse check, since a contiguous
-    // merge of both never claims less ground than either lane alone would
-    // on its own (see [`shape_ring`]'s own docs on why this floor is sound
-    // in the first place).
-    let naive_area_m2 = ((right_exit - right_entry).get::<meter>().abs() * right_lane.width.get::<meter>().abs())
-        .min((left_exit - left_entry).get::<meter>().abs() * left_lane.width.get::<meter>().abs());
-    close_ring(left, right, naive_area_m2, reproject).map(Some)
-}
-
-/// Where segments `a`-`b` and `c`-`d` *properly* cross (interiors meet at a
-/// single point, not merely an endpoint) — `None` if they don't, same
-/// strict "properly" [`polygons_overlap`]'s own segment test uses and for
-/// the same reason: two offset points meant to coincide (or nearly so)
-/// must not register as a crossing to remove.
-fn segment_intersection_point(a: Point, b: Point, c: Point, d: Point) -> Option<Point> {
-    let (p1, p2, p3, p4) = ((a.x, a.y), (b.x, b.y), (c.x, c.y), (d.x, d.y));
-    let d1 = orientation(p3, p4, p1);
-    let d2 = orientation(p3, p4, p2);
-    let d3 = orientation(p1, p2, p3);
-    let d4 = orientation(p1, p2, p4);
-    if (d1 > 0.0) != (d2 > 0.0) && (d3 > 0.0) != (d4 > 0.0) {
-        let (x, y) = line_intersection(p1, p2, p3, p4);
-        Some(Point { x, y, z: 0.0 })
-    } else {
-        None
-    }
-}
-
-/// `path` (an open polyline — the boundary offset to one side of a lane's
-/// own centreline) with every self-intersecting loop cut out: whenever two
-/// non-adjacent segments of `path` properly cross, the portion of the path
-/// between them — the loop a too-sharp turn folded back on itself — is
-/// replaced by the single point where they cross. Repeats until no
-/// crossing remains (removing one loop can occasionally reveal another
-/// behind it). `path.len()` is always small here (one lane's own shape
-/// points, rarely more than a couple of dozen), so the naive rescan-after-
-/// every-splice approach is in no danger of being a real cost.
-///
-/// This is what makes a lane's own offset boundary track a real bend
-/// instead of ballooning into a convex hull around it (see
-/// [`offset_boundary`]'s own docs) or, left unaddressed, folding into a
-/// self-intersecting "bowtie" a client's point-in-polygon test can't reason
-/// about.
-fn remove_self_intersections(mut path: Vec<Point>) -> Vec<Point> {
-    'restart: loop {
-        for i in 0..path.len().saturating_sub(1) {
-            for j in (i + 2)..path.len().saturating_sub(1) {
-                if let Some(meeting_point) =
-                    segment_intersection_point(path[i], path[i + 1], path[j], path[j + 1])
-                {
-                    path.splice((i + 1)..=j, std::iter::once(meeting_point));
-                    continue 'restart;
+    MultiPolygon::new(
+        shapes
+            .into_iter()
+            .filter_map(|mut contours| {
+                if contours.is_empty() {
+                    return None;
                 }
-            }
-        }
-        return path;
-    }
+                let exterior = close(contours.remove(0));
+                let interiors = contours.into_iter().map(close).collect();
+                Some(GeoPolygon::new(exterior, interiors))
+            })
+            .collect(),
+    )
 }
 
-/// Twice the signed area of triangle `a`, `b`, `c` — positive when `c` is
-/// left of the ray `a -> b`, negative when right, zero when collinear.
-/// Named for what it's used for here, not for what it computes: the usual
-/// name is "cross product of `b-a` and `c-a`".
-fn orientation(a: (f64, f64), b: (f64, f64), c: (f64, f64)) -> f64 {
-    (b.0 - a.0) * (c.1 - a.1) - (b.1 - a.1) * (c.0 - a.0)
-}
-
-/// The signed area enclosed by `ring` (the shoelace formula) — positive for
-/// a counterclockwise winding, negative for clockwise. [`polygon_overlap_area`]
-/// only cares about the unsigned area, but [`clip_to_convex`] needs to know
-/// which way a ring winds to know which side of each edge is "inside".
-fn signed_area(ring: &[(f64, f64)]) -> f64 {
-    let n = ring.len();
-    if n < 3 {
-        return 0.0;
-    }
-    (0..n)
-        .map(|i| {
-            let (x1, y1) = ring[i];
-            let (x2, y2) = ring[(i + 1) % n];
-            x1 * y2 - x2 * y1
-        })
-        .sum::<f64>()
-        / 2.0
-}
-
-/// Where segment `a`-`b` crosses line `c`-`d` (extended infinitely) —
-/// only ever called from [`clip_to_convex`] on a pair its own orientation
-/// tests already established actually crosses `c`-`d` somewhere on `a`-`b`
-/// itself, so the division below is never by zero in practice (parallel
-/// lines never reach an inside/outside disagreement to call this on).
-fn line_intersection(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> (f64, f64) {
-    let (x1, y1, x2, y2) = (a.0, a.1, b.0, b.1);
-    let (x3, y3, x4, y4) = (c.0, c.1, d.0, d.1);
-    let denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-    let t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
-    (x1 + t * (x2 - x1), y1 + t * (y2 - y1))
-}
-
-/// One Sutherland-Hodgman clip pass: `subject` (a closed polygon, as plain
-/// `(x, y)` points, no repeated closing vertex needed) cut down to
-/// whichever side of the infinite line through `line_a`-`line_b` that
-/// `is_inside` calls "in". The one primitive both [`clip_to_convex`] (one
-/// call per edge of a convex clip polygon, "in" meaning the interior side
-/// of that specific edge) and [`clip_half_plane`] (a single call, the
-/// "clip polygon" being an infinite half-plane rather than a closed shape)
-/// are built from — the algorithm itself doesn't care which.
-fn clip_by_line(
-    subject: &[(f64, f64)],
-    line_a: (f64, f64),
-    line_b: (f64, f64),
-    is_inside: impl Fn((f64, f64)) -> bool,
-) -> Vec<(f64, f64)> {
-    let mut output = Vec::new();
-    for j in 0..subject.len() {
-        let current = subject[j];
-        let previous = subject[(j + subject.len() - 1) % subject.len()];
-        let (current_in, previous_in) = (is_inside(current), is_inside(previous));
-        if current_in {
-            if !previous_in {
-                output.push(line_intersection(previous, current, line_a, line_b));
-            }
-            output.push(current);
-        } else if previous_in {
-            output.push(line_intersection(previous, current, line_a, line_b));
-        }
-    }
-    output
-}
-
-/// Sutherland-Hodgman polygon clipping: `subject` cut down to the part of
-/// it that also lies inside convex polygon `clip`. Requires `clip` to be
-/// convex — true of the rectangle a *straight* lane's [`merged_zone_ring`]
-/// produces, not guaranteed for one following a real bend (see
-/// [`offset_boundary`]'s own docs); `subject` can be any simple polygon,
-/// though here it's always one of those same rings. Winding-direction-
-/// agnostic — [`signed_area`] on `clip` itself decides which side of each
-/// of its own edges counts as "inside",
-/// so `subject` and `clip` don't need to agree with each other's winding.
-fn clip_to_convex(subject: &[(f64, f64)], clip: &[(f64, f64)]) -> Vec<(f64, f64)> {
-    let inside_sign = if signed_area(clip) >= 0.0 { 1.0 } else { -1.0 };
-    let mut output = subject.to_vec();
-
-    for i in 0..clip.len() {
-        if output.is_empty() {
-            break;
-        }
-        let edge_start = clip[i];
-        let edge_end = clip[(i + 1) % clip.len()];
-        let is_inside = |p: (f64, f64)| orientation(edge_start, edge_end, p) * inside_sign >= 0.0;
-        output = clip_by_line(&output, edge_start, edge_end, is_inside);
-    }
-    output
-}
-
-/// `subject` cut down to the closed half-plane through `point_on_line`,
-/// perpendicular to `normal`, on the side `normal` points *away* from
-/// (i.e. keeps `p` where `(p - point_on_line) · normal <= 0`). Used by
-/// [`bisect`] to split two overlapping rings along the perpendicular
-/// bisector of their own centroids — a full clip polygon would be
-/// meaningless there (there's no second, opposite edge to close it with),
-/// which is why this exists as its own primitive rather than a two-point
-/// `clip_to_convex` call.
-fn clip_half_plane(subject: &[(f64, f64)], point_on_line: (f64, f64), normal: (f64, f64)) -> Vec<(f64, f64)> {
-    let side = move |p: (f64, f64)| (p.0 - point_on_line.0) * normal.0 + (p.1 - point_on_line.1) * normal.1;
-    // Any second point on the line works; rotating `normal` 90° gives one
-    // for free without needing the line in any other form.
-    let tangent = (-normal.1, normal.0);
-    let line_b = (point_on_line.0 + tangent.0, point_on_line.1 + tangent.1);
-    clip_by_line(subject, point_on_line, line_b, move |p| side(p) <= 0.0)
-}
-
-/// Whether `p` lies inside (or on the boundary of) triangle `a`-`b`-`c` —
-/// true exactly when `p` is never strictly on opposite sides of two of the
-/// triangle's own edges. [`triangulate`]'s own ear test is the only
-/// caller: whether the candidate ear's triangle contains some *other*
-/// vertex of the polygon, which would make clipping it off wrong.
-fn point_in_triangle(p: (f64, f64), a: (f64, f64), b: (f64, f64), c: (f64, f64)) -> bool {
-    let (d1, d2, d3) = (orientation(a, b, p), orientation(b, c, p), orientation(c, a, p));
-    let has_negative = d1 < 0.0 || d2 < 0.0 || d3 < 0.0;
-    let has_positive = d1 > 0.0 || d2 > 0.0 || d3 > 0.0;
-    !(has_negative && has_positive)
-}
-
-/// Ear-clipping triangulation of simple (non-self-intersecting) polygon
-/// `points` (no closing repeat) into triangles whose union covers exactly
-/// the same area, wound counterclockwise either way — needed because
-/// [`clip_to_convex`] (the crate's only polygon-clipping primitive)
-/// requires its own `clip` argument to be convex, which a real zone's own
-/// ring often isn't once [`chain_shape`] and [`merged_zone_ring`] are both
-/// in play: a bent extended-ancestor segment, or a multi-lane group
-/// following a real curve. A ring like that used to make
-/// [`polygon_overlap_area`] silently underestimate (down to `0.0`) a real,
-/// substantial overlap whenever it happened to be passed as the *clip*
-/// side — confirmed on real Barcelona data: two zones with a genuine few
-/// square metres in common measured `0.0` one direction and multiple m²
-/// the other, purely depending on which one `clip_to_convex` treated as
-/// convex. Splitting into triangles — always convex, by construction —
-/// turns "does this arbitrary pair of possibly non-convex rings overlap"
-/// into a sum of convex-vs-convex checks `clip_to_convex` already handles
-/// exactly, with no dependence on which side is which.
+/// `shape`'s own boundary between `entry`/`exit`, offset `half_width` to
+/// each side of its centreline, as a single (possibly multi-part)
+/// [`MultiPolygon`] in the network's own local coordinates — a real stroke
+/// offset ([`i_overlay::mesh::stroke::offset::StrokeOffset::stroke`]), not
+/// an approximation of one.
 ///
-/// Repeatedly finds a convex vertex whose own triangle (with its two
-/// neighbours) contains no other vertex of what's left — an "ear" — clips
-/// it into the output and removes it, until three vertices remain. Bails
-/// out (returning whatever's already triangulated) rather than looping
-/// forever if no ear can be found, which real `netconvert`-derived
-/// geometry should never trigger but a sufficiently degenerate/numerically
-/// noisy ring in principle could.
-fn triangulate(points: &[(f64, f64)]) -> Vec<[(f64, f64); 3]> {
-    if points.len() < 3 {
-        return Vec::new();
+/// An earlier version of this built the same shape as the union of one
+/// straight quadrilateral per [`trimmed_segments`] entry — a valid simple
+/// polygon on its own, correctly merged with its neighbours by
+/// [`geo::BooleanOps::union`] regardless of how the quads along a bend
+/// overlapped or left a wedge between them. That held up for a gentle
+/// bend, but not for real Barcelona data at the sharp end: a chain of many
+/// very short real segments (sub-metre "connector" lanes strung
+/// end-to-end, or a lane split at every OSM node along a tight turn) union
+/// a correspondingly large number of thin, near-degenerate quads, and confirmed
+/// on real output, that could still come out self-intersecting or spiked —
+/// not because any *one* union step was wrong, but because assembling a
+/// bend out of many flat-sided pieces has no join of its own at all: each
+/// quad's own flat end meets its neighbour's at whatever angle the path
+/// bends through, with nothing smoothing the transition, unlike a real
+/// stroke algorithm's own explicit join. [`LineJoin::Round`] (see
+/// [`ROUND_JOIN_SEGMENT_ANGLE_RADIANS`]'s own docs) gives every bend an
+/// actual join instead — a smooth arc that can never itself be sharper
+/// than the coherence tests require, and is computed once for the whole
+/// path rather than reconstructed from however many tiny pieces happen to
+/// approximate it.
+///
+/// [`LineCap::Butt`] at the *start* always — a flat, perpendicular cut —
+/// matches this module's own entry gates exactly: a waiting zone's own
+/// boundary is the lane's real width at the exact station a detector gate
+/// names, not padded out further by a rounded or squared cap.
+///
+/// `end_cap` is a parameter, not always `Butt` too, for exactly one reason:
+/// [`zone_polygon`]'s own ancestor-chain case unions this shape's own
+/// output into the zone's core polygon afterward, and the two only ever
+/// *touch* at a single shared point (`chain_shape`'s own docs — the
+/// chain's own last point is, by construction, exactly the core's own
+/// first), never genuinely overlap. Two polygons capped flat right at that
+/// shared point, with even a slightly different tangent direction on each
+/// side (an ordinary street doesn't bend in a perfectly straight line
+/// through a real junction), don't butt cleanly — confirmed on real
+/// Barcelona data: [`geo::BooleanOps::union`] of two such "kissing" shapes
+/// can pinch at the seam rather than join into one clean boundary.
+/// [`LineCap::Square`] at the chain's own connecting end extends the
+/// buffer straight past that point by `half_width`, forcing a real overlap
+/// with the core's own buffer along the chain's own tangent — measurably
+/// better on real Barcelona data than leaving both ends `Butt` (the worst
+/// offender at this specific seam, a 346°-ish reflex spike, is gone), but
+/// not a complete fix: a couple of vertices right around the same seam can
+/// still land just under [`MIN_INTERIOR_ANGLE_DEGREES`] on real data,
+/// still under investigation — see this crate's own follow-up notes rather
+/// than treating the seam as fully solved.
+///
+/// Empty when `entry`/`exit` don't actually span any of `shape`'s own
+/// segments — a genuinely zero-length zone, which has no ground of its own
+/// to draw.
+fn buffer_shape(shape: &Shape, entry: Length, exit: Length, half_width: Length, end_cap: LineCap<[f64; 2], f64>) -> MultiPolygon<f64> {
+    let points = trimmed_path_points(shape, entry, exit);
+    if points.len() < 2 {
+        return MultiPolygon::new(Vec::new());
     }
-    let mut remaining = points.to_vec();
-    if signed_area(&remaining) < 0.0 {
-        remaining.reverse(); // consistent winding for the orientation-sign ear test below
-    }
-
-    let mut triangles = Vec::new();
-    while remaining.len() > 3 {
-        let n = remaining.len();
-        let ear = (0..n).find(|&i| {
-            let (prev, cur, next) = (remaining[(i + n - 1) % n], remaining[i], remaining[(i + 1) % n]);
-            orientation(prev, cur, next) > 0.0
-                && !(0..n).any(|j| {
-                    j != i
-                        && j != (i + n - 1) % n
-                        && j != (i + 1) % n
-                        && point_in_triangle(remaining[j], prev, cur, next)
-                })
-        });
-        let Some(i) = ear else { break };
-        let (prev, cur, next) = (remaining[(i + n - 1) % n], remaining[i], remaining[(i + 1) % n]);
-        triangles.push([prev, cur, next]);
-        remaining.remove(i);
-    }
-    if remaining.len() == 3 {
-        triangles.push([remaining[0], remaining[1], remaining[2]]);
-    }
-    triangles
+    let path: Vec<[f64; 2]> = points.iter().map(|p| [p.x, p.y]).collect();
+    let style = StrokeStyle::new(2.0 * half_width.get::<meter>())
+        .line_join(LineJoin::Round(ROUND_JOIN_SEGMENT_ANGLE_RADIANS))
+        .start_cap(LineCap::Butt)
+        .end_cap(end_cap);
+    shapes_to_multipolygon(path.stroke(style, false))
 }
 
-/// `a`'s own bounding box, as `(min_x, min_y, max_x, max_y)` —
-/// [`polygons_overlap`]'s own cheap pre-filter, so the two rings' own
-/// triangulations ([`polygon_overlap_area`]) only ever get computed for
-/// pairs that could plausibly overlap at all. Real Barcelona data is a
-/// whole city's worth of zones, and the overwhelming majority of any two
-/// picked at random are nowhere near each other.
-fn bounding_box(ring: &[(f64, f64)]) -> (f64, f64, f64, f64) {
-    ring.iter().fold((f64::MAX, f64::MAX, f64::MIN, f64::MIN), |(min_x, min_y, max_x, max_y), &(x, y)| {
-        (min_x.min(x), min_y.min(y), max_x.max(x), max_y.max(y))
-    })
-}
-
-/// The area two rings `a` and `b` (each closed, GeoJSON-style: first
-/// position repeated last) actually have in common — [`triangulate`] on
-/// each, then every one of `a`'s own triangles clipped against every one
-/// of `b`'s via [`clip_to_convex`] (always safe: a triangle is always
-/// convex) and summed. Robust the way a boundary-crossing/point-in-polygon
-/// test isn't: two rectangles built to share an edge exactly can still,
-/// after independently reprojecting each to WGS84 (see the module docs on
-/// why that happens), disagree on that edge's coordinates by the last
-/// floating-point digit — enough to flip a "is this point exactly on the
-/// line" test either way, but never enough to give the *clipped* polygon
-/// any real area. A [`Self::OVERLAP_AREA_THRESHOLD_DEG2`]-sized clip is
-/// noise from exactly that; real zones sharing actual ground clip to areas
-/// many orders of magnitude bigger (their overlapping rectangles are
-/// metres wide, not nanometres).
-fn polygon_overlap_area(a: &[Position], b: &[Position]) -> f64 {
-    let to_points = |ring: &[Position]| -> Vec<(f64, f64)> {
-        // Drop the closing repeated vertex neither `triangulate` nor
-        // `clip_to_convex` needs.
-        ring[..ring.len().saturating_sub(1)]
-            .iter()
-            .map(|p| (p[0], p[1]))
-            .collect()
-    };
-    let (triangles_a, triangles_b) = (triangulate(&to_points(a)), triangulate(&to_points(b)));
-    triangles_a
+/// The single polygon covering every lane in `lane_gates` — each `(lane,
+/// entry distance, exit distance)`, as computed per-gate in
+/// [`zone_polygon`] — as the union of each lane's own [`buffer_shape`].
+/// Correct regardless of how many lanes a zone has, what order they're in,
+/// or whether their own indices happen to be contiguous: an earlier
+/// version of this instead picked the group's own leftmost and rightmost
+/// lane and joined them directly, on the assumption (true for every zone
+/// `zone_generator` has ever produced from real data, but never actually
+/// guaranteed by its own model) that SUMO numbers a same-edge zone's lanes
+/// contiguously — a `union` isn't assuming anything about the lanes'
+/// arrangement in the first place, so there's nothing left for that
+/// assumption to be wrong about.
+fn merged_core_polygon(lane_gates: &[(&Lane, Length, Length)]) -> MultiPolygon<f64> {
+    lane_gates
         .iter()
-        .flat_map(|ta| triangles_b.iter().map(move |tb| signed_area(&clip_to_convex(ta, tb)).abs()))
-        .sum()
+        .map(|&(lane, entry, exit)| buffer_shape(&lane.shape, entry, exit, lane.width / 2.0, LineCap::Butt))
+        .reduce(|acc, polygon| acc.union(&polygon))
+        .unwrap_or_else(|| MultiPolygon::new(Vec::new()))
 }
 
-/// The area-weighted centroid of the ground `a` and `b` actually have in
-/// common — same triangulate-and-clip decomposition as
-/// [`polygon_overlap_area`], but averaging each clipped piece's own
-/// (vertex-average) centroid instead of just summing its area. `None` when
-/// they don't overlap at all (nothing to weight an average by).
+/// A walkingarea lane's own `shape`, used directly as a closed polygon —
+/// unlike every other kind of lane this crate ever buffers, a
+/// `function="walkingarea"` edge's own `<lane>` "shape" isn't a centreline
+/// netconvert expects offset by half the lane's width: it's already the
+/// outline of the (2D) walkable area netconvert itself computed. Confirmed
+/// on real Barcelona data across a random sample of walkingareas: a real
+/// lane's own shape arc-length always matches its `length` attribute
+/// exactly (`length` *is* "distance travelled along the shape" for one),
+/// but a walkingarea's own shape traces 3-10x its own `length`, with the
+/// shape's first and last points typically close together rather than the
+/// far-apart ends of an open path — the signature of an already-closed
+/// outline, not a line to walk along. Treating it as a centreline anyway
+/// (this crate's own earlier behaviour) measures "distance `length` along
+/// the outline" — a number with no relationship to any real position on
+/// it — trims the outline down to a meaningless arbitrary arc, and
+/// stroke-buffers that a second time on top: exactly the shape of defect
+/// (self-crossing zigzags, extreme reflex angles) real pedestrian zones
+/// turned up disproportionately often once this crate started checking for
+/// either.
 ///
-/// [`bisecting_half_plane`]'s own anchor point, instead of the two rings'
-/// *own* centroids — see its docs for why that matters for a ring far
-/// longer than it is wide (a real Barcelona ribbon 80m long, contested by
-/// several separate neighbours clustered around one small bend): the
-/// ring's own centroid sits wherever its *whole* length averages to, which
-/// can be nowhere near where any neighbour actually reaches into it.
-fn polygon_overlap_centroid(a: &[Position], b: &[Position]) -> Option<(f64, f64)> {
-    let to_points = |ring: &[Position]| -> Vec<(f64, f64)> {
-        ring[..ring.len().saturating_sub(1)].iter().map(|p| (p[0], p[1])).collect()
-    };
-    let (triangles_a, triangles_b) = (triangulate(&to_points(a)), triangulate(&to_points(b)));
-    let (mut area_sum, mut cx, mut cy) = (0.0, 0.0, 0.0);
-    for ta in &triangles_a {
-        for tb in &triangles_b {
-            let clipped = clip_to_convex(ta, tb);
-            let area = signed_area(&clipped).abs();
-            if area <= 0.0 {
-                continue;
-            }
-            let n = clipped.len() as f64;
-            let (sx, sy) = clipped.iter().fold((0.0, 0.0), |(sx, sy), &(x, y)| (sx + x, sy + y));
-            cx += area * (sx / n);
-            cy += area * (sy / n);
-            area_sum += area;
-        }
+/// No entry/exit trimming, unlike [`buffer_shape`]: `zone_generator::pedestrian_zones`
+/// never extends a pedestrian zone's own entry backward (a fork-free
+/// stretch of sidewalk isn't "committed to this crossing" the way a
+/// fork-free stretch of road is — see its own docs), so a pedestrian
+/// zone's own entry and exit already span the lane's whole nominal
+/// `[0, length]` by construction; with `length` itself not meaning a real
+/// position on this particular kind of shape, there's no trim left to
+/// apply that would mean anything anyway.
+fn pedestrian_lane_polygon(lane: &Lane) -> MultiPolygon<f64> {
+    let mut coords: Vec<Coord<f64>> = lane.shape.0.iter().map(|p| Coord { x: p.x, y: p.y }).collect();
+    if coords.len() < 3 {
+        return MultiPolygon::new(Vec::new());
     }
-    (area_sum > 0.0).then_some((cx / area_sum, cy / area_sum))
-}
-
-/// Below this, in square degrees, an overlap is floating-point noise from
-/// independently reprojecting two rectangles that share an edge exactly in
-/// the network's own local CRS — not real ground two zones both claim.
-/// [`polygon_overlap_area`]'s own docs have the full reasoning for why a
-/// threshold is needed here at all.
-///
-/// A degree of longitude at Barcelona's own latitude is close to 84km, a
-/// degree of latitude close to 111km, so converting a *area* in deg² to
-/// real m² multiplies by *both* — 84,000 × 111,000 ≈ 9.32 × 10⁹ m² per
-/// deg². An earlier value here (1×10⁻¹⁰) only accounted for *one* of those
-/// two factors, making the real tolerance it enforced 0.93 m² — most of a
-/// square metre, and large enough that a real, visible overlap between two
-/// real Barcelona zones (confirmed: 0.043 m², two zones sharing real
-/// ground a GPS point could actually land in) silently passed as "noise".
-///
-/// Chosen backward from a *different* floor than plain reprojection
-/// jitter, though: [`clip_by_constraints`]'s own hull fallback is
-/// documented as claiming "a little more than `base`'s own real,
-/// possibly-concave area" whenever a bisected ring isn't convex to start
-/// with, and [`resolve_overlaps`] never revisits a ring pair once it's
-/// been given a constraint (see its own docs), so that little bit of
-/// hull-fallback slack is a real, reproducible residual on real Barcelona
-/// data (measured: 0.00013 m² between two genuinely adjacent zones at a
-/// contested corner) rather than something later rounds clean up. 1×10⁻¹³
-/// deg² (÷9.32×10⁹ ≈ 9.3cm²) clears that residual with room to spare while
-/// staying two full orders of magnitude below the 0.043 m² real overlap
-/// this threshold exists to still catch — floating-point reprojection
-/// error itself is many more orders of magnitude smaller than either
-/// figure, so there's no risk of swinging too far and flagging genuine
-/// noise as an overlap.
-const OVERLAP_AREA_THRESHOLD_DEG2: f64 = 1e-13;
-
-/// Whether the areas enclosed by closed rings `a` and `b` overlap by more
-/// than [`OVERLAP_AREA_THRESHOLD_DEG2`] — see [`polygon_overlap_area`]'s
-/// own docs for why a bare "do they share any ground at all" test isn't
-/// the right question to ask of reprojected geometry.
-///
-/// Checks the two rings' own bounding boxes first, and skips straight to
-/// `false` if they don't even overlap — [`polygon_overlap_area`]'s own
-/// triangulate-and-clip cost is worth avoiding for the overwhelming
-/// majority of pairs across a whole city that could never plausibly
-/// overlap in the first place, and this is called for every pair
-/// [`overlapping_ring_indices`]'s own `O(n²)` scan considers.
-fn polygons_overlap(a: &[Position], b: &[Position]) -> bool {
-    let to_points = |ring: &[Position]| -> Vec<(f64, f64)> {
-        ring[..ring.len().saturating_sub(1)].iter().map(|p| (p[0], p[1])).collect()
-    };
-    let (pa, pb) = (to_points(a), to_points(b));
-    let (a_min_x, a_min_y, a_max_x, a_max_y) = bounding_box(&pa);
-    let (b_min_x, b_min_y, b_max_x, b_max_y) = bounding_box(&pb);
-    if a_max_x < b_min_x || b_max_x < a_min_x || a_max_y < b_min_y || b_max_y < a_min_y {
-        return false;
+    if coords.first() != coords.last() {
+        coords.push(coords[0]);
     }
-    polygon_overlap_area(a, b) > OVERLAP_AREA_THRESHOLD_DEG2
+    let raw = MultiPolygon::new(vec![GeoPolygon::new(LineString::new(coords), Vec::new())]);
+    // Real Barcelona walkingarea outlines aren't always simple polygons on
+    // their own — confirmed on real data, some self-touch or self-cross
+    // exactly like the hand-built shapes this crate used to have to guard
+    // against elsewhere. A self-union routes this through `geo::BooleanOps`'s
+    // own exact machinery, which `i_overlay` (the crate behind it)
+    // documents as accepting self-intersecting input directly, so whatever
+    // netconvert's own output may already have wrong comes back out clean
+    // — unlike the same trick tried earlier on already-processed output of
+    // this crate's own (see `snap_coords`'s own docs on why that specific
+    // case made things worse instead), this is the *first* thing done to
+    // raw, external input, not a repair layered on top of several other
+    // transforms already in play.
+    raw.union(&raw)
 }
 
-/// Every ring `feature`'s own geometry carries — one per sub-polygon (see
-/// [`zone_feature`]'s own docs on why a zone can have more than one, via
-/// extended ancestor entries). Empty if `feature` has no geometry or isn't
-/// a `MultiPolygon` — never true of anything [`zone_feature`] itself
-/// builds, but this is also called from [`overlapping_zone_ids`] on a
+/// The single polygon covering every lane in `lanes` — a pedestrian zone's
+/// own counterpart to [`merged_core_polygon`], built from each lane's own
+/// [`pedestrian_lane_polygon`] instead of a stroke-buffered centreline.
+fn merged_pedestrian_polygon(lanes: &[&Lane]) -> MultiPolygon<f64> {
+    lanes
+        .iter()
+        .map(|lane| pedestrian_lane_polygon(lane))
+        .reduce(|acc, polygon| acc.union(&polygon))
+        .unwrap_or_else(|| MultiPolygon::new(Vec::new()))
+}
+
+/// Every ring `feature`'s own geometry carries — its exterior ring only, one
+/// per sub-polygon (see [`zone_polygon`]'s own docs on why a zone can have
+/// more than one, via extended ancestor entries); a hole (an interior ring)
+/// never legitimately occurs in anything this module builds — buffering and
+/// merging same-direction road/sidewalk ribbons has no way to enclose empty
+/// space — so this doesn't look for one. Empty if `feature` has no geometry
+/// or isn't a `MultiPolygon` — never true of anything [`build_feature`]
+/// itself builds, but this is also called from [`overlapping_zone_ids`] on a
 /// `FeatureCollection` a caller could in principle have built some other
 /// way.
 fn feature_rings(feature: &Feature) -> Vec<&[Position]> {
@@ -991,402 +584,290 @@ fn feature_rings(feature: &Feature) -> Vec<&[Position]> {
     coordinates.iter().filter_map(|polygon| polygon.first().map(Vec::as_slice)).collect()
 }
 
-/// Every `(zone_i, ring_i, zone_j, ring_j)` — indices into `features` and,
-/// within each, into [`feature_rings`] — whose rings overlap, restricted to
-/// `candidates` when given. The shared core [`overlapping_zone_ids`] and
-/// [`resolve_overlaps`] are both built on, so the two can never disagree
-/// about what counts as an overlap.
-///
-/// Restricting to `candidates` is only ever safe because both fixes
-/// [`resolve_overlaps`] applies — dropping padding, [`bisect`]ing — strictly
-/// shrink a ring, never grow one: a pair not already flagged against the
-/// *full*, unresolved set can never become one later, so once a first full
-/// pass has found every zone that's party to *some* overlap, nothing
-/// outside that set needs rechecking again.
-fn overlapping_ring_indices(
-    features: &[Feature],
-    candidates: &BTreeSet<usize>,
-) -> Vec<(usize, usize, usize, usize)> {
-    let indices: Vec<usize> = candidates.iter().copied().collect();
-    let rings: Vec<Vec<&[Position]>> = indices.iter().map(|&i| feature_rings(&features[i])).collect();
+/// `feature`'s own geometry, rebuilt as a [`MultiPolygon`] in whatever 2D
+/// coordinate space its positions are already in — [`overlapping_zone_ids`]'s
+/// own way of getting back to real polygons (and so real, exact
+/// [`geo::BooleanOps::intersection`]) from already-built GeoJSON, the one
+/// place in this module that still has to work from a `Feature` rather than
+/// the local-coordinate `MultiPolygon`s the rest of the pipeline carries
+/// straight through (see the module docs). Only the exterior ring of each
+/// sub-polygon — see [`feature_rings`]'s own docs on why a hole never
+/// legitimately occurs here.
+fn feature_multipolygon(feature: &Feature) -> MultiPolygon<f64> {
+    let rings = feature_rings(feature).into_iter().map(|ring| {
+        GeoPolygon::new(LineString::new(ring.iter().map(|p| Coord { x: p[0], y: p[1] }).collect()), Vec::new())
+    });
+    MultiPolygon::new(rings.collect())
+}
+
+/// Same reasoning as [`OVERLAP_AREA_THRESHOLD_M2`] (see its own docs), but
+/// converted for [`overlapping_zone_ids`]'s own lon/lat input: the rest of
+/// this module works in the network's own local, metric coordinates
+/// throughout (see the module docs), so a plain m² threshold is enough
+/// there, but this function's own public contract is a `FeatureCollection`
+/// already reprojected to WGS84. A degree of longitude at Barcelona's own
+/// latitude is close to 84km, a degree of latitude close to 111km, so
+/// converting an *area* threshold from m² to deg² divides by both.
+const OVERLAP_AREA_THRESHOLD_DEG2: f64 = OVERLAP_AREA_THRESHOLD_M2 / (84_000.0 * 111_000.0);
+
+/// Every pair of *different* zones in `collection` whose own areas overlap
+/// by more than [`OVERLAP_AREA_THRESHOLD_DEG2`]. A client geofences against
+/// this output by testing a GPS point against each zone's polygon (see the
+/// module docs); an overlap here means a single point can match two
+/// different zones at once, which is exactly the ambiguity a client asking
+/// "which crossing am I waiting at" can't resolve on its own — see
+/// `zone_generator::pedestrian_zones`'s own docs for a concrete way this can
+/// happen (one physical corner feeding two differently-signalled
+/// crossings). [`to_feature_collection`] itself already runs this same
+/// check and resolves whatever it finds (see [`resolve_overlaps`]), so this
+/// only ever finds something real on output this crate produced when called
+/// directly on a hand-built collection — exactly how this module's own
+/// tests use it to exercise the detector in isolation.
+pub fn overlapping_zone_ids(collection: &FeatureCollection) -> Vec<(String, String)> {
+    let ids: Vec<Option<String>> = collection
+        .features
+        .iter()
+        .map(|feature| feature.property("waiting_zone_id").and_then(|v| v.as_str()).map(str::to_string))
+        .collect();
+    let polygons: Vec<MultiPolygon<f64>> = collection.features.iter().map(feature_multipolygon).collect();
 
     let mut found = Vec::new();
-    for a in 0..indices.len() {
-        for b in (a + 1)..indices.len() {
-            for (ri, ring_a) in rings[a].iter().enumerate() {
-                for (rj, ring_b) in rings[b].iter().enumerate() {
-                    if polygons_overlap(ring_a, ring_b) {
-                        found.push((indices[a], ri, indices[b], rj));
-                    }
-                }
+    for i in 0..polygons.len() {
+        for j in (i + 1)..polygons.len() {
+            if polygons[i].intersection(&polygons[j]).unsigned_area() > OVERLAP_AREA_THRESHOLD_DEG2
+                && let (Some(a), Some(b)) = (&ids[i], &ids[j])
+            {
+                found.push((a.clone(), b.clone()));
             }
         }
     }
     found
 }
 
-/// [`overlapping_ring_indices`], deduplicated down to the `(zone_i,
-/// zone_j)` pairs it found at least one conflicting ring for — every ring
-/// two given zones must be checked against every ring of the other's for a
-/// zone that's still one of the multi-polygon shapes
-/// [`zone_feature`]'s own docs describe, but a caller only choosing which
-/// *zones* need a fallback (see [`resolve_overlaps`]'s own padding-drop
-/// phase) doesn't need the ring-level detail. `subset` of `None` means
-/// every zone.
-fn overlapping_indices(features: &[Feature], subset: Option<&BTreeSet<usize>>) -> Vec<(usize, usize)> {
-    let owned_full_set;
-    let candidates = match subset {
-        Some(set) => set,
-        None => {
-            owned_full_set = (0..features.len()).collect();
-            &owned_full_set
+/// Below this, in real m², an overlap between two zones' polygons is
+/// floating-point noise rather than real, shared ground — two rectangles
+/// independently built to share an edge exactly can still disagree on that
+/// edge's last few floating-point digits once a bend or a union has moved
+/// their vertices around. Every polygon this threshold compares is still in
+/// the network's own local, metric coordinates (see the module docs), so
+/// this is a plain area in m², not a degree-based figure that would also
+/// have to correct for a degree of longitude and a degree of latitude
+/// covering different real distances — the whole reason an earlier version
+/// of this comparison (before reprojection moved to the very end of the
+/// pipeline) needed that correction at all.
+const OVERLAP_AREA_THRESHOLD_M2: f64 = 0.01;
+
+fn overlap_area_m2(a: &MultiPolygon<f64>, b: &MultiPolygon<f64>) -> f64 {
+    let boxes_overlap = match (a.bounding_rect(), b.bounding_rect()) {
+        (Some(ra), Some(rb)) => {
+            ra.min().x <= rb.max().x && rb.min().x <= ra.max().x && ra.min().y <= rb.max().y && rb.min().y <= ra.max().y
         }
+        _ => false,
     };
-    overlapping_ring_indices(features, candidates)
-        .into_iter()
-        .map(|(i, _, j, _)| (i, j))
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect()
+    // `intersection` is the expensive part; most pairs across a whole city
+    // are nowhere near each other, so a bounding-box check first is worth
+    // it the same way it was for the pipeline this replaces.
+    if boxes_overlap { a.intersection(b).unsigned_area() } else { 0.0 }
 }
 
-/// Every pair of *different* zones in `collection` whose own areas overlap
-/// — each zone's `MultiPolygon` checked ring-by-ring against every other
-/// zone's. A client geofences against this output by testing a GPS point
-/// against each zone's polygon (see the module docs); an overlap here means
-/// a single point can match two different zones at once, which is exactly
-/// the ambiguity a client asking "which crossing am I waiting at" can't
-/// resolve on its own — see `zone_generator::pedestrian_zones`'s own docs
-/// for a concrete way this can happen (one physical corner feeding two
-/// differently-signalled crossings). [`to_feature_collection`] itself
-/// already runs this same check and resolves whatever it finds (see
-/// [`resolve_overlaps`]), so this only ever finds something real on output
-/// this crate produced when called directly on a hand-built collection —
-/// exactly how this module's own tests use it to exercise the detector in
-/// isolation.
+/// `polygon` — the result of cutting *one* originally-connected part of a
+/// zone's own `MultiPolygon` (see [`resolve_overlaps`]'s own docs on why
+/// it's called per part, never on a zone's whole `MultiPolygon` at once) —
+/// reduced to just the piece of that result still connected to `reference`
+/// (its own zone's `stop_line_point`, in the same local coordinates). A
+/// no-op when `polygon` already has at most one part.
 ///
-/// Doesn't check a zone's own polygons against each other — every zone with
-/// at least one gate has exactly one ([`merged_zone_ring`]), so there's
-/// nothing of its own left to compare — only different zones competing for
-/// the same ground.
-pub fn overlapping_zone_ids(collection: &FeatureCollection) -> Vec<(String, String)> {
-    let ids: Vec<Option<String>> = collection
-        .features
+/// A cut is exact set subtraction: it removes precisely the real, disputed
+/// overlap and nothing else, which is correct as far as it goes, but says
+/// nothing about *where in the shape* that overlap happened to fall. A
+/// neighbour whose own overlap lands in the *middle* of a long
+/// single-part chain — not at either end — cuts that one part into two
+/// separate pieces, one still attached to the zone's own stop line and one
+/// stranded further back with no way back to it: confirmed on real
+/// Barcelona data as a real, visible defect (a "hole" with ground
+/// continuing on the far side of it), not the intended "the zone gives up
+/// disputed ground and stops there" a client geofencing against this
+/// output needs. A piece stranded past the collision this way is
+/// unreachable from the zone's own controlled stop line without crossing
+/// the very ground just excluded, so it isn't real waiting-area ground for
+/// this zone any more, whether or not the neighbour claims it either —
+/// dropping it is what "stops at the collision" actually means at the
+/// polygon level.
+fn keep_part_near(polygon: MultiPolygon<f64>, reference: Coord<f64>) -> MultiPolygon<f64> {
+    if polygon.0.len() <= 1 {
+        return polygon;
+    }
+    let reference_point = GeoPoint::from(reference);
+    // Prefer the part that actually contains the stop line first: distance
+    // alone can be fooled by a tiny sliver that happens to sit closer to the
+    // reference point than the real, substantially larger remaining piece
+    // (seen on 50926861#0_straight, where a ~0.28 m^2 scrap sat nearer the
+    // stop line than the zone's real remaining ground). Falling back to the
+    // largest part by area is a much more robust proxy for "the real
+    // surviving ground" than raw nearest-by-distance.
+    let containing = polygon
+        .0
         .iter()
-        .map(|feature| {
-            feature.property("waiting_zone_id").and_then(|v| v.as_str()).map(str::to_string)
-        })
-        .collect();
+        .find(|part| part.contains(&reference_point))
+        .cloned();
+    let chosen = containing.or_else(|| {
+        polygon
+            .0
+            .into_iter()
+            .max_by(|a, b| a.unsigned_area().total_cmp(&b.unsigned_area()))
+    });
+    MultiPolygon::new(chosen.into_iter().collect())
+}
 
-    overlapping_indices(&collection.features, None)
-        .into_iter()
-        .filter_map(|(i, j)| Some((ids[i].clone()?, ids[j].clone()?)))
+/// Below this, in real m², a polygon part left over from a
+/// [`resolve_overlaps`] cut is floating-point noise rather than real ground
+/// worth keeping — an edge cut almost exactly along an existing vertex can
+/// leave a sliver a fraction of a millimetre wide. [`overlap_area_m2`]'s own
+/// threshold guards the same kind of noise at the *detection* end (deciding
+/// whether two zones overlap at all); this is the same idea applied to a
+/// cut's own *output*, and matters for more than tidiness: a real Barcelona
+/// pedestrian zone, cut repeatedly by several neighbours across a few
+/// rounds, accumulated slivers this thin, and [`geo::BooleanOps`]'s own
+/// fixed-point core measurably slows down (confirmed: a single
+/// `intersection` against one of these went from microseconds to hundreds
+/// of milliseconds) — and can hit an internal precision assertion outright
+/// — on geometry this degenerate. Dropping them immediately after every cut
+/// keeps every polygon this module carries forward numerically
+/// well-conditioned, not just visually clean.
+const MIN_KEPT_PART_AREA_M2: f64 = 0.01;
+
+fn drop_slivers(polygon: MultiPolygon<f64>) -> MultiPolygon<f64> {
+    MultiPolygon::new(polygon.0.into_iter().filter(|part| part.unsigned_area() > MIN_KEPT_PART_AREA_M2).collect())
+}
+
+/// Below this, in metres, two vertices are the same point as far as this
+/// module's own output is concerned — `snap_coords` rounds every coordinate
+/// to the nearest multiple of it. [`geo::BooleanOps`] itself already snaps
+/// to *some* fixed-point grid internally (that's what makes it exact), but
+/// two vertices that were meant to coincide (the same real corner, computed
+/// two different ways — e.g. by each side of a shared cut, independently,
+/// in [`resolve_overlaps`]) can still land a float epsilon apart, which the
+/// *next* round's own [`overlap_area_m2`] check reads as a fresh, genuine
+/// sliver of overlap to resolve all over again — confirmed on real
+/// Barcelona data: a small cluster of zones kept "resolving" a hairline
+/// overlap only for the next round to find a new one in its place, each
+/// round's own polygon a little more complex than the last from the
+/// accumulated noise, until a later round's `intersection`/`difference`
+/// call measurably slowed down (see [`MIN_KEPT_PART_AREA_M2`]'s own docs on
+/// the same failure shape). Snapping every polygon this module carries
+/// forward onto a shared grid closes that loop: the same real corner
+/// reached two different ways always lands on exactly the same point, so
+/// there's no float-epsilon gap left for a later round to rediscover as
+/// new.
+///
+/// Finer converges *better*, not worse, right down to the smallest grid
+/// that still absorbs real float noise: a coarser grid doesn't just fail to
+/// help, it makes its own new problem, since every round's own rounding is
+/// itself a source of positional disagreement between two sides that were
+/// exactly coincident before it — confirmed by trying coarser values on the
+/// same real data (1mm and 1cm both left more pairs unresolved after
+/// [`MAX_RESOLUTION_ROUNDS`] than 0.1mm did, 1cm markedly more than 1mm).
+/// 0.1mm is comfortably above where real float noise from `geo`'s own
+/// fixed-point core lives (empirically sub-micrometre) and comfortably
+/// below anything that could ever be a real, intended geometric feature of
+/// a road or sidewalk — real Barcelona data converges in a single round at
+/// this value, with nothing left over for [`resolve_overlaps`]'s own
+/// "still overlap after N rounds" fallback to ever report.
+const SNAP_GRID_METERS: f64 = 0.0001;
+
+/// `snap_coords` itself, plus the cleanup its own rounding makes necessary:
+/// two consecutive vertices that were merely *close* before snapping can
+/// become *identical* after it, leaving a zero-length edge — harmless in
+/// itself, but a client reading two coincident points as a real edge sees a
+/// spurious 0° interior angle where there's no actual spike, or, if enough
+/// of them line up, a self-touch a bowtie check flags as a crossing.
+/// Deduplicating consecutive coordinates removes the zero-length edge along
+/// with it, closing the gap between "snapped to the same point" and "reads
+/// as a real corner".
+///
+/// Unlike every other transform in this module, [`geo::MapCoords`] is a raw
+/// per-coordinate rewrite with no simplicity guarantee of its own —
+/// rounding two vertices independently can, in principle, drag one edge
+/// across another that wasn't crossing before. A tempting fix is routing
+/// the result back through [`geo::BooleanOps::union`] with itself (`i_overlay`,
+/// the crate backing it, documents accepting self-intersecting input
+/// directly) — but that's not the free repair it looks like: tried on real
+/// Barcelona data, it introduced far more damage than it fixed, corrupting
+/// hundreds of zones that were never self-intersecting in the first place
+/// (a self-union isn't a documented no-op for already-simple, multi-part
+/// input, and evidently isn't one in practice either). Left as plain
+/// snap-and-dedup instead — leaves a small, known number of real Barcelona
+/// rings on very tightly-bent short chains still capable of a hairline
+/// self-touch, which is a real, narrower gap this module doesn't yet close
+/// (see the crate's own follow-up notes), but doesn't risk the geometry
+/// that was already correct to chase it.
+fn snap_coords(polygon: MultiPolygon<f64>) -> MultiPolygon<f64> {
+    let snap = |v: f64| (v / SNAP_GRID_METERS).round() * SNAP_GRID_METERS;
+    polygon.map_coords(|c| Coord { x: snap(c.x), y: snap(c.y) })
+}
+
+/// Every `(i, j)` index pair into `polygons` whose polygons overlap by more
+/// than [`OVERLAP_AREA_THRESHOLD_M2`] — the local-coordinate counterpart of
+/// [`overlapping_zone_ids`], used internally by [`resolve_overlaps`], which
+/// needs indices to mutate rather than the ids that function's own public
+/// contract returns.
+fn overlapping_pairs(polygons: &[MultiPolygon<f64>]) -> Vec<(usize, usize)> {
+    let mut found = Vec::new();
+    for i in 0..polygons.len() {
+        for j in (i + 1)..polygons.len() {
+            if overlap_area_m2(&polygons[i], &polygons[j]) > OVERLAP_AREA_THRESHOLD_M2 {
+                found.push((i, j));
+            }
+        }
+    }
+    found
+}
+
+/// Every `(i, j)` pair in `pairs` whose polygons still overlap, checked
+/// against `polygons` as it currently stands — the same test
+/// [`overlapping_pairs`] runs, just against an already-known candidate list
+/// instead of scanning every possible pair in `polygons` again. Both fixes
+/// [`resolve_overlaps`] applies — shrinking padding, cutting away a real
+/// overlap — only ever shrink a polygon, never grow one, so a pair that
+/// wasn't found overlapping in a first full [`overlapping_pairs`] scan can
+/// never become one later: restricting every later round to the candidates
+/// that first scan already found is safe, and turns what would otherwise be
+/// a fresh `O(n²)` scan of the *entire* network on every round into one
+/// proportional only to however many zones are actually contested — a
+/// small fraction of a whole city's worth of zones in practice.
+fn still_overlapping(polygons: &[MultiPolygon<f64>], pairs: &[(usize, usize)]) -> Vec<(usize, usize)> {
+    pairs
+        .iter()
+        .copied()
+        .filter(|&(i, j)| overlap_area_m2(&polygons[i], &polygons[j]) > OVERLAP_AREA_THRESHOLD_M2)
         .collect()
 }
 
-/// [`clip_half_plane`]'s own `(point_on_line, normal)` pair, named at the
-/// type level everywhere one is passed around or stored — a
-/// [`resolve_overlaps`] constraint, before it's actually applied to
-/// anything.
-type HalfPlane = ((f64, f64), (f64, f64));
-
-/// `ring`'s own centroid, in whatever 2D coordinate space `ring` is
-/// already in (lon/lat here). Only ever used to pick a *direction* to
-/// split two overlapping rings along ([`bisecting_half_plane`]), so the
-/// small distortion of averaging lon/lat directly rather than in a true
-/// metric CRS doesn't matter — the shapes involved span a few dozen
-/// metres at most.
-fn ring_centroid(ring: &[Position]) -> (f64, f64) {
-    let points = &ring[..ring.len().saturating_sub(1)];
-    let n = (points.len().max(1)) as f64;
-    let (sx, sy) = points.iter().fold((0.0, 0.0), |(sx, sy), p| (sx + p[0], sy + p[1]));
-    (sx / n, sy / n)
-}
-
-/// The half-plane (`clip_half_plane`'s own `(point_on_line, normal)` pair)
-/// that keeps `ring_a`'s own side when splitting it apart from `ring_b`: the
-/// normal points from `ring_a`'s own centroid toward `ring_b`'s (negate it
-/// for the half that keeps `ring_b`'s own side instead, as
-/// [`resolve_overlaps`] does) — deciding *which* side is whose still only
-/// needs each ring's own overall shape, not where specifically they
-/// overlap. *Where* the line sits is a different question, though:
-/// anchored at [`polygon_overlap_centroid`] (the actual overlapping
-/// ground's own centroid) when there is one, rather than at the two rings'
-/// own midpoint. For a ring far longer than it is wide (a real Barcelona
-/// ribbon 80m long, contested by several separate neighbours clustered
-/// around one small bend) the ring's own centroid sits wherever its
-/// *whole* length averages to, nowhere near where any neighbour actually
-/// reaches into it — a cut line built from that midpoint doesn't pass
-/// through the real conflict at all, and combining several such
-/// off-target lines from multiple simultaneous neighbours can converge on
-/// a small, entirely valid-looking (simple, even convex) result that isn't
-/// near any of the real overlaps. Falls back to the two rings' own midpoint
-/// when they don't actually overlap (`polygon_overlap_centroid` returning
-/// `None`) — not expected of anything [`resolve_overlaps`] itself calls
-/// this on, but a straight line still needs *a* point to anchor at.
-///
-/// A straight cut along the *same* line, applied to both sides, can never
-/// leave the two results overlapping each other — they're the two closed
-/// half-planes of one line — which is what makes this safe to apply
-/// without knowing anything about *why* the two shapes reach into each
-/// other: real lane width at a sharp fork, a short lane's own extended
-/// entry, or any other cause dropping padding doesn't touch.
-///
-/// `None` when the two centroids (nearly) coincide: no direction to cut
-/// along. Left for [`resolve_overlaps`]'s own caller to report rather than
-/// cutting blindly — the same "worth a human looking at directly" choice
-/// [`merged_zone_ring`]'s own non-contiguous case makes, and, like that
-/// one, expected to be vanishingly rare on real `netconvert` output rather
-/// than a case this crate is actually designed around.
-fn bisecting_half_plane(ring_a: &[Position], ring_b: &[Position]) -> Option<HalfPlane> {
-    let (ax, ay) = ring_centroid(ring_a);
-    let (bx, by) = ring_centroid(ring_b);
-    let normal_a_to_b = (bx - ax, by - ay);
-    if normal_a_to_b.0.hypot(normal_a_to_b.1) < 1e-12 {
-        return None;
-    }
-    let anchor = polygon_overlap_centroid(ring_a, ring_b).unwrap_or(((ax + bx) / 2.0, (ay + by) / 2.0));
-    Some((anchor, normal_a_to_b))
-}
-
-/// `base` (already in `(x, y)` point form, no closing repeat), cut down by
-/// every half-plane in `constraints` — one call per neighbour a ring is
-/// currently found to overlap, all applied in one pass to the *same*
-/// original `base` rather than to whatever the previous constraint left
-/// behind.
-///
-/// That distinction is the whole reason this exists as a batch rather than
-/// looping a single-constraint clip once per neighbour: intersecting a
-/// convex `base` with `N` half-planes gives the same convex region whether
-/// they're applied one at a time or all at once, *as long as every one of
-/// them is measured against the same starting shape* — [`resolve_overlaps`]'s
-/// own docs cover why re-deriving each new cut's own centroid from an
-/// *already cut* shape doesn't have that property, and fragmented a zone
-/// contested by several neighbours into a disconnected, multi-lobed mess
-/// instead of the single clean intersection a busy corner's own waiting
-/// area actually is.
-///
-/// How many times `ring`'s own boundary crosses the infinite line through
-/// `point_on_line` perpendicular to `normal` — a vertex sitting exactly on
-/// the line counts as *not* crossing there (an edge ending exactly on the
-/// line still only flips sides once, at its other end), so this never
-/// over-counts on the coincidental exact touches real reprojected geometry
-/// occasionally produces. [`clip_by_constraints`]'s own gate on whether
-/// [`clip_half_plane`]'s guarantee actually holds for a given `ring` and
-/// cut — see its own docs.
-fn boundary_crossings(ring: &[(f64, f64)], point_on_line: (f64, f64), normal: (f64, f64)) -> usize {
-    let side = |p: (f64, f64)| (p.0 - point_on_line.0) * normal.0 + (p.1 - point_on_line.1) * normal.1;
-    let n = ring.len();
-    (0..n).filter(|&i| (side(ring[i]) > 0.0) != (side(ring[(i + 1) % n]) > 0.0)).count()
-}
-
-/// `clip_half_plane` is exact Sutherland-Hodgman clipping, which only
-/// guarantees a correct single polygon back when the boundary it's cutting
-/// crosses the clip line at most twice — true of a convex `base`, not
-/// guaranteed of a real zone's own (a multi-lane `merged_zone_ring`
-/// spanning a bend). Past that, the algorithm bridges what should be
-/// separate pieces with a straight edge along the clip line — not just a
-/// theoretical risk: on a real Barcelona ribbon whose own bend put a
-/// contested neighbour's cut line across it four times rather than two,
-/// this silently produced a small, entirely valid-looking (simple, even
-/// convex) quadrilateral that was still *wrong* — a phantom sliver
-/// bridging across the ribbon's own bend, covering neither real remaining
-/// piece — passing both the area-inflation and self-intersection checks
-/// this function used to rely on alone. `boundary_crossings` catches this
-/// directly, the same guarantee [`clip_half_plane`]'s own docs name,
-/// checked per constraint against `base` itself before trusting the direct
-/// path at all, rather than only inspecting its output after the fact.
-/// Clipping `base`'s own convex hull instead is guaranteed exact (a hull is
-/// always convex by construction, so every cut against it crosses at most
-/// twice) at the cost of claiming a little more than `base`'s own real,
-/// possibly-concave area in trade.
-fn clip_by_constraints(base: &[(f64, f64)], constraints: &[HalfPlane]) -> Vec<(f64, f64)> {
-    let apply = |mut points: Vec<(f64, f64)>| -> Vec<(f64, f64)> {
-        for &(point_on_line, normal) in constraints {
-            if points.is_empty() {
-                break;
-            }
-            points = clip_half_plane(&points, point_on_line, normal);
-        }
-        points
-    };
-
-    // A single constraint crossing `base`'s own boundary at most twice is
-    // [`clip_half_plane`]'s own documented guarantee of a correct result,
-    // true regardless of `base`'s own convexity. More than one constraint
-    // at once is a different claim, though — this module's own docs argue
-    // it's safe to measure every constraint against the same stable `base`
-    // *because* "intersecting a convex base with N half-planes gives the
-    // same convex region regardless of order" — a property that
-    // specifically needs `base` convex to begin with. A `base` with even a
-    // gentle real bend (not literally convex) can satisfy the two-crossing
-    // rule for every constraint individually and still combine into a
-    // small, entirely valid-looking (simple, even convex) result that
-    // isn't really the intersection any of those neighbours actually
-    // contest — a phantom sliver bridging across the bend instead of
-    // either real remaining piece. Real Barcelona case this guards: an
-    // 80.9m ribbon with one gentle bend, contested by three separate
-    // neighbours near that same bend at once, collapsed to a disconnected
-    // notch nowhere near any of the three real overlaps. A lone constraint
-    // doesn't have another one to combine badly with, so it only needs the
-    // ordinary crossing check.
-    let safe_to_clip_directly = match constraints {
-        [] => true,
-        [(point_on_line, normal)] => boundary_crossings(base, *point_on_line, *normal) <= 2,
-        _ => base.len() == convex_hull(base).len(),
-    };
-
-    if safe_to_clip_directly {
-        let direct = apply(base.to_vec());
-        let original_area = signed_area(base).abs();
-        let direct_area = signed_area(&direct).abs();
-        if direct_area <= original_area * 1.0001 && !polyline_self_intersects(&direct) {
-            return direct;
-        }
-    }
-    apply(convex_hull(base))
-}
-
-/// `points` (no closing repeat) as a closed GeoJSON ring — `None` if fewer
-/// than 3 remain, meaning [`clip_by_constraints`] clipped it away almost
-/// entirely.
-fn close_points(points: Vec<(f64, f64)>) -> Option<Vec<Position>> {
-    if points.len() < 3 {
-        return None;
-    }
-    let mut ring: Vec<Position> = points.into_iter().map(|(x, y)| Position::from([x, y])).collect();
-    let first = ring[0].clone();
-    ring.push(first);
-    Some(ring)
-}
-
-/// Whether closed polyline `points` (no repeated closing vertex needed —
-/// unlike a GeoJSON [`Position`] ring) crosses itself anywhere — the same
-/// "bowtie" check the test module's own `ring_self_intersects` runs on
-/// finished [`Position`] rings, duplicated here rather than shared because
-/// this one runs on plain tuples mid-computation, before there's a
-/// [`Position`] ring to hand it at all. Used by [`clip_by_constraints`]'s
-/// own safety check on a direct half-plane clip — see its own docs for why
-/// that can fail on a non-convex ring.
-fn polyline_self_intersects(points: &[(f64, f64)]) -> bool {
-    let n = points.len();
-    if n < 4 {
-        return false;
-    }
-    let at = |i: usize| Point { x: points[i % n].0, y: points[i % n].1, z: 0.0 };
-    for i in 0..n {
-        for j in (i + 2)..n {
-            if i == 0 && j == n - 1 {
-                continue; // adjacent via the closing wrap-around
-            }
-            if segment_intersection_point(at(i), at(i + 1), at(j), at(j + 1)).is_some() {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-/// The convex hull of `points` (Andrew's monotone chain), wound
-/// counterclockwise. [`clip_by_constraints`]'s own fallback clip subject
-/// for a ring a direct [`clip_half_plane`] sequence can't be trusted on —
-/// see its own docs.
-fn convex_hull(points: &[(f64, f64)]) -> Vec<(f64, f64)> {
-    let mut sorted = points.to_vec();
-    sorted.sort_by(|a, b| a.partial_cmp(b).expect("network coordinates are always finite"));
-    sorted.dedup();
-    if sorted.len() < 3 {
-        return sorted;
-    }
-
-    let cross = |o: (f64, f64), a: (f64, f64), b: (f64, f64)| (a.0 - o.0) * (b.1 - o.1) - (a.1 - o.1) * (b.0 - o.0);
-    let half = |points: &[(f64, f64)]| -> Vec<(f64, f64)> {
-        let mut hull: Vec<(f64, f64)> = Vec::new();
-        for &p in points {
-            while hull.len() >= 2 && cross(hull[hull.len() - 2], hull[hull.len() - 1], p) <= 0.0 {
-                hull.pop();
-            }
-            hull.push(p);
-        }
-        hull
-    };
-
-    let mut lower = half(&sorted);
-    sorted.reverse();
-    let mut upper = half(&sorted);
-    lower.pop();
-    upper.pop();
-    lower.extend(upper);
-    lower
-}
-
-/// Overwrites the exterior ring of `feature`'s `polygon_index`-th
-/// sub-polygon in place — a no-op if `feature` isn't a `MultiPolygon` or
-/// doesn't have that many sub-polygons (never true of anything
-/// [`resolve_overlaps`] itself calls this on).
-fn replace_ring(feature: &mut Feature, polygon_index: usize, ring: Vec<Position>) {
-    if let Some(geometry) = feature.geometry.as_mut()
-        && let geojson::GeometryValue::MultiPolygon { coordinates } = &mut geometry.value
-        && let Some(polygon) = coordinates.get_mut(polygon_index)
-        && let Some(exterior) = polygon.get_mut(0)
-    {
-        *exterior = ring;
-    }
-}
-
-/// Whether any ring of `a` overlaps any ring of `b` — [`overlapping_ring_indices`]'s
-/// own pairwise test, applied to two `Feature`s directly rather than
-/// indices into a shared slice; [`resolve_overlaps`]'s own padding-drop
-/// phase uses this to check a candidate replacement (the unpadded variant
-/// of one zone) against the *other* zone's current geometry without first
-/// having to splice the candidate into the shared `features` slice just to
-/// ask the question.
-fn ring_lists_overlap(a: &Feature, b: &Feature) -> bool {
-    let (rings_a, rings_b) = (feature_rings(a), feature_rings(b));
-    rings_a.iter().any(|ring_a| rings_b.iter().any(|ring_b| polygons_overlap(ring_a, ring_b)))
-}
-
-/// Past this many outer rounds of [`resolve_overlaps`], give up expanding
-/// its own candidate set and leave whatever's left overlapping rather than
-/// looping forever — real Barcelona data converges in 2 rounds, so this is
-/// headroom for a much messier network, not a figure anything is tuned
-/// against.
-const MAX_RESOLUTION_ROUNDS: u32 = 8;
-
-/// How many bisection steps [`max_safe_pad`] runs — 10 halvings of
-/// [`MIN_DRAWN_LANE_LENGTH_METERS`]'s own 5m bottom out under a
-/// millimetre, far tighter than the overlap-area noise floor
-/// ([`OVERLAP_AREA_THRESHOLD_DEG2`]) could even distinguish, so more
-/// steps would only buy precision nothing downstream can tell apart from
-/// what this already gives.
-const PAD_SEARCH_STEPS: u32 = 10;
-
-/// The most [`zone_feature`] can pad `zone`'s own entries out to, up to
+/// The most [`zone_polygon`] can pad `zone`'s own entries out to, up to
 /// `upper`, without the result overlapping `opposing` — binary search
 /// rather than the all-or-nothing choice between `upper` and `0.0`:
 /// dropping straight to zero the instant the full default overlaps
 /// anything turns a real but merely-a-bit-too-short lane back into the
-/// paper-thin sliver [`MIN_DRAWN_LANE_LENGTH_METERS`] exists to avoid,
-/// when often only a metre or two of it was ever the problem.
+/// paper-thin sliver [`MIN_DRAWN_LANE_LENGTH_METERS`] exists to avoid, when
+/// often only a metre or two of it was ever the problem.
 ///
 /// Assumes overlap is monotonic in the pad amount — true by construction,
 /// since [`padded_entry`] only ever extends an entry *backward* along a
 /// fixed line as the target length grows, never sideways or in any other
 /// direction that could newly clear an obstruction a smaller pad had
 /// already reached. If even `0.0` overlaps `opposing`, this converges to
-/// `0.0` and reports it rather than special-casing that check up front:
-/// the padding isn't the problem in that case, which is exactly what
-/// [`resolve_overlaps`]'s own bisecting phase is for.
+/// `0.0` and reports it rather than special-casing that check up front: the
+/// padding isn't the problem in that case, which is exactly what
+/// [`resolve_overlaps`]'s own cutting phase is for.
 fn max_safe_pad(
     zone: &E3Detector,
     lanes: &HashMap<&str, &Lane>,
     successors: &HashMap<&str, (&str, Option<&str>)>,
-    reproject: &Reprojector,
     upper: f64,
-    opposing: &Feature,
+    opposing: &MultiPolygon<f64>,
 ) -> Result<f64> {
     let overlaps_at = |pad: f64| -> Result<bool> {
-        Ok(ring_lists_overlap(&zone_feature(zone, lanes, successors, reproject, pad)?, opposing))
+        Ok(overlap_area_m2(&zone_polygon(zone, lanes, successors, pad)?, opposing) > OVERLAP_AREA_THRESHOLD_M2)
     };
     if !overlaps_at(upper)? {
         return Ok(upper);
@@ -1400,58 +881,86 @@ fn max_safe_pad(
     Ok(safe)
 }
 
-/// Fixes up `features` (already built by [`zone_feature`] with padding on,
-/// one-to-one with `zones`) so no two different zones' polygons overlap —
-/// see [`overlapping_zone_ids`]'s own docs for why that has to hold for the
-/// client-facing output. A no-op, and cheap, for the overwhelming majority
-/// of real networks where nothing overlaps in the first place: the one
-/// full `O(n²)` pass below is exactly [`overlapping_zone_ids`]'s own cost,
-/// paid once regardless of whether it finds anything.
+/// How many bisection steps [`max_safe_pad`] runs — 10 halvings of
+/// [`MIN_DRAWN_LANE_LENGTH_METERS`]'s own 5m bottom out under a millimetre,
+/// far tighter than [`OVERLAP_AREA_THRESHOLD_M2`] could even distinguish,
+/// so more steps would only buy precision nothing downstream can tell
+/// apart from what this already gives.
+const PAD_SEARCH_STEPS: u32 = 10;
+
+/// Past this many outer rounds of [`resolve_overlaps`], give up and leave
+/// whatever's left overlapping rather than looping forever — real Barcelona
+/// data converges in 2 rounds, so this is headroom for a much messier
+/// network, not a figure anything is tuned against.
+const MAX_RESOLUTION_ROUNDS: u32 = 8;
+
+/// Fixes up `polygons` (already built by [`zone_polygon`] with padding on,
+/// one-to-one with `zones`, in the network's own local coordinates) so no
+/// two different zones' polygons overlap — see [`overlapping_zone_ids`]'s
+/// own docs for why that has to hold for the client-facing output. A no-op,
+/// and cheap, for the overwhelming majority of real networks where nothing
+/// overlaps in the first place: the one real `O(n²)` scan below is exactly
+/// [`overlapping_zone_ids`]'s own cost, paid once regardless of whether it
+/// finds anything ([`still_overlapping`]'s own docs cover why every later
+/// round's own check is cheap instead of repeating it).
 ///
 /// Two independent fixes, tried in order:
 ///
 /// 1. **Shrink padding.** [`padded_entry`]'s own straight-line
 ///    extrapolation is a heuristic, and a wrong one often enough in
-///    practice to be worth checking rather than trusting outright — real
-///    Barcelona data hits this for the majority of overlaps found while
-///    writing this. Tried first because it only ever gives back slack
-///    `zone_feature` added for looks, never ground the zone's own detector
-///    gates actually claim. Not all-or-nothing: dropping straight to zero
-///    the moment the full default overlaps anything turns a real but
-///    short lane back into the paper-thin sliver [`MIN_DRAWN_LANE_LENGTH_METERS`]
-///    exists to avoid, when often only a metre or two of the padding was
-///    ever the problem. [`max_safe_pad`] binary-searches for the most
-///    padding that still avoids the specific neighbour a zone was found
-///    overlapping, and only bottoms out at zero when even that doesn't
-///    help — a genuine, non-padding overlap for bisecting to handle
-///    instead.
-/// 2. **Bisect.** Whatever's left over is a genuine geometric adjacency —
-///    real lane width, a sharp fork — that shrinking padding can't touch.
+///    practice to be worth checking rather than trusting outright.
+///    [`max_safe_pad`] binary-searches for the most padding that still
+///    avoids the specific neighbour a zone was found overlapping, and only
+///    bottoms out at zero when even that doesn't help — a genuine,
+///    non-padding overlap for the cutting phase to handle instead.
+/// 2. **Cut.** Whatever's left over is a genuine geometric adjacency — real
+///    lane width, a sharp fork — that shrinking padding can't touch. Both
+///    sides simply give back the ground they actually contest: `overlap =
+///    polygons[i].intersection(&polygons[j])` is real, disputed ground
+///    neither side's own detector gates are entitled to claim ambiguously,
+///    and `polygons[i].difference(&overlap)` removes it from both — after
+///    which neither can possibly still intersect the other, because
+///    whatever they used to share is now excluded from both by
+///    construction (`(A - C) ∩ B ⊆ (A ∩ B) - (C ∩ B) = C - C = ∅` when `C =
+///    A ∩ B`). No direction to compute, no extent to size, and no failure
+///    case where a cut can't be found — an earlier version of this function
+///    instead built a half-plane cut from the two shapes' own centroids,
+///    and hit real trouble when a zone's own combined shape (core plus
+///    however many extended-ancestor chain parts) was far bigger than the
+///    specific ground actually contested: the centroid the direction was
+///    built from sat nowhere near the real conflict (confirmed on real
+///    Barcelona data: a bent 80m ribbon's own cut removed over 80% of it in
+///    one shot, instead of the small local wedge the real overlap called
+///    for). Subtracting the literal overlap has no such failure mode to
+///    guard against, because it was never asked a directional question, or
+///    given a whole zone's worth of irrelevant shape to be misled by, in
+///    the first place.
 ///
-/// A ring contested by *several* neighbours at once (a busy corner where
-/// three or four zones all reach for the same ground) collects one
-/// [`bisecting_half_plane`] constraint per neighbour, but
-/// [`clip_by_constraints`] applies all of them **in one pass, against the
-/// ring's own original shape** — never one at a time against whatever the
-/// previous cut left behind. The first version of this function did the
-/// latter, and on a real Barcelona corner contested by seven different
-/// neighbours it fragmented that one zone into a disconnected, multi-lobed
-/// shred rather than the single clean intersection the corner's own
-/// waiting area actually is: each successive cut re-derived its own
-/// centroid from an already-mangled shape, so the cuts didn't compose into
-/// anything coherent. Measuring every constraint against the same stable
-/// base (`base_rings`, captured once per ring, right after its own
-/// padding decision) avoids that entirely — intersecting a convex shape
-/// with `N` half-planes is the same convex region regardless of what order
-/// they're applied in, as long as all `N` are measured against that one
-/// shape.
+/// A polygon contested by *several* neighbours at once still needs every
+/// one of those cuts computed against `polygons` exactly as this round
+/// found it, before any of the round's own cuts are applied: even though
+/// `intersection`/`difference` themselves don't have an ordering
+/// precondition, computing a *second* neighbour's own overlap against a
+/// polygon *already* shrunk by a first cut would silently understate it.
+/// The round loop's own top is already that stable snapshot, so there's
+/// nothing further to track.
 fn resolve_overlaps(
     zones: &[E3Detector],
     lanes: &HashMap<&str, &Lane>,
     successors: &HashMap<&str, (&str, Option<&str>)>,
-    reproject: &Reprojector,
-    features: &mut [Feature],
+    stop_points: &[Coord<f64>],
+    polygons: &mut [MultiPolygon<f64>],
 ) -> Result<()> {
+    // Every zone pair that could possibly still need fixing, for the rest
+    // of this function's own life — one real `O(n²)` scan across the whole
+    // network, never repeated (see [`still_overlapping`]'s own docs for why
+    // that's sound: both fixes below only ever shrink a polygon, so a pair
+    // that isn't here yet can never become one later).
+    let candidates = overlapping_pairs(polygons);
+    if candidates.is_empty() {
+        return Ok(());
+    }
+
     // Every zone's current padding target, in metres — absent means still
     // at the full [`MIN_DRAWN_LANE_LENGTH_METERS`] default, never having
     // needed shrinking. [`max_safe_pad`] only ever lowers an entry, never
@@ -1461,157 +970,129 @@ fn resolve_overlaps(
     // same overlap on a later round.
     let mut pad_meters: HashMap<usize, f64> = HashMap::new();
 
-    // Every ring's own stable base for bisecting (see this function's own
-    // docs) — captured the first time that ring is seen, i.e. right after
-    // its zone's padding decision above, before any bisecting has touched
-    // it — and the accumulated constraints clipping it down, keyed by
-    // *which other ring* each one came from so the same neighbour is never
-    // double-counted across rounds.
-    let mut base_rings: HashMap<(usize, usize), Vec<(f64, f64)>> = HashMap::new();
-    let mut constraints: HashMap<(usize, usize), HashMap<(usize, usize), HalfPlane>> = HashMap::new();
-    let mut warned_coincident: HashSet<((usize, usize), (usize, usize))> = HashSet::new();
-
-    // The outer round exists because neither fix below is proven to
-    // *strictly* shrink a ring in every case `clip_half_plane` can face —
-    // see `clip_by_constraints`'s own docs on the one shape of non-convex
-    // ring even its convex-hull fallback can't fully rule out reaching
-    // slightly further than the original. Rather than try to prove that
-    // bound tighter, this just checks: a full, unrestricted
-    // `overlapping_indices` after each round is exactly as authoritative
-    // as `overlapping_zone_ids` itself, so if anything — including a zone
-    // neither fix above ever touched — still overlaps, or newly does, it's
-    // picked up here and folded into the next round's own candidate set.
-    // Converges as long as *some* pair keeps shrinking each round; a
-    // genuinely stuck pair (two coincident centroids, say) just stops
-    // making progress and the loop exits below rather than spinning on it
-    // forever.
     for _round in 0..MAX_RESOLUTION_ROUNDS {
-        let remaining = overlapping_indices(features, None);
-        if remaining.is_empty() {
+        let overlaps = still_overlapping(polygons, &candidates);
+        if overlaps.is_empty() {
             return Ok(());
         }
-        let candidates: BTreeSet<usize> = remaining.iter().flat_map(|&(i, j)| [i, j]).collect();
 
-        // Every zone whose padding actually changed *this round* —
-        // tracked separately from `pad_meters` itself (which only says the
-        // *current* target, not whether it just moved) because a zone can
-        // carry bisect constraints from an *earlier* round, computed and
-        // applied against whatever its shape was back then. Shrinking
-        // padding here replaces `features[i]` outright with the newly
-        // rebuilt geometry, which would silently erase those earlier clips
-        // if nothing forced them to be re-applied — the bug that left two
-        // real Barcelona pairs overlapping the first time this function
-        // ran this fixture: their shared zone got its padding changed
-        // *after* already being bisected once, and the stale `base_rings`
-        // entry from that earlier round never got refreshed.
-        let mut pad_changed: HashSet<usize> = HashSet::new();
-
-        loop {
-            let overlaps = overlapping_indices(features, Some(&candidates));
-            if overlaps.is_empty() {
-                break;
-            }
-            let mut progressed = false;
-            for (i, j) in overlaps {
-                let current = pad_meters.get(&i).copied().unwrap_or(MIN_DRAWN_LANE_LENGTH_METERS);
-                if current > 0.0 {
-                    let best = max_safe_pad(&zones[i], lanes, successors, reproject, current, &features[j])?;
-                    if best < current {
-                        features[i] = zone_feature(&zones[i], lanes, successors, reproject, best)?;
-                        pad_meters.insert(i, best);
-                        pad_changed.insert(i);
-                        progressed = true;
-                        continue;
-                    }
+        let mut progressed = false;
+        for &(i, j) in &overlaps {
+            for &(shrink, opposing) in &[(i, j), (j, i)] {
+                let current = pad_meters.get(&shrink).copied().unwrap_or(MIN_DRAWN_LANE_LENGTH_METERS);
+                if current <= 0.0 {
+                    continue;
                 }
-                let current = pad_meters.get(&j).copied().unwrap_or(MIN_DRAWN_LANE_LENGTH_METERS);
-                if current > 0.0 {
-                    let best = max_safe_pad(&zones[j], lanes, successors, reproject, current, &features[i])?;
-                    if best < current {
-                        features[j] = zone_feature(&zones[j], lanes, successors, reproject, best)?;
-                        pad_meters.insert(j, best);
-                        pad_changed.insert(j);
-                        progressed = true;
-                    }
+                let best = max_safe_pad(&zones[shrink], lanes, successors, current, &polygons[opposing])?;
+                if best < current {
+                    polygons[shrink] = zone_polygon(&zones[shrink], lanes, successors, best)?;
+                    pad_meters.insert(shrink, best);
+                    progressed = true;
                 }
             }
-            if !progressed {
-                break;
-            }
         }
 
-        // Invalidate any stale base captured for a zone before its padding
-        // just changed above, and force every ring of its that already
-        // carries a bisect constraint back into `touched` below so that
-        // constraint gets re-applied against the fresh base — otherwise it
-        // simply vanishes along with the stale base it was computed
-        // against.
-        let mut forced_touch: BTreeSet<(usize, usize)> = BTreeSet::new();
-        for &i in &pad_changed {
-            for (_, r) in constraints.keys().filter(|&&(zone, _)| zone == i).copied().collect::<Vec<_>>() {
-                base_rings.remove(&(i, r));
-                forced_touch.insert((i, r));
-            }
+        // Every cut this round needs, computed against `polygons` exactly
+        // as this round found it (before any of them are applied — see
+        // this function's own docs on why a cut derived from an
+        // already-cut shape isn't the same cut any more), collected per
+        // zone so one contested by several neighbours at once gets every
+        // one of its own overlaps subtracted together rather than one at a
+        // time against a moving target. The cut itself is just the real
+        // overlap — see this function's own docs for why that's enough on
+        // its own, with no direction to compute or extent to size.
+        let mut cuts: HashMap<usize, Vec<GeoPolygon<f64>>> = HashMap::new();
+        for (i, j) in still_overlapping(polygons, &candidates) {
+            let overlap = polygons[i].intersection(&polygons[j]);
+            cuts.entry(i).or_default().extend(overlap.0.iter().cloned());
+            cuts.entry(j).or_default().extend(overlap.0);
+            progressed = true;
         }
-
-        for &i in &candidates {
-            for (r, ring) in feature_rings(&features[i]).into_iter().enumerate() {
-                base_rings.entry((i, r)).or_insert_with(|| {
-                    ring[..ring.len().saturating_sub(1)].iter().map(|p| (p[0], p[1])).collect()
-                });
-            }
-        }
-
-        let mut touched: BTreeSet<(usize, usize)> = forced_touch;
-        for (zi, ri, zj, rj) in overlapping_ring_indices(features, &candidates) {
-            if constraints.get(&(zi, ri)).is_some_and(|by| by.contains_key(&(zj, rj))) {
-                continue; // already constrained against this exact neighbour
-            }
-            let ring_a = feature_rings(&features[zi])[ri];
-            let ring_b = feature_rings(&features[zj])[rj];
-            let Some((point, normal)) = bisecting_half_plane(ring_a, ring_b) else {
-                if warned_coincident.insert(((zi, ri), (zj, rj))) {
-                    eprintln!(
-                        "{ERROR}error:{ERROR:#} zones {:?} and {:?} overlap with (nearly) \
-                         coincident centroids — no direction to split them along, left \
-                         overlapping",
-                        features[zi].property("waiting_zone_id"),
-                        features[zj].property("waiting_zone_id"),
-                    );
+        for (zone, overlaps) in cuts {
+            // Unioned first, not handed to `difference` as a raw, possibly
+            // self-overlapping list: two different neighbours' own overlap
+            // regions can themselves touch or overlap (adjacent contested
+            // ground at a busy corner), and a subtrahend `difference` never
+            // otherwise gets to clean up itself can carry that same
+            // near-degenerate geometry straight into the harder, two-input
+            // operation.
+            let subtrahend = overlaps
+                .into_iter()
+                .map(|part| MultiPolygon::new(vec![part]))
+                .reduce(|acc, part| acc.union(&part))
+                .unwrap_or_else(|| MultiPolygon::new(Vec::new()));
+            // Cut (and `keep_part_near`-filtered — see its own docs) *per
+            // part*, not the zone's own whole `MultiPolygon` in one go: a
+            // zone can legitimately already have more than one disjoint
+            // part before this round ever touches it (the core plus each
+            // extended-ancestor chain, none of which necessarily overlap
+            // each other — `zone_polygon`'s own docs), and a neighbour's
+            // own overlap this round is essentially never with *every* one
+            // of those parts at once. Cutting the whole `MultiPolygon`
+            // as one `difference` call already leaves an untouched part
+            // untouched (`difference` only ever removes what's actually in
+            // the subtrahend) — the bug was applying `keep_part_near`
+            // *after* that, over the combined result: confirmed on real
+            // Barcelona data, a zone with several genuinely separate,
+            // untouched chain parts had every one of them but the single
+            // closest-to-the-stop-line discarded the moment *any* one part
+            // needed cutting, not just whichever fragment the cut itself
+            // stranded. Splitting the loop by part keeps that distinction:
+            // an untouched part is pushed straight through, only a part
+            // that actually intersects `subtrahend` is cut and filtered.
+            let mut new_parts = Vec::with_capacity(polygons[zone].0.len());
+            for part in &polygons[zone].0 {
+                let part_polygon = MultiPolygon::new(vec![part.clone()]);
+                if overlap_area_m2(&part_polygon, &subtrahend) <= OVERLAP_AREA_THRESHOLD_M2 {
+                    new_parts.push(part.clone());
+                    continue;
                 }
-                continue;
-            };
-            constraints.entry((zi, ri)).or_default().insert((zj, rj), (point, normal));
-            constraints.entry((zj, rj)).or_default().insert((zi, ri), (point, (-normal.0, -normal.1)));
-            touched.insert((zi, ri));
-            touched.insert((zj, rj));
-        }
-
-        if touched.is_empty() {
-            break; // nothing left that a new constraint could resolve
-        }
-
-        for (zone, ring) in touched {
-            let cuts: Vec<HalfPlane> = constraints[&(zone, ring)].values().copied().collect();
-            let clipped = clip_by_constraints(&base_rings[&(zone, ring)], &cuts);
-            match close_points(clipped) {
-                Some(new_ring) => replace_ring(&mut features[zone], ring, new_ring),
-                None => eprintln!(
-                    "{ERROR}error:{ERROR:#} zone {:?}'s own waiting area was clipped away \
-                     entirely by {} contesting neighbour(s) — left as it was before this round",
-                    features[zone].property("waiting_zone_id"),
-                    cuts.len(),
-                ),
+                let cut = part_polygon.difference(&subtrahend);
+                // Deliberately no `simplify` here, unlike [`zone_polygon`]'s
+                // own build: Douglas-Peucker approximates each side of a cut
+                // independently, and two zones' own polygons — both cut
+                // along the exact same shared boundary this round — can
+                // drift centimetres apart from each other once each one's
+                // own simplification picks a different nearby point to
+                // keep. That reopens a real, sizeable "overlap" (or gap)
+                // for the *next* round to rediscover: confirmed on real
+                // Barcelona data, simplifying every round left *more*
+                // pairs unresolved after 8 rounds, not fewer. Left
+                // unsimplified here, a cut zone's own polygon can carry a
+                // few more vertices than [`zone_polygon`]'s own output
+                // normally would — a minor cost against never disturbing
+                // the exact non-overlap this round's own cut just
+                // established.
+                //
+                // Also deliberately no `snap_coords`: that was
+                // load-bearing against the former quad-union
+                // `buffer_shape`'s own float noise (see its own docs), but
+                // with a real stroke offset behind every polygon this
+                // function starts from, rounding every vertex onto a
+                // shared grid on top of that no longer measurably helps
+                // convergence and net loses ground on the
+                // self-intersection coherence check (confirmed by trying
+                // both ways on real Barcelona data) — [`geo::MapCoords`]'s
+                // own lack of a simplicity guarantee (see [`snap_coords`]'s
+                // own docs) is a real cost with nothing left here to buy
+                // back.
+                let cleaned =
+                    keep_part_near(drop_slivers(cut), stop_points[zone]);
+                new_parts.extend(cleaned.0);
             }
+            polygons[zone] = MultiPolygon::new(new_parts);
+        }
+
+        if !progressed {
+            break; // nothing left that another round could resolve
         }
     }
 
-    for (i, j) in overlapping_indices(features, None) {
+    for (i, j) in still_overlapping(polygons, &candidates) {
         eprintln!(
             "{ERROR}error:{ERROR:#} zones {:?} and {:?} still overlap after \
              {MAX_RESOLUTION_ROUNDS} resolution rounds — left as-is",
-            features[i].property("waiting_zone_id"),
-            features[j].property("waiting_zone_id"),
+            zones[i].id, zones[j].id,
         );
     }
     Ok(())
@@ -1665,7 +1146,7 @@ fn centroid(points: &[Point]) -> Point {
 ///   guaranteed to be" principle `zone_generator::pedestrian_zones`'s own
 ///   docs already lean on. *Every* lane of the zone has to qualify, not
 ///   just one: a zone can span several parallel lanes of one movement
-///   (`merged_zone_ring`'s own docs), and a car lane sitting right next to
+///   (`merged_core_polygon`'s own docs), and a car lane sitting right next to
 ///   a bike lane in the same group is still a car lane sharing that
 ///   physical queue, not a dedicated bike facility as a whole.
 /// - `["CAR", "MOTORCYCLE"]` for every other vehicle zone — the two are
@@ -1752,7 +1233,7 @@ fn single_successors(network: &Network) -> HashMap<&str, (&str, Option<&str>)> {
 /// finds walking forward from it, up to (but never including) whichever
 /// comes first of: the first lane that isn't itself one of
 /// `ancestor_lanes` (the zone's own controlled lane, where
-/// [`merged_zone_ring`] takes over instead), or another real merge point
+/// [`merged_core_polygon`] takes over instead), or another real merge point
 /// (`in_degree(successor) != 1` — more than one ancestor feeding forward
 /// into it, or, for a `start` that's itself past the last real fork,
 /// none at all). The final `via` bridging into whichever one stops the
@@ -1762,12 +1243,11 @@ fn single_successors(network: &Network) -> HashMap<&str, (&str, Option<&str>)> {
 ///
 /// This is what turns what used to be one independent rectangle per
 /// extended-ancestor lane into a single seamless polygon (via
-/// [`shape_ring`]) spanning the whole segment — real Barcelona data has a
+/// [`buffer_shape`]) spanning the whole segment — real Barcelona data has a
 /// visible gap between two such rectangles at a bend often enough that
-/// this exists: `offset_boundary`/`trimmed_segments` already handle a
-/// single lane's own multi-point bend correctly, and a run of lanes
-/// physically connected end to end is no different, once their shapes are
-/// concatenated into one.
+/// this exists: [`trimmed_segments`] already handles a single lane's own
+/// multi-point bend correctly, and a run of lanes physically connected end
+/// to end is no different, once their shapes are concatenated into one.
 ///
 /// Stopping at a merge point rather than walking through it isn't just
 /// about avoiding redundant work: a zone with two branches merging (a real
@@ -1787,17 +1267,24 @@ fn single_successors(network: &Network) -> HashMap<&str, (&str, Option<&str>)> {
 /// `visited` guards the same pathological cycle
 /// `zone_generator::extended_entry_lanes`'s own `visited` set guards
 /// against; a normal segment never revisits a lane.
+/// The third element of the returned tuple is the real lane id the walk
+/// stopped *at* — the zone's own core lane when this chain feeds straight
+/// into one, `None` at a genuine dead end. [`zone_polygon`] uses it to
+/// buffer a chain and the single core gate it feeds as one continuous path
+/// instead of two separately-capped shapes unioned together — see its own
+/// docs on why that seam used to spike.
 fn chain_shape<'a>(
     start: &'a str,
     ancestor_lanes: &BTreeSet<&str>,
     in_degree: &HashMap<&str, usize>,
     successors: &HashMap<&str, (&str, Option<&str>)>,
     lanes: &HashMap<&str, &'a Lane>,
-) -> Option<(Vec<&'a Lane>, Shape)> {
+) -> Option<(Vec<&'a Lane>, Shape, Option<String>)> {
     let mut chain_lanes: Vec<&Lane> = Vec::new();
     let mut points: Vec<Point> = Vec::new();
     let mut visited: HashSet<&str> = HashSet::new();
     let mut current = start;
+    let mut terminal_successor: Option<String> = None;
 
     loop {
         if !visited.insert(current) {
@@ -1813,6 +1300,7 @@ fn chain_shape<'a>(
         {
             points.extend(via_lane.shape.0.iter().copied());
         }
+        terminal_successor = Some(successor.to_string());
         // Stop at the zone's own controlled lane (not an ancestor at all)
         // *or* at another real merge point (`in_degree != 1`) -- that one
         // belongs to its own segment, built once from its own call here,
@@ -1825,30 +1313,37 @@ fn chain_shape<'a>(
         current = successor;
     }
 
-    (points.len() >= 2).then_some((chain_lanes, Shape(points)))
+    (points.len() >= 2).then_some((chain_lanes, Shape(points), terminal_successor))
 }
 
-/// Builds `zone`'s `Feature`: a `MultiPolygon` geometry and a
-/// `waiting_zone_id`/`stop_line`/`modes` triple of properties.
-///
-/// The geometry is no longer always exactly one ring:
-/// `zone_generator::extended_entry_lanes` can add entry gates on ancestor
-/// lanes several hops back from the zone's own controlled lane(s) (see its
-/// own docs — "maximizing a waiting zone's own physical size"), and those
-/// ancestors are, in general, lanes of a *different* edge —
-/// [`merged_zone_ring`]'s own leftmost/rightmost-lane trick only holds for
-/// lanes of the *same* edge, so it can't be trusted to merge across that
-/// boundary. `entries` and `exits` are no longer 1:1 for the same reason
-/// (extension only adds entries, never exits) — matched back up here by
-/// lane: an entry whose lane is one of `zone`'s own exits is "core"
-/// (possibly `max_zone_length`-capped, but otherwise unchanged from before
-/// extension) and merges into one ring with the others like it; every
-/// other entry is an extended ancestor, grouped into whichever
-/// [`chain_shape`] it belongs to (leaf-to-core order, following
-/// `successors`) and drawn as *that chain's own* single seamless polygon
-/// rather than one independent rectangle per lane — a chain that turns out
-/// to be one lane long (no real predecessor within this zone at all) still
-/// gets its own polygon; there's just nothing else to concatenate onto it.
+/// Below this, in metres, [`geo::Simplify`] treats an intermediate ring
+/// vertex as contributing nothing a straight line between its neighbours
+/// doesn't already capture — chosen well under any real visual or
+/// geometric significance (the same "a centimetre is noise" reasoning
+/// [`OVERLAP_AREA_THRESHOLD_M2`]'s own docs use). Applied once, to
+/// [`zone_polygon`]'s own finished polygon: [`chain_shape`] concatenates
+/// however many real lanes a zone's extension walks through end to end,
+/// and a real Barcelona chain often includes several sub-metre "connector"
+/// lanes (see its own module docs) whose shape points land mere
+/// centimetres apart once strung together — real detail `netconvert`
+/// recorded, but far finer than this crate's own output needs to
+/// reproduce faithfully, and it only bloats the GeoJSON a client downloads
+/// for no visual or geometric benefit any of those extra points buy back.
+const SIMPLIFY_TOLERANCE_METERS: f64 = 0.05;
+
+/// `zone`'s own waiting-area polygon, in the network's own local
+/// coordinates: the core group's own [`merged_core_polygon`], unioned with
+/// one polygon per extended-ancestor chain (see [`chain_shape`]'s own
+/// docs). `entries` and `exits` aren't 1:1 (extension only adds entries,
+/// never exits) — matched back up here by lane: an entry whose lane is one
+/// of `zone`'s own exits is "core" (possibly `pad_meters`-extended, but
+/// otherwise the zone's own controlled lane) and feeds
+/// [`merged_core_polygon`]; every other entry is an extended ancestor,
+/// grouped into whichever [`chain_shape`] it belongs to and unioned in
+/// separately. A chain that happens to touch or overlap the core (or
+/// another chain) merges into one seamless shape automatically — `union`
+/// already gives [`merged_core_polygon`] that guarantee, so there's
+/// nothing extra to arrange for it here.
 ///
 /// `pad_meters` is the target [`padded_entry`] pads every entry span out
 /// to — a whole chain's own *total* length, not each lane in it
@@ -1856,16 +1351,13 @@ fn chain_shape<'a>(
 /// nicer-on-a-map shape [`to_feature_collection`] uses by default, `0.0`
 /// builds the same zone at its real, unpadded size, and anything in
 /// between is [`resolve_overlaps`]'s own way of asking for as much padding
-/// as still fits without reaching into a neighbour — see its own docs for
-/// why that's better than jumping straight to `0.0` the first time the
-/// full default overlaps something.
-fn zone_feature(
+/// as still fits without reaching into a neighbour.
+fn zone_polygon(
     zone: &E3Detector,
     lanes: &HashMap<&str, &Lane>,
     successors: &HashMap<&str, (&str, Option<&str>)>,
-    reproject: &Reprojector,
     pad_meters: f64,
-) -> Result<Feature> {
+) -> Result<MultiPolygon<f64>> {
     let resolve = |lane_ref: &sumo_types::additional::domain::LaneRef| {
         lanes.get(lane_ref.0.as_str()).copied().with_context(|| {
             format!(
@@ -1878,23 +1370,30 @@ fn zone_feature(
     let entry_span = |entry: Length, exit: Length| padded_entry(entry, exit, target_length);
 
     let mut exit_position_by_lane: HashMap<&str, Length> = HashMap::with_capacity(zone.exits.len());
-    let mut stop_points = Vec::with_capacity(zone.exits.len());
     for exit in &zone.exits {
         let lane = resolve(&exit.lane)?;
-        let exit_distance = distance_from_start(exit.position, lane.length);
-        exit_position_by_lane.insert(exit.lane.0.as_str(), exit_distance);
-        stop_points.push(point_and_tangent_at(&lane.shape, exit_distance).0);
+        exit_position_by_lane.insert(exit.lane.0.as_str(), distance_from_start(exit.position, lane.length));
     }
 
+    // A pedestrian zone's own core lanes are walkingareas — see
+    // [`pedestrian_lane_polygon`]'s own docs for why those need their
+    // `shape` used directly as a polygon rather than measured for an
+    // entry/exit distance and stroke-buffered like every other lane's.
+    let is_pedestrian = !zone.detect_persons.is_empty();
+
     let mut core_gates = Vec::with_capacity(zone.exits.len());
+    let mut pedestrian_core_lanes = Vec::with_capacity(zone.exits.len());
     let mut ancestor_lanes: BTreeSet<&str> = BTreeSet::new();
     for entry in &zone.entries {
         let lane = resolve(&entry.lane)?;
-        let entry_distance = distance_from_start(entry.position, lane.length);
 
         if let Some(&exit_distance) = exit_position_by_lane.get(entry.lane.0.as_str()) {
-            let entry_distance = entry_span(entry_distance, exit_distance);
-            core_gates.push((lane, entry_distance, exit_distance));
+            if is_pedestrian {
+                pedestrian_core_lanes.push(lane);
+            } else {
+                let entry_distance = distance_from_start(entry.position, lane.length);
+                core_gates.push((lane, entry_span(entry_distance, exit_distance), exit_distance));
+            }
         } else if !entry.lane.0.starts_with(':') {
             // `zone_generator::extended_entry_lanes` adds every hop's own
             // bridging `via` as a *separate* flat entry too (real
@@ -1906,30 +1405,58 @@ fn zone_feature(
             // `successors`, so treating a via lane as its own ancestor
             // too would draw the exact same ground twice, as its own
             // redundant sliver alongside the real chain that already
-            // covers it.
+            // covers it. Never populated for a pedestrian zone in
+            // practice — `zone_generator::pedestrian_zones` never extends
+            // backward — so the ancestor-chain code below is a no-op for
+            // one, not a second, competing way to handle the same lanes.
             ancestor_lanes.insert(entry.lane.0.as_str());
         }
     }
-    // A `BTreeSet`, not a `HashSet`: `segment_starts` below iterates this
-    // to decide the *order* polygons are pushed, which fixes each ring's
-    // index within the finished `MultiPolygon` — `resolve_overlaps` keys
-    // its own per-round state off those indices, so a `HashSet`'s
-    // run-to-run-random iteration order would make which specific pair (if
-    // any) is still overlapping after `MAX_RESOLUTION_ROUNDS` change
-    // between otherwise-identical runs on the same input.
 
-    let mut polygons = merged_zone_ring(&zone.id, &core_gates, reproject)?
-        .map(|ring| vec![vec![ring]])
-        .unwrap_or_default();
+    // A core gate fed by exactly one ancestor lane can be absorbed into
+    // that chain's own buffer below — one continuous path, stroked once,
+    // rather than two separately-capped shapes unioned together at a seam
+    // (see the `absorbed_core_gates` loop's own docs for why that seam
+    // used to spike). A gate fed by more than one ancestor (a real merge
+    // right at the stop line) stays out of this — there's no single chain
+    // to absorb it into unambiguously — and falls back to
+    // `merged_core_polygon` exactly as before.
+    let core_gate_index_by_lane: HashMap<&str, usize> =
+        core_gates.iter().enumerate().map(|(i, &(lane, _, _))| (lane.id.0.as_str(), i)).collect();
+    let mut core_predecessor_count: HashMap<&str, usize> = HashMap::new();
+    for &lane in &ancestor_lanes {
+        if let Some(&(successor, _)) = successors.get(lane)
+            && core_gate_index_by_lane.contains_key(successor)
+        {
+            *core_predecessor_count.entry(successor).or_insert(0) += 1;
+        }
+    }
+    let absorbed_core_gates: HashSet<usize> = core_gate_index_by_lane
+        .iter()
+        .filter(|&(&lane_id, _)| core_predecessor_count.get(lane_id).copied() == Some(1))
+        .map(|(_, &i)| i)
+        .collect();
+
+    let mut polygon = if is_pedestrian {
+        merged_pedestrian_polygon(&pedestrian_core_lanes)
+    } else {
+        let unabsorbed_core_gates: Vec<_> = core_gates
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| !absorbed_core_gates.contains(i))
+            .map(|(_, &gate)| gate)
+            .collect();
+        merged_core_polygon(&unabsorbed_core_gates)
+    };
 
     // How many *other* ancestors feed forward into each ancestor lane —
     // `chain_shape`'s own segmentation depends on this, not just on
     // finding leaves: a lane with more than one real predecessor (a real
-    // street merge, `resolve_overlaps`'s own module docs) has to start its
-    // *own* segment rather than being swept into either predecessor's,
-    // exactly as much as a leaf (nothing feeding into it at all) does —
-    // see `chain_shape`'s own docs for why building it a second time, once
-    // per predecessor, was actively wrong rather than merely redundant.
+    // street merge) has to start its *own* segment rather than being swept
+    // into either predecessor's, exactly as much as a leaf (nothing
+    // feeding into it at all) does — see `chain_shape`'s own docs for why
+    // building it a second time, once per predecessor, was actively wrong
+    // rather than merely redundant.
     let mut in_degree: HashMap<&str, usize> = HashMap::new();
     for &lane in &ancestor_lanes {
         if let Some(&(successor, _)) = successors.get(lane)
@@ -1941,29 +1468,142 @@ fn zone_feature(
     let segment_starts =
         ancestor_lanes.iter().filter(|lane| in_degree.get(*lane).copied().unwrap_or(0) != 1);
     for &start in segment_starts {
-        let Some((chain_lanes, shape)) = chain_shape(start, &ancestor_lanes, &in_degree, successors, lanes)
+        let Some((chain_lanes, shape, terminal_successor)) =
+            chain_shape(start, &ancestor_lanes, &in_degree, successors, lanes)
         else {
             continue;
         };
+
+        // This chain feeds straight into a core gate only it supplies —
+        // buffer chain and core as one continuous path instead of
+        // unioning two separately-built shapes. `buffer_shape`'s own
+        // internal round joins then smooth out the chain's own bends
+        // exactly as they would within a single lane's shape, and the
+        // real stop line (the core gate's own exit) gets a flat, `Butt`
+        // cap with nothing left to union against it and pinch or
+        // overshoot past it — the seam `LineCap::Square` below only ever
+        // patched, not fixed (see `buffer_shape`'s own docs on that seam).
+        if let Some(gate_idx) =
+            terminal_successor.as_deref().and_then(|id| core_gate_index_by_lane.get(id)).copied()
+            && absorbed_core_gates.contains(&gate_idx)
+        {
+            let (core_lane, _core_entry, core_exit_distance) = core_gates[gate_idx];
+            let chain_length = shape_length(&shape);
+            let mut combined_points = shape.0.clone();
+            combined_points.extend(core_lane.shape.0.iter().copied());
+            let combined_shape = Shape(combined_points);
+            let total_exit = chain_length + core_exit_distance;
+            let entry_distance = entry_span(Length::new::<meter>(0.0), total_exit);
+            let half_width = core_lane.width / 2.0;
+            polygon =
+                polygon.union(&buffer_shape(&combined_shape, entry_distance, total_exit, half_width, LineCap::Butt));
+            continue;
+        }
+
         let total_length = shape_length(&shape);
         let entry_distance = entry_span(Length::new::<meter>(0.0), total_length);
         let half_width = chain_lanes[0].width / 2.0;
-        polygons.push(vec![shape_ring(&shape, entry_distance, total_length, half_width, reproject)?]);
+        // `Round`, not `Butt`, at this chain's own connecting end — see
+        // `buffer_shape`'s own docs for why a flat cap right where this
+        // unions into the core can pinch instead of joining cleanly. Only
+        // reached when the gate above didn't already absorb this chain
+        // (a real merge right at the stop line, more than one chain
+        // feeding the same gate).
+        let end_cap = LineCap::Square;
+        polygon = polygon.union(&buffer_shape(&shape, entry_distance, total_length, half_width, end_cap));
     }
 
-    let stop_line = reproject.to_lon_lat(centroid(&stop_points))?;
+    // `simplify` is aimed at a long extended-ancestor chain's own sub-metre
+    // "connector" lane noise (see `SIMPLIFY_TOLERANCE_METERS`'s own docs);
+    // a walkingarea's own shape is already a compact, few-metre outline
+    // with its real corners close together, and Douglas-Peucker collapsing
+    // even a mild real bend near one of those corners changes which chord
+    // spans it — measurably sharpening the angle that survives rather than
+    // leaving it alone. Skipped for a pedestrian zone's own polygon for
+    // that reason; `drop_slivers`/`snap_coords` still apply, since neither
+    // one repositions a real vertex the way `simplify` does.
+    let polygon = if is_pedestrian { polygon } else { polygon.simplify(SIMPLIFY_TOLERANCE_METERS) };
+    Ok(snap_coords(drop_slivers(polygon)))
+}
+
+/// `zone`'s own `stop_line`: the average, in the network's own local
+/// coordinates, of the point on each of `zone`'s own exit lanes at its own
+/// exit gate — a single representative point even when the zone spans
+/// several lanes (and so several individual stop lines). Independent of
+/// `pad_meters`/[`zone_polygon`]: an exit's own position never moves under
+/// padding (see [`padded_entry`]'s own docs — only an entry ever does), so
+/// this only needs computing once per zone, not once per padding attempt
+/// [`resolve_overlaps`] tries.
+fn stop_line_point(zone: &E3Detector, lanes: &HashMap<&str, &Lane>) -> Result<Point> {
+    let mut stop_points = Vec::with_capacity(zone.exits.len());
+    for exit in &zone.exits {
+        let lane = lanes.get(exit.lane.0.as_str()).copied().with_context(|| {
+            format!("zone {:?} references lane {:?}, which isn't in the network", zone.id, exit.lane)
+        })?;
+        let exit_distance = distance_from_start(exit.position, lane.length);
+        stop_points.push(point_and_tangent_at(&lane.shape, exit_distance).0);
+    }
+    Ok(centroid(&stop_points))
+}
+
+/// Converts `polygon` (already resolved, in the network's own local
+/// coordinates — see [`zone_polygon`]/[`resolve_overlaps`]) into `zone`'s
+/// finished GeoJSON `Feature`: a `MultiPolygon` geometry reprojected to
+/// WGS84 lon/lat, plus the `waiting_zone_id`/`stop_line`/`modes` triple of
+/// properties. The only place in the pipeline [`Reprojector::to_lon_lat`]
+/// runs (see the module docs) — everything upstream of this stays in local
+/// metres.
+fn build_feature(
+    zone: &E3Detector,
+    lanes: &HashMap<&str, &Lane>,
+    polygon: &MultiPolygon<f64>,
+    reproject: &Reprojector,
+) -> Result<Feature> {
+    let stop_line = reproject.to_lon_lat(stop_line_point(zone, lanes)?)?;
+
+    let ring = |line: &LineString<f64>| -> Result<Vec<Position>> {
+        line.coords().map(|c| reproject.to_lon_lat(Point { x: c.x, y: c.y, z: 0.0 }).map(Position::from)).collect()
+    };
+    let polygons = polygon
+        .0
+        .iter()
+        .map(|part| {
+            let mut rings = vec![ring(part.exterior())?];
+            for interior in part.interiors() {
+                rings.push(ring(interior)?);
+            }
+            Ok(rings)
+        })
+        .collect::<Result<Vec<_>>>()?;
 
     let mut properties = JsonObject::new();
     properties.insert("waiting_zone_id".to_string(), zone.id.0.clone().into());
     properties.insert("stop_line".to_string(), serde_json::json!(stop_line));
-    properties.insert(
-        "modes".to_string(),
-        serde_json::json!(zone_modes(zone, lanes)),
-    );
+    properties.insert("modes".to_string(), serde_json::json!(zone_modes(zone, lanes)));
 
     let mut feature = Feature::from(Geometry::new_multi_polygon(polygons));
     feature.properties = Some(properties);
     Ok(feature)
+}
+
+/// [`zone_polygon`] and [`build_feature`] combined into `zone`'s finished
+/// `Feature` in one call — a convenience for building (or testing) a single
+/// zone's own output in isolation; [`to_feature_collection`] itself calls
+/// the two separately so [`resolve_overlaps`] can work with every zone's
+/// own local-coordinate polygon directly, without reprojecting and
+/// un-reprojecting on every attempt. Test-only in practice — every
+/// production call site needs that split — kept as a real (if
+/// `#[cfg(test)]`) function rather than inlined into each test, since
+/// several of them build a `Feature` this same way.
+#[cfg(test)]
+fn zone_feature(
+    zone: &E3Detector,
+    lanes: &HashMap<&str, &Lane>,
+    successors: &HashMap<&str, (&str, Option<&str>)>,
+    reproject: &Reprojector,
+    pad_meters: f64,
+) -> Result<Feature> {
+    build_feature(zone, lanes, &zone_polygon(zone, lanes, successors, pad_meters)?, reproject)
 }
 
 /// Converts `zones` (as generated by [`crate::zone_generator`] from
@@ -1986,12 +1626,24 @@ pub fn to_feature_collection(network: &Network, zones: &[E3Detector]) -> Result<
         .collect();
     let successors = single_successors(network);
 
-    let mut features = zones
+    let mut polygons = zones
         .iter()
-        .map(|zone| zone_feature(zone, &lanes, &successors, &reproject, MIN_DRAWN_LANE_LENGTH_METERS))
+        .map(|zone| zone_polygon(zone, &lanes, &successors, MIN_DRAWN_LANE_LENGTH_METERS))
+        .collect::<Result<Vec<_>>>()?;
+    // `resolve_overlaps`'s own reference point per zone — see
+    // `keep_part_near`'s own docs for what it's for.
+    let stop_points = zones
+        .iter()
+        .map(|zone| stop_line_point(zone, &lanes).map(|p| Coord { x: p.x, y: p.y }))
         .collect::<Result<Vec<_>>>()?;
 
-    resolve_overlaps(zones, &lanes, &successors, &reproject, &mut features)?;
+    resolve_overlaps(zones, &lanes, &successors, &stop_points, &mut polygons)?;
+
+    let features = zones
+        .iter()
+        .zip(&polygons)
+        .map(|(zone, polygon)| build_feature(zone, &lanes, polygon, &reproject))
+        .collect::<Result<Vec<_>>>()?;
 
     Ok(FeatureCollection {
         bbox: None,
@@ -2053,8 +1705,8 @@ mod tests {
     }
 
     /// [`parallel_lane`], with `index` set instead of the default 0 —
-    /// needed for [`merged_zone_ring`]'s own tests, which care which lane is
-    /// physically left/right of which, not just how far apart they are.
+    /// needed for a multi-lane zone's own tests, which build a real
+    /// same-edge group of lanes rather than just one lane repeated.
     fn indexed_parallel_lane(id: &str, index: usize, width_m: f64, x_offset_m: f64) -> Lane {
         Lane {
             index: LaneIndex(index),
@@ -2197,7 +1849,7 @@ mod tests {
 
     /// [`zone`], but spanning every lane in `lane_ids` at once — a zone
     /// whose waiting area covers more than one lane of the same edge, the
-    /// shape [`merged_zone_ring`] exists for. Every lane's own entry/exit
+    /// shape [`merged_core_polygon`] exists for. Every lane's own entry/exit
     /// is the fixed `[0, 20]`m span [`straight_lane`]/[`parallel_lane`]
     /// both use.
     fn zone_multi(id: &str, lane_ids: &[&str]) -> E3Detector {
@@ -2704,35 +2356,46 @@ mod tests {
         else {
             panic!("expected a MultiPolygon geometry");
         };
-        assert_eq!(
-            coordinates.len(),
-            2,
-            "one polygon for the core (e0) and one *seamless* chain polygon for e1+e2 \
-             concatenated, not three independent rectangles"
-        );
+        // e0, e1 and e2 are collinear and meet exactly end to end, so their
+        // union is genuinely one seamless 60m ribbon, not three independent
+        // rectangles -- nor even two separately-tracked "core" and "chain"
+        // polygons that merely happen to touch: a real `union` merges
+        // anything that touches into one connected polygon, which is a
+        // strictly better result than the former design's own "list of
+        // rings, however each one was built" ever guaranteed.
+        assert_eq!(coordinates.len(), 1, "expected one seamless polygon for e0+e1+e2 combined");
 
-        let chain_ring = &coordinates[1][0];
-        assert!(!ring_self_intersects(chain_ring), "{chain_ring:?}");
-        let lats = chain_ring.iter().map(|p| p[1]);
+        let ring = &coordinates[0][0];
+        assert!(!ring_self_intersects(ring), "{ring:?}");
+        let lats = ring.iter().map(|p| p[1]);
         let lat_span_m = (lats.clone().fold(f64::MIN, f64::max) - lats.fold(f64::MAX, f64::min)) * 111_320.0;
         assert!(
-            lat_span_m > 35.0,
-            "expected the concatenated e1+e2 chain to span close to their combined 40m, \
+            lat_span_m > 55.0,
+            "expected the merged e0+e1+e2 ribbon to span close to their combined 60m, \
              got {lat_span_m:.1}m"
         );
     }
 
     #[test]
-    fn two_leaves_merging_into_a_shared_ancestor_each_get_their_own_non_overlapping_segment() {
+    fn two_leaves_merging_into_a_shared_ancestor_produce_no_duplicated_ground() {
         // A real Y-merge: `e_leaf_a` and `e_leaf_b` are two independent
         // real streets that both feed into `e_mid`, which then feeds into
         // the zone's own core (`e0`) -- the exact shape a real Barcelona
         // corner hit (see `chain_shape`'s own module docs). `e_mid` has two
         // real predecessors (`in_degree` 2), so it has to start its *own*
-        // segment rather than being drawn a second time by each branch:
-        // Leaflet's own default `evenodd` fill rule turns ground covered by
-        // two of a zone's own rings into a rendered hole, a real, visible
-        // defect the first version of this drew on real Barcelona data.
+        // segment rather than being drawn a second time by each branch: an
+        // earlier, hand-rolled version of this pipeline drew every branch's
+        // own segment as an independent ring, and Leaflet's own default
+        // `evenodd` fill rule turns ground covered by two of a zone's own
+        // rings into a rendered hole -- a real, visible defect on real
+        // Barcelona data. `chain_shape` still stops each branch's own walk
+        // at `e_mid` for that reason (see its own docs), but now that every
+        // segment is unioned into one `MultiPolygon` rather than kept as
+        // independent rings regardless of whether they touch, duplicated
+        // ground isn't just avoided at the `chain_shape` level any more --
+        // `union` couldn't double-count it even if it were still handed
+        // twice, which is what this test actually checks: the merged
+        // area is real coverage, not gap nor duplication.
         let lane_e0 = segment_lane("e0_0", 3.2, (0.0, 0.0), (0.0, 20.0));
         let lane_mid = segment_lane("e_mid_0", 3.2, (0.0, -20.0), (0.0, 0.0));
         let lane_leaf_a = segment_lane("e_leaf_a_0", 3.2, (-20.0, -40.0), (0.0, -20.0));
@@ -2776,39 +2439,30 @@ mod tests {
         else {
             panic!("expected a MultiPolygon geometry");
         };
-        assert_eq!(
-            coordinates.len(),
-            4,
-            "one core polygon, one segment per leaf branch (a, b) covering only its own \
-             unique ground, and one more for e_mid's own shared segment -- never e_mid \
-             drawn twice"
+        // Every segment (core, e_mid, both leaves) touches at least one
+        // other at a real junction corner, so their union is one connected
+        // polygon -- there's no "was e_mid drawn twice" question left to
+        // ask ring-by-ring any more, since a real union structurally can't
+        // double-count the ground two of its own inputs share.
+        assert_eq!(coordinates.len(), 1, "expected one polygon covering the whole merged shape");
+        let ring = &coordinates[0][0];
+        assert!(!ring_self_intersects(ring), "{ring:?}");
+
+        // Real, non-overlapping area: e0 (20m) + e_mid (20m) + leaf_a/b
+        // (√(20²+20²) ≈ 28.28m each), all 3.2m wide ⇒ 64 + 64 + 90.5 + 90.5
+        // ≈ 309m². If e_mid's own ~64m² were still counted twice (the bug
+        // `chain_shape` itself guards against — see its own docs), the
+        // total would jump to ~373m²; if the merge lost real ground at the
+        // Y instead, it would fall well short of 309m².
+        let points: Vec<(f64, f64)> = ring[..ring.len().saturating_sub(1)].iter().map(|p| (p[0], p[1])).collect();
+        let area_m2 = signed_area(&points).abs() * 84_000.0 * 111_000.0;
+        assert!(
+            (270.0..340.0).contains(&area_m2),
+            "expected the merged Y-shape's own real area close to 309m² (64 + 64 + 90.5 \
+             + 90.5, minus a little for the sharp `via`-less corners' own approximation), \
+             got {area_m2:.1}m2 -- too high looks like e_mid's own ground duplicated, too \
+             low looks like real ground lost at the merge"
         );
-        for polygon in coordinates {
-            assert!(!ring_self_intersects(&polygon[0]), "{:?}", polygon[0]);
-        }
-        // A tiny sliver where two straight-rectangle approximations meet
-        // at a sharp real angle (this fixture's own `via`-less corners are
-        // sharper than most real ones, which usually have a real via lane
-        // smoothing the transition) is an accepted, pre-existing
-        // limitation of approximating a bend with rectangles at all --
-        // `resolve_overlaps` exists to clean up exactly this kind of thing
-        // *between* zones already. What this test actually checks is that
-        // `e_mid`'s own ~64m² of real ground isn't duplicated wholesale
-        // into two segments the way it used to be: a genuine duplicate
-        // would show up several orders of magnitude past a sharp corner's
-        // own sliver.
-        const MAX_CORNER_OVERLAP_DEG2: f64 = 1e-9;
-        for i in 0..coordinates.len() {
-            for j in (i + 1)..coordinates.len() {
-                let area = polygon_overlap_area(&coordinates[i][0], &coordinates[j][0]);
-                assert!(
-                    area < MAX_CORNER_OVERLAP_DEG2,
-                    "segments {i} and {j} share {area} deg² -- too large to be a sharp \
-                     corner's own sliver, this looks like e_mid's own ground duplicated \
-                     wholesale into both segments again"
-                );
-            }
-        }
     }
 
     #[test]
@@ -2849,12 +2503,44 @@ mod tests {
         assert_eq!(overlapping_zone_ids(&collection), Vec::new());
     }
 
+    /// Twice the signed area of triangle `a`, `b`, `c` — positive when `c`
+    /// is left of the ray `a -> b`, negative when right, zero when
+    /// collinear. Test-only: production code answers every question this
+    /// used to answer (a lane's own bend, a ring's own self-intersection,
+    /// two rings' own overlap) through [`geo::BooleanOps`] instead — this
+    /// still backs a couple of tests that check *that* replacement against
+    /// a hand-computed geometric primitive directly, rather than trusting
+    /// `geo` circularly.
+    fn orientation(a: (f64, f64), b: (f64, f64), c: (f64, f64)) -> f64 {
+        (b.0 - a.0) * (c.1 - a.1) - (b.1 - a.1) * (c.0 - a.0)
+    }
+
+    /// The signed area enclosed by `ring` (the shoelace formula, no closing
+    /// repeat) — positive for a counterclockwise winding, negative for
+    /// clockwise. Test-only, for the same reason as [`orientation`].
+    fn signed_area(ring: &[(f64, f64)]) -> f64 {
+        let n = ring.len();
+        if n < 3 {
+            return 0.0;
+        }
+        (0..n)
+            .map(|i| {
+                let (x1, y1) = ring[i];
+                let (x2, y2) = ring[(i + 1) % n];
+                x1 * y2 - x2 * y1
+            })
+            .sum::<f64>()
+            / 2.0
+    }
+
     /// Whether any two non-adjacent edges of closed ring `ring` (GeoJSON
-    /// style: first position repeated last) properly cross — a simple
-    /// segment-crossing scan, same idea as [`segments_properly_cross`] via
-    /// [`orientation`] but over one ring's own edges instead of two
-    /// different rings'. A self-intersecting ("bowtie") polygon is invalid
-    /// GeoJSON a client's point-in-polygon test can't reason about at all.
+    /// style: first position repeated last) properly cross, via
+    /// [`orientation`]. A self-intersecting ("bowtie") polygon is invalid
+    /// GeoJSON a client's point-in-polygon test can't reason about at all —
+    /// every coherence test in this module checks real output against this
+    /// directly, rather than trusting that [`geo::BooleanOps`] alone is
+    /// enough to guarantee it (it should be; this is the check that would
+    /// catch it if it somehow weren't).
     fn ring_self_intersects(ring: &[Position]) -> bool {
         let n = ring.len().saturating_sub(1); // last position repeats the first
         let edge = |i: usize| ((ring[i][0], ring[i][1]), (ring[i + 1][0], ring[i + 1][1]));
@@ -2882,8 +2568,9 @@ mod tests {
     /// shape points, 4m wide: the width bigger than the whole path). A
     /// naive per-vertex or per-segment offset self-intersects on a shape
     /// like this — the width exceeds the path's own local turning radius —
-    /// which is exactly why [`offset_boundary`] runs
-    /// [`remove_self_intersections`] on each side; see its own docs.
+    /// exactly the shape [`buffer_shape`]'s per-segment quads, unioned
+    /// rather than joined and cleaned up by hand, are meant to handle
+    /// correctly regardless of how tight the turn is.
     fn zigzag_lane(id: &str, width_m: f64) -> Lane {
         let shape = Shape(vec![
             Point { x: 0.0, y: 0.0, z: 0.0 },
@@ -2988,15 +2675,18 @@ mod tests {
     }
 
     #[test]
-    fn merges_anyway_when_the_zones_lanes_are_not_contiguous() {
+    fn never_bridges_across_a_lane_gap_the_zone_does_not_actually_claim() {
         // Lane 1 sits physically between lanes 0 and 2, but this zone only
         // claims 0 and 2 (as if lane 1 belonged to some other movement) --
-        // this is exactly the shape `merged_zone_ring`'s own docs say should
-        // never happen for real `zone_generator` output, so there's no
-        // fallback to fall back to any more: it still merges the two lanes
-        // it does have (and, not asserted here since it just goes to
-        // stderr, prints an error about it) rather than refusing to produce
-        // a zone at all.
+        // exactly the shape a non-contiguous group `merged_core_polygon`'s
+        // own docs describe. An earlier, hand-rolled version of this
+        // pipeline picked the group's own leftmost and rightmost lane and
+        // joined them directly regardless, which silently claimed lane 1's
+        // own ground (not part of this zone) as if it belonged here too.
+        // `merged_core_polygon` doesn't assume anything about lane order or
+        // contiguity: lanes 0 and 2 don't actually touch, so their union is
+        // honestly two separate polygons, with the real, unclaimed gap
+        // between them left alone.
         let network = utm_31n_network(vec![
             indexed_parallel_lane("e0_0", 0, 3.2, 0.0),
             indexed_parallel_lane("e0_1", 1, 3.2, 3.2),
@@ -3010,11 +2700,19 @@ mod tests {
         else {
             panic!("expected a MultiPolygon geometry");
         };
-        assert_eq!(coordinates.len(), 1, "still one merged polygon, not a crash or a gap");
+        assert_eq!(
+            coordinates.len(),
+            2,
+            "lanes 0 and 2 don't touch (lane 1's own gap sits between them, unclaimed) -- \
+             expected two separate polygons, not one bridged fraudulently across the gap"
+        );
+        for polygon in coordinates {
+            assert!(!ring_self_intersects(&polygon[0]), "{:?}", polygon[0]);
+        }
     }
 
     #[test]
-    fn offset_boundary_never_self_intersects_on_a_short_wide_zigzag() {
+    fn buffer_shape_never_self_intersects_on_a_short_wide_zigzag() {
         let lane = zigzag_lane("e0_0", 4.0);
         let length = lane.length;
         let network = utm_31n_network(vec![lane]);
@@ -3029,22 +2727,24 @@ mod tests {
         let ring = &coordinates[0][0];
         assert!(
             !ring_self_intersects(ring),
-            "offset_boundary produced a self-intersecting polygon for a short, wide, \
+            "buffer_shape produced a self-intersecting polygon for a short, wide, \
              sharply zigzagging lane: {ring:?}"
         );
     }
 
     #[test]
-    fn shape_ring_does_not_collapse_to_a_sliver_on_a_short_lane_with_tight_bends() {
-        // A real Barcelona lane (`1395130587_2`, found while fixing this)
-        // shifted to the origin: five segments, none longer than ~1.8m, with
-        // two real direction changes -- short enough, and tight enough
-        // relative to a 3.2m-wide lane, that `remove_self_intersections`'s
-        // splice-based cleanup used to cut away real, non-crossing area
-        // along with the actual self-crossing loop, collapsing a ~21.6m²
-        // ribbon down to 0.003m² (a few points a few centimetres apart).
-        // `close_ring`'s own naive-area fallback (see its docs) exists
-        // specifically to catch this.
+    fn buffer_shape_does_not_collapse_to_a_sliver_on_a_short_lane_with_tight_bends() {
+        // A real Barcelona lane (`1395130587_2`, found while fixing an
+        // earlier, hand-rolled version of this pipeline) shifted to the
+        // origin: five segments, none longer than ~1.8m, with two real
+        // direction changes -- short enough, and tight enough relative to a
+        // 3.2m-wide lane, that a splice-based self-intersection cleanup
+        // used to cut away real, non-crossing area along with the actual
+        // self-crossing loop, collapsing a ~21.6m² ribbon down to 0.003m²
+        // (a few points a few centimetres apart). `buffer_shape`'s union of
+        // per-segment quads has no such collapse risk at all: `union`
+        // never removes real, non-overlapping area, so there's nothing
+        // here for a fallback to guard against any more.
         let shape = Shape(vec![
             Point { x: 0.0, y: 0.0, z: 0.0 },
             Point { x: -0.14, y: -0.14, z: 0.0 },
@@ -3090,81 +2790,37 @@ mod tests {
         assert!(
             area_m2 > naive_area_m2 * 0.5,
             "ring area {area_m2:.3}m2 is far below the naive expectation of \
-             {naive_area_m2:.3}m2 for a {length:.2}m lane 3.2m wide -- \
-             remove_self_intersections likely collapsed it again: {ring:?}"
+             {naive_area_m2:.3}m2 for a {length:.2}m lane 3.2m wide: {ring:?}"
         );
     }
 
-    #[test]
-    fn simplify_points_drops_nearly_collinear_intermediate_points() {
-        // A straight line along x, with several intermediate points sitting
-        // within a millimetre of it -- exactly what a chain of several
-        // sub-metre real connector lanes strung together tends to produce
-        // (`chain_shape`'s own module docs).
-        let points = vec![
-            Point { x: 0.0, y: 0.0, z: 0.0 },
-            Point { x: 1.0, y: 0.0005, z: 0.0 },
-            Point { x: 2.0, y: -0.0003, z: 0.0 },
-            Point { x: 3.0, y: 0.0002, z: 0.0 },
-            Point { x: 10.0, y: 0.0, z: 0.0 },
-        ];
-        let simplified = simplify_points(points, SIMPLIFY_TOLERANCE_METERS);
-        assert_eq!(
-            simplified.len(),
-            2,
-            "every intermediate point is within a millimetre of the straight line \
-             between the endpoints, well under the 5cm tolerance -- expected just the \
-             two endpoints to survive"
-        );
+    /// The area two closed rings `a` and `b` (GeoJSON style: first position
+    /// repeated last) actually have in common, via [`geo::BooleanOps::intersection`]
+    /// — the test-only counterpart of [`overlap_area_m2`]/[`overlapping_zone_ids`]'s
+    /// own production use of `intersection`, built directly from `Position`s
+    /// rather than a [`MultiPolygon`] a caller already has, for tests that
+    /// only have raw ring coordinates on hand.
+    fn ring_overlap_area(a: &[Position], b: &[Position]) -> f64 {
+        let polygon = |ring: &[Position]| {
+            MultiPolygon::new(vec![GeoPolygon::new(
+                LineString::new(ring.iter().map(|p| Coord { x: p[0], y: p[1] }).collect()),
+                Vec::new(),
+            )])
+        };
+        polygon(a).intersection(&polygon(b)).unsigned_area()
     }
 
     #[test]
-    fn simplify_points_keeps_a_real_corner() {
-        // A genuine right-angle turn, 5m off the straight line between the
-        // endpoints -- two orders of magnitude past the 5cm tolerance, so
-        // the corner itself has to survive simplification.
-        let points = vec![
-            Point { x: 0.0, y: 0.0, z: 0.0 },
-            Point { x: 5.0, y: 5.0, z: 0.0 },
-            Point { x: 10.0, y: 0.0, z: 0.0 },
-        ];
-        let simplified = simplify_points(points.clone(), SIMPLIFY_TOLERANCE_METERS);
-        assert_eq!(simplified, points, "a genuine corner should never be simplified away");
-    }
-
-    #[test]
-    fn simplify_points_never_drops_below_two_points() {
-        assert_eq!(simplify_points(vec![], 0.05).len(), 0);
-        let one = vec![Point { x: 0.0, y: 0.0, z: 0.0 }];
-        assert_eq!(simplify_points(one.clone(), 0.05), one);
-    }
-
-    #[test]
-    fn triangulate_sums_to_the_original_polygons_own_area() {
-        // An L-shape (non-convex): a 4x4 square with its own top-right 3x3
-        // corner removed, real area 16 - 9 = 7. Whatever `triangulate`
-        // splits it into should sum back to exactly that, regardless of
-        // how many triangles it takes.
-        let l_shape = vec![(0.0, 0.0), (4.0, 0.0), (4.0, 1.0), (1.0, 1.0), (1.0, 4.0), (0.0, 4.0)];
-        let triangles = triangulate(&l_shape);
-        let total_area: f64 = triangles.iter().map(|t| signed_area(t).abs()).sum();
-        assert!(
-            (total_area - 7.0).abs() < 1e-9,
-            "expected the L-shape's own real area (7.0) preserved across triangulation, got \
-             {total_area} from {} triangles",
-            triangles.len()
-        );
-    }
-
-    #[test]
-    fn polygon_overlap_area_handles_a_non_convex_clip_correctly() {
-        // `clip_to_convex` alone assumes its own `clip` argument is
-        // convex -- passing a non-convex ring like this L-shape as the
-        // clip side used to give `0.0` for a real overlap, entirely
-        // depending on which of `polygon_overlap_area`'s two arguments it
-        // landed on: confirmed on real Barcelona zones sharing several
-        // real square metres that measured `0.0` clipped one way and
-        // multiple m² the other.
+    fn ring_overlap_area_handles_a_non_convex_ring_correctly() {
+        // An L-shape (non-convex) and a 1x1 square entirely inside its own
+        // vertical leg (x in [0,1], y in [1,2]) -- real, unambiguous
+        // overlap of exactly 1.0. A hand-rolled clipper that assumes one
+        // side of an overlap test is convex (an earlier version of this
+        // module did) can silently give `0.0` for a real overlap like this
+        // depending on which side lands where -- confirmed on real
+        // Barcelona zones sharing several real square metres that measured
+        // `0.0` one direction and multiple m² the other. `geo::BooleanOps`
+        // makes no such assumption about either side.
         let l_shape: Vec<Position> = [
             (0.0, 0.0),
             (4.0, 0.0),
@@ -3178,15 +2834,13 @@ mod tests {
         .map(|(x, y)| Position::from([x, y]))
         .collect();
 
-        // A 1x1 square entirely inside the L's own vertical leg (x in
-        // [0,1], y in [1,2]) -- real, unambiguous overlap of exactly 1.0.
         let square: Vec<Position> = [(0.0, 1.0), (1.0, 1.0), (1.0, 2.0), (0.0, 2.0), (0.0, 1.0)]
             .into_iter()
             .map(|(x, y)| Position::from([x, y]))
             .collect();
 
-        let forward = polygon_overlap_area(&square, &l_shape);
-        let backward = polygon_overlap_area(&l_shape, &square);
+        let forward = ring_overlap_area(&square, &l_shape);
+        let backward = ring_overlap_area(&l_shape, &square);
         assert!(
             (forward - 1.0).abs() < 1e-9,
             "expected the square's own full 1.0 area, entirely inside the L, got {forward}"
@@ -3202,59 +2856,112 @@ mod tests {
     /// be a construction artifact rather than real ground `zone_generator`
     /// actually meant to claim. Chosen with real headroom below the
     /// smallest *legitimate* ring in real Barcelona data (a genuinely short
-    /// zone at ~0.22m², well above this) but orders of magnitude above the
-    /// sub-0.06m² slivers `close_ring`'s own naive-area fallback (see its
-    /// docs) was added to eliminate.
+    /// zone at ~0.22m², well above this).
     const MIN_PLAUSIBLE_RING_AREA_M2: f64 = 0.05;
 
-    /// Below this, in degrees, two consecutive ring edges are judged a
-    /// spike — a needle-thin notch a client's own rendering (and a human
-    /// looking at the map) reads as visibly wrong — rather than a real
-    /// corner a waiting area's own shape can legitimately have. A waiting
-    /// zone's boundary is either a straight lane edge (interior angle
-    /// 180°, dead flat) or a bevel facet where `offset_boundary` turns a
-    /// bend (see its own docs) — both stay well clear of 80° on any real
-    /// street geometry; a survivor below it is exactly the shape of defect
-    /// this crate's own bug history is full of (a self-intersection
-    /// `remove_self_intersections` failed to fully clean up, a
-    /// `clip_by_constraints` phantom sliver, ...), not a legitimate acute
-    /// corner this crate has any reason to draw.
+    /// Below this, in degrees, a vertex is judged a convex spike — a
+    /// needle-thin protrusion a client's own rendering (and a human looking
+    /// at the map) reads as visibly wrong — rather than a real corner a
+    /// waiting area's own shape can legitimately have. A waiting zone's
+    /// boundary is either a straight lane edge (interior angle 180°, dead
+    /// flat) or a real bend a round join (see `buffer_shape`'s own docs)
+    /// turns smoothly; both stay well clear of 80° on any real street
+    /// geometry, so a survivor below it is exactly the shape of defect this
+    /// crate's own bug history is full of (a self-intersection a boolean op
+    /// left uncleaned, a sliver from a `resolve_overlaps` cut, ...), not a
+    /// legitimate acute corner this crate has any reason to draw.
     const MIN_INTERIOR_ANGLE_DEGREES: f64 = 80.0;
+
+    /// Above this, in degrees, a vertex is judged a *reflex* spike — the
+    /// concave mirror image of [`MIN_INTERIOR_ANGLE_DEGREES`]'s own convex
+    /// one: a needle-thin notch cut *into* the polygon's own interior
+    /// rather than protruding out of it, which an undirected angle-between-
+    /// edges measure (the angle between two rays, always folded into
+    /// `[0°, 180°]`) can't even represent as a value near 360° to catch —
+    /// it reads a spike like this as the same small number a genuine convex
+    /// spike would give, which is *usually* still caught by
+    /// `MIN_INTERIOR_ANGLE_DEGREES` (a bad enough reflex spike folds well
+    /// under 80° too) but not reliably close to the boundary, and reports a
+    /// misleading angle either way. [`interior_angles_degrees`]'s own
+    /// signed computation avoids folding in the first place, so this can be
+    /// checked (and reported) directly, symmetric with the convex case
+    /// around 180° (`360° - 280° = 80°`).
+    const MAX_INTERIOR_ANGLE_DEGREES: f64 = 280.0;
 
     /// Below this, in degrees (roughly a centimetre at Barcelona's own
     /// latitude — see [`OVERLAP_AREA_THRESHOLD_DEG2`]'s own deg-to-metre
     /// conversion), an edge is too short for its direction to mean
-    /// anything: a bevel facet's own two corners (`offset_boundary`'s own
-    /// docs) can land this close together, and the angle either one of
-    /// them forms with its *other*, real-length neighbour is noise, not a
+    /// anything — a stray near-duplicate vertex from a boolean op can land
+    /// this close to its own neighbour, and the angle either one of them
+    /// forms with its *other*, real-length neighbour is noise, not a
     /// spike — skipped by [`interior_angles_degrees`] rather than reported
     /// as a false `0.0`.
     const MIN_EDGE_LENGTH_DEGREES: f64 = 1e-7;
 
-    /// The interior angle, in degrees, at every vertex of `points` (a
-    /// ring's own distinct vertices — no repeated closing point) whose two
-    /// neighbouring edges are both at least [`MIN_EDGE_LENGTH_DEGREES`]
-    /// long: the angle between the two segments meeting there, `180°` for
-    /// a vertex a straight line already passes straight through, sliding
-    /// down toward `0°` as the two segments fold back on each other into a
-    /// spike. Undirected — computed from the two edge vectors pointing
-    /// *away* from the vertex, so it doesn't need the ring's own winding
-    /// direction or which side is "inside".
+    /// The interior angle, in degrees (`[0°, 360°)`), at every vertex of
+    /// `points` (a ring's own distinct vertices — no repeated closing
+    /// point) whose two neighbouring edges are both at least
+    /// [`MIN_EDGE_LENGTH_DEGREES`] long: `180°` for a vertex a straight
+    /// line already passes straight through, sliding down toward `0°` as
+    /// the two segments fold back on themselves into a convex spike (the
+    /// material pinching to a point), or up toward `360°` as they fold
+    /// back the *other* way into a reflex spike (a thin notch cut into the
+    /// material instead). Signed via the ring's own overall winding
+    /// ([`signed_area`]'s own sign) rather than the plain undirected angle
+    /// between the two edge vectors: that alternative can't distinguish
+    /// "180° short of a full turn the convex way" from "180° short the
+    /// reflex way" at all — both fold to the same value — which is exactly
+    /// the distinction [`MAX_INTERIOR_ANGLE_DEGREES`]'s own check needs to
+    /// mean anything.
     fn interior_angles_degrees(points: &[(f64, f64)]) -> Vec<f64> {
         let n = points.len();
+        let counterclockwise = signed_area(points) >= 0.0;
         (0..n)
             .filter_map(|i| {
                 let (prev, cur, next) = (points[(i + n - 1) % n], points[i], points[(i + 1) % n]);
-                let (ax, ay) = (prev.0 - cur.0, prev.1 - cur.1);
-                let (bx, by) = (next.0 - cur.0, next.1 - cur.1);
-                let (la, lb) = (ax.hypot(ay), bx.hypot(by));
-                if la < MIN_EDGE_LENGTH_DEGREES || lb < MIN_EDGE_LENGTH_DEGREES {
+                // Edge directions, not the "pointing away from the vertex"
+                // rays an undirected measure would use: the sign of the
+                // turn from the incoming edge to the outgoing one is what
+                // tells convex from reflex apart.
+                let (inx, iny) = (cur.0 - prev.0, cur.1 - prev.1);
+                let (outx, outy) = (next.0 - cur.0, next.1 - cur.1);
+                let (lin, lout) = (inx.hypot(iny), outx.hypot(outy));
+                if lin < MIN_EDGE_LENGTH_DEGREES || lout < MIN_EDGE_LENGTH_DEGREES {
                     return None;
                 }
-                let cos_angle = ((ax * bx + ay * by) / (la * lb)).clamp(-1.0, 1.0);
-                Some(cos_angle.acos().to_degrees())
+                let cross = inx * outy - iny * outx;
+                let dot = inx * outx + iny * outy;
+                let turn_degrees = cross.atan2(dot).to_degrees(); // signed, (-180°, 180°]
+                let interior = if counterclockwise { 180.0 - turn_degrees } else { 180.0 + turn_degrees };
+                Some(((interior % 360.0) + 360.0) % 360.0)
             })
             .collect()
+    }
+
+    #[test]
+    fn interior_angles_degrees_reports_a_square_corner_as_90_degrees_either_winding() {
+        let ccw = vec![(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
+        assert_eq!(interior_angles_degrees(&ccw), vec![90.0, 90.0, 90.0, 90.0]);
+
+        let cw: Vec<(f64, f64)> = ccw.into_iter().rev().collect();
+        assert_eq!(interior_angles_degrees(&cw), vec![90.0, 90.0, 90.0, 90.0]);
+    }
+
+    #[test]
+    fn interior_angles_degrees_reports_the_true_reflex_angle_not_its_convex_fold() {
+        // The L-shape `ring_overlap_area_handles_a_non_convex_ring_correctly`
+        // also uses: a 4x4 square with its own top-right 3x3 corner cut
+        // out. The inner corner of that notch, at (1.0, 1.0), is a real
+        // 270° reflex vertex -- an undirected angle-between-edges measure
+        // would report this as 90° (360° - 270°), indistinguishable from a
+        // real 90° convex corner and nowhere near `MAX_INTERIOR_ANGLE_DEGREES`.
+        let l_shape = vec![(0.0, 0.0), (4.0, 0.0), (4.0, 1.0), (1.0, 1.0), (1.0, 4.0), (0.0, 4.0)];
+        let angles = interior_angles_degrees(&l_shape);
+        assert_eq!(
+            angles,
+            vec![90.0, 90.0, 90.0, 270.0, 90.0, 90.0],
+            "expected every outer corner at 90° and the notch's own inner corner at a true 270° reflex"
+        );
     }
 
     #[test]
@@ -3278,7 +2985,7 @@ mod tests {
             for (ri, ring) in feature_rings(feature).into_iter().enumerate() {
                 let points: Vec<(f64, f64)> =
                     ring[..ring.len().saturating_sub(1)].iter().map(|p| (p[0], p[1])).collect();
-                if polyline_self_intersects(&points) {
+                if ring_self_intersects(ring) {
                     failures.push(format!("{id} ring {ri} self-intersects: {points:?}"));
                     continue;
                 }
@@ -3293,7 +3000,12 @@ mod tests {
                     if angle < MIN_INTERIOR_ANGLE_DEGREES {
                         failures.push(format!(
                             "{id} ring {ri} vertex {vi} has a {angle:.1}° interior angle \
-                             (below {MIN_INTERIOR_ANGLE_DEGREES}°) — looks like a spike: {points:?}"
+                             (below {MIN_INTERIOR_ANGLE_DEGREES}°) — looks like a convex spike: {points:?}"
+                        ));
+                    } else if angle > MAX_INTERIOR_ANGLE_DEGREES {
+                        failures.push(format!(
+                            "{id} ring {ri} vertex {vi} has a {angle:.1}° interior angle \
+                             (above {MAX_INTERIOR_ANGLE_DEGREES}°) — looks like a reflex spike: {points:?}"
                         ));
                     }
                 }
@@ -3309,32 +3021,117 @@ mod tests {
     }
 
     #[test]
-    fn bisecting_half_plane_anchors_on_the_actual_overlap_not_the_two_rings_own_centroids() {
-        // A long, straight zone (its own centroid at x=50) whose real
-        // conflict is entirely at its far end (x in [95, 100]) -- the same
-        // shape of problem as a real Barcelona bug this guards against (an
-        // 80.9m ribbon contested by neighbours clustered around one small
-        // bend near its own far end), simplified to a straight rectangle so
-        // this fix (anchoring on the real overlap) isn't entangled with the
-        // *other* one bent rings specifically need
-        // (`clip_by_constraints`'s own multi-constraint gate, see its
-        // docs). The old behaviour anchored at the two rings' own centroid
-        // midpoint (x=75) — nowhere near the real conflict at x≈97.5 either
-        // — and combining several such off-target cuts from multiple
-        // simultaneous neighbours was what collapsed the real ribbon down
-        // to a small, valid-looking (simple, even convex) phantom sliver
-        // instead of correctly trimming just its far end.
-        let ring_a: Vec<Position> =
-            [(0.0, 0.0), (100.0, 0.0), (100.0, 10.0), (0.0, 10.0), (0.0, 0.0)].into_iter().map(Position::from).collect();
-        let ring_b: Vec<Position> =
-            [(95.0, 3.0), (105.0, 3.0), (105.0, 7.0), (95.0, 7.0), (95.0, 3.0)].into_iter().map(Position::from).collect();
+    fn debug_diagnose_50926861_spike() {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let net_file = manifest_dir.join("data/barcelona/barcelona.net.xml");
+        let network = sumo_types::read_network(&net_file).expect("reading Barcelona network");
+        let zones = crate::zone_generator::generate(&network, None);
+        let lanes: HashMap<&str, &Lane> = network
+            .edges
+            .iter()
+            .flat_map(|edge| &edge.lanes)
+            .map(|lane| (lane.id.0.as_str(), lane))
+            .collect();
+        let successors = single_successors(&network);
+        for id in ["50926861#0_straight", "50926859#0_straight"] {
+            let zone = zones.iter().find(|z| z.id.0 == id).unwrap();
+            let pre = zone_polygon(zone, &lanes, &successors, MIN_DRAWN_LANE_LENGTH_METERS).unwrap();
+            println!("=== {id} PRE-cut: {} part(s) ===", pre.0.len());
+            for part in &pre.0 {
+                println!("  ring ({} pts): {:?}", part.exterior().0.len(), part.exterior().0);
+            }
+            let stop = stop_line_point(zone, &lanes).unwrap();
+            println!("  stop_line_point: ({}, {})", stop.x, stop.y);
+            for entry in &zone.entries {
+                let lane = lanes.get(entry.lane.0.as_str()).unwrap();
+                println!(
+                    "  entry lane {:?} width={:?} first_pt={:?} last_pt={:?}",
+                    entry.lane.0,
+                    lane.width,
+                    lane.shape.0.first(),
+                    lane.shape.0.last(),
+                );
+            }
+        }
+        let collection = to_feature_collection(&network, &zones).unwrap();
+        for id in ["50926861#0_straight", "50926859#0_straight"] {
+            let feature = collection
+                .features
+                .iter()
+                .find(|f| f.property("waiting_zone_id").unwrap().as_str().unwrap() == id)
+                .unwrap();
+            println!("=== {id} POST-cut ===");
+            for ring in feature_rings(feature) {
+                println!("  ring ({} pts): {:?}", ring.len(), ring);
+            }
+        }
 
-        let (anchor, _normal) = bisecting_half_plane(&ring_a, &ring_b).expect("distinct centroids");
+        // Same as `to_feature_collection`'s internals, but printed in local
+        // (un-reprojected) meters so it lines up 1:1 with the PRE-cut dump
+        // above -- lets us see exactly which vertices the cut introduced.
+        let mut polygons = zones
+            .iter()
+            .map(|zone| zone_polygon(zone, &lanes, &successors, MIN_DRAWN_LANE_LENGTH_METERS))
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
+        let stop_points = zones
+            .iter()
+            .map(|zone| stop_line_point(zone, &lanes).map(|p| Coord { x: p.x, y: p.y }))
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
+        resolve_overlaps(&zones, &lanes, &successors, &stop_points, &mut polygons).unwrap();
+        for id in ["50926861#0_straight", "50926859#0_straight"] {
+            let idx = zones.iter().position(|z| z.id.0 == id).unwrap();
+            println!("=== {id} POST-cut (local meters) ===");
+            for part in &polygons[idx].0 {
+                println!("  ring ({} pts): {:?}", part.exterior().0.len(), part.exterior().0);
+            }
+        }
+    }
+
+    /// A closed rectangle polygon, corners in `(x, y)` — built directly as a
+    /// [`MultiPolygon`] rather than a [`Position`] ring, since production
+    /// code now carries geometry that way throughout (see the module docs)
+    /// and only ever converts to `Position`s at the very end, in
+    /// [`build_feature`].
+    fn rect(min: (f64, f64), max: (f64, f64)) -> MultiPolygon<f64> {
+        MultiPolygon::new(vec![GeoPolygon::new(
+            LineString::from(vec![
+                (min.0, min.1),
+                (max.0, min.1),
+                (max.0, max.1),
+                (min.0, max.1),
+                (min.0, min.1),
+            ]),
+            Vec::new(),
+        )])
+    }
+
+    #[test]
+    fn subtracting_the_real_overlap_removes_only_the_locally_contested_ground() {
+        // A long, straight zone whose real conflict is entirely at its far
+        // end (x in [95, 100]) -- the same shape of problem as a real
+        // Barcelona bug this guards against (an 80.9m ribbon contested by a
+        // neighbour clustered around one small bend near its own far end).
+        // A half-plane cut aimed by the two polygons' own overall centroids
+        // (an earlier version of `resolve_overlaps` worked this way) could
+        // remove most of `a`, far past the real, local overlap; subtracting
+        // `a.intersection(b)` directly can only ever remove exactly the
+        // disputed ground, wherever it actually is.
+        let a = rect((0.0, 0.0), (100.0, 10.0));
+        let b = rect((95.0, 3.0), (105.0, 7.0));
+
+        let remaining = a.difference(&a.intersection(&b));
         assert!(
-            anchor.0 > 90.0,
-            "anchor should sit near the real overlap around x=97.5 (the far end of a \
-             100-long ribbon), not at x=75 (the two rings' own centroid midpoint) or \
-             x=50 (ring_a's own centroid): got {anchor:?}"
+            remaining.unsigned_area() > 900.0,
+            "expected to keep almost all of a's own 1000 units\u{b2}, losing only the small \
+             overlap with b near its far end -- got {:.1}",
+            remaining.unsigned_area()
+        );
+        assert_eq!(
+            remaining.intersection(&b).unsigned_area(),
+            0.0,
+            "a and b must not overlap any more after a gives back their real overlap"
         );
     }
 
@@ -3342,14 +3139,16 @@ mod tests {
     fn a_long_bent_ribbon_keeps_most_of_its_own_area_when_only_one_end_is_contested() {
         // The real Barcelona ribbon this bug was found on: `-27641458#20_1`
         // is an 80.9m lane with one gentle bend, contested near that bend
-        // by three separate neighbouring zones at once. Before anchoring
-        // `bisecting_half_plane` on the real overlap instead of the two
-        // rings' own centroids, and gating `clip_by_constraints`'s
-        // multi-constraint direct path on `base`'s own exact convexity
-        // (see both their own docs), this collapsed to a ~53m²
-        // disconnected notch nowhere near any of the three real overlaps;
-        // correctly, it should keep the great majority of the ribbon's own
-        // ~260m² and lose only a small piece near the bend.
+        // by three separate neighbouring zones at once. A hand-rolled
+        // clipper that anchored on the two rings' own centroids instead of
+        // the real overlap, and that couldn't safely apply more than one
+        // cutting constraint at once against a non-convex base, used to
+        // collapse this to a ~53m² disconnected notch nowhere near any of
+        // the three real overlaps; `bisecting_cut` (anchored on the real
+        // overlap) and `geo::BooleanOps::difference` (exact regardless of
+        // convexity or how many cuts are applied) should instead keep the
+        // great majority of the ribbon's own ~260m² and lose only a small
+        // piece near the bend.
         let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let net_file = manifest_dir.join("data/barcelona/barcelona.net.xml");
         let network = sumo_types::read_network(&net_file).expect("reading Barcelona network");
