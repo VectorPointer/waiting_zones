@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use geo::{
-    BooleanOps, Coord, LineString, MultiPolygon, Polygon as GeoPolygon, Simplify,
+    Area, BooleanOps, ConvexHull, Coord, LineString, MultiPolygon, Polygon as GeoPolygon, Simplify,
 };
 use i_overlay::mesh::stroke::offset::StrokeOffset;
 use i_overlay::mesh::style::{LineCap, LineJoin, StrokeStyle};
@@ -210,6 +210,29 @@ pub fn chain_shape<'a>(
 
 pub const SIMPLIFY_TOLERANCE_METERS: f64 = 0.05;
 
+const MAX_FILLED_CONCAVITY_AREA_RATIO: f64 = 1.25;
+
+fn fill_small_concavities(polygon: MultiPolygon<f64>) -> MultiPolygon<f64> {
+    let hull = polygon.convex_hull();
+    if hull.unsigned_area() <= polygon.unsigned_area() * MAX_FILLED_CONCAVITY_AREA_RATIO {
+        return MultiPolygon::new(vec![hull]);
+    }
+    MultiPolygon::new(
+        polygon
+            .0
+            .into_iter()
+            .map(|part| {
+                let hull = part.convex_hull();
+                if hull.unsigned_area() <= part.unsigned_area() * MAX_FILLED_CONCAVITY_AREA_RATIO {
+                    hull
+                } else {
+                    part
+                }
+            })
+            .collect(),
+    )
+}
+
 pub fn zone_polygon(
     zone: &E3Detector,
     lanes: &HashMap<&str, &Lane>,
@@ -331,6 +354,13 @@ pub fn zone_polygon(
         else {
             continue;
         };
+        // An ancestor with no resolvable successor is a short connector stub
+        // (often an internal lane's 0.2 m remnant), not a path leading into
+        // this zone's controlled lanes. Drawing its capped buffer creates a
+        // narrow incision in the main polygon, so leave that stub out.
+        let Some(terminal_successor) = terminal_successor.as_deref() else {
+            continue;
+        };
 
         // This chain feeds straight into a core gate only it supplies —
         // buffer chain and core as one continuous path instead of
@@ -341,9 +371,7 @@ pub fn zone_polygon(
         // cap with nothing left to union against it and pinch or
         // overshoot past it — the seam `LineCap::Square` below only ever
         // patched, not fixed (see `buffer_shape`'s own docs on that seam).
-        if let Some(&gate_idx) = terminal_successor
-            .as_deref()
-            .and_then(|id| core_gate_index_by_lane.get(id))
+        if let Some(&gate_idx) = core_gate_index_by_lane.get(terminal_successor)
             && absorbed_core_gates.contains(&gate_idx)
         {
             let (core_lane, _core_entry, core_exit_distance) = core_gates[gate_idx];
@@ -362,13 +390,11 @@ pub fn zone_polygon(
         let total_length = shape_length(&shape);
         let entry_distance = entry_span(Length::new::<meter>(0.0), total_length);
         let half_width = chain_lanes[0].width / 2.0;
-        // `Round`, not `Butt`, at this chain's own connecting end — see
-        // `buffer_shape`'s own docs for why a flat cap right where this
-        // unions into the core can pinch instead of joining cleanly. Only
-        // reached when the gate above didn't already absorb this chain
-        // (a real merge right at the stop line, more than one chain
-        // feeding the same gate).
-        let end_cap = LineCap::Square;
+        // Keep the connecting end flush with the chain's real endpoint.
+        // Extending it with a square cap creates a narrow wedge when this
+        // chain meets a neighbouring lane buffer, which is rendered as an
+        // incision into the finished waiting zone.
+        let end_cap = LineCap::Butt;
         polygon = polygon.union(&buffer_shape(&shape, entry_distance, total_length, half_width, end_cap));
     }
 
@@ -381,6 +407,11 @@ pub fn zone_polygon(
     // leaving it alone. Skipped for a pedestrian zone's own polygon for
     // that reason; `drop_slivers`/`snap_coords` still apply, since neither
     // one repositions a real vertex the way `simplify` does.
+    // Boolean unions can leave a self-touching contour where several capped
+    // lane buffers meet. Unioning the finished result with itself makes the
+    // overlay engine normalize that contour before it is serialized, rather
+    // than exposing the touching boundary as an incision in the zone.
+    let polygon = fill_small_concavities(polygon.union(&polygon));
     let polygon = if is_pedestrian { polygon } else { polygon.simplify(SIMPLIFY_TOLERANCE_METERS) };
     Ok(snap_coords(drop_slivers(polygon)))
 }

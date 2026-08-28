@@ -54,7 +54,11 @@ pub fn overlapping_zone_ids(collection: &FeatureCollection) -> Vec<(String, Stri
     found
 }
 
-pub const OVERLAP_AREA_THRESHOLD_M2: f64 = 0.01;
+// Treat tiny positive-area crossings as real overlaps too. They are commonly
+// produced where two buffered lane chains share a connector vertex; leaving
+// them below the old threshold still makes their perimeter lines visibly
+// cross in the client, even though the measured area is only a few mm².
+pub const OVERLAP_AREA_THRESHOLD_M2: f64 = 0.000001;
 
 pub fn overlap_area_m2(a: &MultiPolygon<f64>, b: &MultiPolygon<f64>) -> f64 {
     let boxes_overlap = match (a.bounding_rect(), b.bounding_rect()) {

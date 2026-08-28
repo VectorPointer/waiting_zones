@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use geo::{Coord, LineString, MultiPolygon};
+use geo::{Area, Coord, LineString, MultiPolygon, Polygon as GeoPolygon};
 use geojson::{Feature, FeatureCollection, Geometry, JsonObject, Position};
 use std::{collections::HashMap, path::Path};
 use sumo_types::additional::domain::E3Detector;
@@ -7,6 +7,8 @@ use sumo_types::domain::{Lane, Network, Point};
 use crate::geojson_output::geometry::{centroid, single_successors, zone_modes, zone_polygon};
 use crate::geojson_output::overlaps::resolve_overlaps;
 use crate::geojson_output::reprojection::{distance_from_start, point_and_tangent_at, Reprojector, MIN_DRAWN_LANE_LENGTH_METERS};
+
+const MIN_INTERIOR_RING_AREA_M2: f64 = 1.0;
 
 pub fn stop_line_point(zone: &E3Detector, lanes: &HashMap<&str, &Lane>) -> Result<Point> {
     let mut stop_points = Vec::with_capacity(zone.exits.len());
@@ -37,7 +39,9 @@ pub fn build_feature(
         .map(|part| {
             let mut rings = vec![ring(part.exterior())?];
             for interior in part.interiors() {
-                rings.push(ring(interior)?);
+                if GeoPolygon::new(interior.clone(), Vec::new()).unsigned_area() >= MIN_INTERIOR_RING_AREA_M2 {
+                    rings.push(ring(interior)?);
+                }
             }
             Ok(rings)
         })
