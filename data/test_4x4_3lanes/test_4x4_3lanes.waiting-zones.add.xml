@@ -1,899 +1,1155 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <additional>
-    <e3Detector id="5001_0" file="detector_output/5001_0.xml" pos="42.39,51.9">
-        <detEntry lane="-301_1" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="-301_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="-301_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-301_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="-301_2" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="-301_3" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5001_1" file="detector_output/5001_1.xml" pos="42.39,51.9">
-        <detEntry lane="-101_1" pos="0" friendlyPos="true">
-        </detEntry>
+    <e3Detector id="-101_straight" file="detector_output/-101_straight.xml" pos="42.39,51.9">
         <detEntry lane="-101_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-101_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-101_1" pos="122.87000274658203" friendlyPos="true">
-        </detExit>
         <detExit lane="-101_2" pos="122.87000274658203" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-101_straight+turn+left" file="detector_output/-101_straight+turn+left.xml" pos="42.39,51.9">
+        <detEntry lane="-101_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-101_3" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5001_2" file="detector_output/5001_2.xml" pos="42.39,51.9">
-        <detEntry lane="921_1" pos="0" friendlyPos="true">
+    <e3Detector id="-101_straight+right" file="detector_output/-101_straight+right.xml" pos="42.39,51.9">
+        <detEntry lane="-101_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="921_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="921_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="921_1" pos="34.02000045776367" friendlyPos="true">
-        </detExit>
-        <detExit lane="921_2" pos="34.02000045776367" friendlyPos="true">
-        </detExit>
-        <detExit lane="921_3" pos="34.02000045776367" friendlyPos="true">
+        <detExit lane="-101_1" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5001_3" file="detector_output/5001_3.xml" pos="42.39,51.9">
-        <detEntry lane="901_1" pos="0" friendlyPos="true">
+    <e3Detector id="-301_straight" file="detector_output/-301_straight.xml" pos="42.39,51.9">
+        <detEntry lane="-301_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="-301_2" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-301_straight+turn+left" file="detector_output/-301_straight+turn+left.xml" pos="42.39,51.9">
+        <detEntry lane="-301_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-301_3" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-301_straight+right" file="detector_output/-301_straight+right.xml" pos="42.39,51.9">
+        <detEntry lane="-301_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-301_1" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="901_straight" file="detector_output/901_straight.xml" pos="42.39,51.9">
         <detEntry lane="901_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="901_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="901_1" pos="28.790000915527344" friendlyPos="true">
-        </detExit>
         <detExit lane="901_2" pos="28.790000915527344" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="901_straight+turn+left" file="detector_output/901_straight+turn+left.xml" pos="42.39,51.9">
+        <detEntry lane="901_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="901_3" pos="28.790000915527344" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5002_0" file="detector_output/5002_0.xml" pos="192.45,50.48">
-        <detEntry lane="-302_1" pos="0" friendlyPos="true">
+    <e3Detector id="901_straight+right" file="detector_output/901_straight+right.xml" pos="42.39,51.9">
+        <detEntry lane="901_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-302_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="-302_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-302_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="-302_2" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="-302_3" pos="122.3499984741211" friendlyPos="true">
+        <detExit lane="901_1" pos="28.790000915527344" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5002_1" file="detector_output/5002_1.xml" pos="192.45,50.48">
-        <detEntry lane="-102_1" pos="0" friendlyPos="true">
+    <e3Detector id="921_straight" file="detector_output/921_straight.xml" pos="42.39,51.9">
+        <detEntry lane="921_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="921_2" pos="34.02000045776367" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="921_straight+turn+left" file="detector_output/921_straight+turn+left.xml" pos="42.39,51.9">
+        <detEntry lane="921_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="921_3" pos="34.02000045776367" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="921_straight+right" file="detector_output/921_straight+right.xml" pos="42.39,51.9">
+        <detEntry lane="921_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="921_1" pos="34.02000045776367" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-102_straight" file="detector_output/-102_straight.xml" pos="192.45,50.48">
         <detEntry lane="-102_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-102_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-102_1" pos="122.95999908447266" friendlyPos="true">
-        </detExit>
         <detExit lane="-102_2" pos="122.95999908447266" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-102_straight+turn+left" file="detector_output/-102_straight+turn+left.xml" pos="192.45,50.48">
+        <detEntry lane="-102_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-102_3" pos="122.95999908447266" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5002_2" file="detector_output/5002_2.xml" pos="192.45,50.48">
-        <detEntry lane="922_1" pos="0" friendlyPos="true">
+    <e3Detector id="-102_straight+right" file="detector_output/-102_straight+right.xml" pos="192.45,50.48">
+        <detEntry lane="-102_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="922_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="922_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="922_1" pos="34.029998779296875" friendlyPos="true">
-        </detExit>
-        <detExit lane="922_2" pos="34.029998779296875" friendlyPos="true">
-        </detExit>
-        <detExit lane="922_3" pos="34.029998779296875" friendlyPos="true">
+        <detExit lane="-102_1" pos="122.95999908447266" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5002_3" file="detector_output/5002_3.xml" pos="192.45,50.48">
-        <detEntry lane="101_1" pos="0" friendlyPos="true">
+    <e3Detector id="-302_straight" file="detector_output/-302_straight.xml" pos="192.45,50.48">
+        <detEntry lane="-302_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="-302_2" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-302_straight+turn+left" file="detector_output/-302_straight+turn+left.xml" pos="192.45,50.48">
+        <detEntry lane="-302_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-302_3" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-302_straight+right" file="detector_output/-302_straight+right.xml" pos="192.45,50.48">
+        <detEntry lane="-302_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-302_1" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="101_straight" file="detector_output/101_straight.xml" pos="192.45,50.48">
         <detEntry lane="101_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="101_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="101_1" pos="122.87000274658203" friendlyPos="true">
-        </detExit>
         <detExit lane="101_2" pos="122.87000274658203" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="101_straight+turn+left" file="detector_output/101_straight+turn+left.xml" pos="192.45,50.48">
+        <detEntry lane="101_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="101_3" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5003_0" file="detector_output/5003_0.xml" pos="342.6,49.05">
-        <detEntry lane="-303_1" pos="0" friendlyPos="true">
+    <e3Detector id="101_straight+right" file="detector_output/101_straight+right.xml" pos="192.45,50.48">
+        <detEntry lane="101_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-303_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="-303_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-303_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="-303_2" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="-303_3" pos="122.3499984741211" friendlyPos="true">
+        <detExit lane="101_1" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5003_1" file="detector_output/5003_1.xml" pos="342.6,49.05">
-        <detEntry lane="-103_1" pos="0" friendlyPos="true">
+    <e3Detector id="922_straight" file="detector_output/922_straight.xml" pos="192.45,50.48">
+        <detEntry lane="922_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="922_2" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="922_straight+turn+left" file="detector_output/922_straight+turn+left.xml" pos="192.45,50.48">
+        <detEntry lane="922_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="922_3" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="922_straight+right" file="detector_output/922_straight+right.xml" pos="192.45,50.48">
+        <detEntry lane="922_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="922_1" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-103_straight" file="detector_output/-103_straight.xml" pos="342.6,49.05">
         <detEntry lane="-103_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-103_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-103_1" pos="122.87000274658203" friendlyPos="true">
-        </detExit>
         <detExit lane="-103_2" pos="122.87000274658203" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-103_straight+turn+left" file="detector_output/-103_straight+turn+left.xml" pos="342.6,49.05">
+        <detEntry lane="-103_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-103_3" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5003_2" file="detector_output/5003_2.xml" pos="342.6,49.05">
-        <detEntry lane="923_1" pos="0" friendlyPos="true">
+    <e3Detector id="-103_straight+right" file="detector_output/-103_straight+right.xml" pos="342.6,49.05">
+        <detEntry lane="-103_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="923_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="923_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="923_1" pos="34.029998779296875" friendlyPos="true">
-        </detExit>
-        <detExit lane="923_2" pos="34.029998779296875" friendlyPos="true">
-        </detExit>
-        <detExit lane="923_3" pos="34.029998779296875" friendlyPos="true">
+        <detExit lane="-103_1" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5003_3" file="detector_output/5003_3.xml" pos="342.6,49.05">
-        <detEntry lane="102_1" pos="0" friendlyPos="true">
+    <e3Detector id="-303_straight" file="detector_output/-303_straight.xml" pos="342.6,49.05">
+        <detEntry lane="-303_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="-303_2" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-303_straight+turn+left" file="detector_output/-303_straight+turn+left.xml" pos="342.6,49.05">
+        <detEntry lane="-303_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-303_3" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-303_straight+right" file="detector_output/-303_straight+right.xml" pos="342.6,49.05">
+        <detEntry lane="-303_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-303_1" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="102_straight" file="detector_output/102_straight.xml" pos="342.6,49.05">
         <detEntry lane="102_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="102_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="102_1" pos="122.95999908447266" friendlyPos="true">
-        </detExit>
         <detExit lane="102_2" pos="122.95999908447266" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="102_straight+turn+left" file="detector_output/102_straight+turn+left.xml" pos="342.6,49.05">
+        <detEntry lane="102_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="102_3" pos="122.95999908447266" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5004_0" file="detector_output/5004_0.xml" pos="492.66,47.63">
-        <detEntry lane="-304_1" pos="0" friendlyPos="true">
+    <e3Detector id="102_straight+right" file="detector_output/102_straight+right.xml" pos="342.6,49.05">
+        <detEntry lane="102_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="102_1" pos="122.95999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="923_straight" file="detector_output/923_straight.xml" pos="342.6,49.05">
+        <detEntry lane="923_2" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="923_2" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="923_straight+turn+left" file="detector_output/923_straight+turn+left.xml" pos="342.6,49.05">
+        <detEntry lane="923_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="923_3" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="923_straight+right" file="detector_output/923_straight+right.xml" pos="342.6,49.05">
+        <detEntry lane="923_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="923_1" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-304_straight" file="detector_output/-304_straight.xml" pos="492.66,47.63">
         <detEntry lane="-304_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-304_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-304_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
         <detExit lane="-304_2" pos="122.3499984741211" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-304_straight+turn+left" file="detector_output/-304_straight+turn+left.xml" pos="492.66,47.63">
+        <detEntry lane="-304_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-304_3" pos="122.3499984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5004_1" file="detector_output/5004_1.xml" pos="492.66,47.63">
-        <detEntry lane="911_1" pos="0" friendlyPos="true">
+    <e3Detector id="-304_straight+right" file="detector_output/-304_straight+right.xml" pos="492.66,47.63">
+        <detEntry lane="-304_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="911_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="911_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="911_1" pos="28.790000915527344" friendlyPos="true">
-        </detExit>
-        <detExit lane="911_2" pos="28.790000915527344" friendlyPos="true">
-        </detExit>
-        <detExit lane="911_3" pos="28.790000915527344" friendlyPos="true">
+        <detExit lane="-304_1" pos="122.3499984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5004_2" file="detector_output/5004_2.xml" pos="492.66,47.63">
-        <detEntry lane="924_1" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="924_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="924_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="924_1" pos="34.029998779296875" friendlyPos="true">
-        </detExit>
-        <detExit lane="924_2" pos="34.029998779296875" friendlyPos="true">
-        </detExit>
-        <detExit lane="924_3" pos="34.029998779296875" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5004_3" file="detector_output/5004_3.xml" pos="492.66,47.63">
-        <detEntry lane="103_1" pos="0" friendlyPos="true">
-        </detEntry>
+    <e3Detector id="103_straight" file="detector_output/103_straight.xml" pos="492.66,47.63">
         <detEntry lane="103_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="103_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="103_1" pos="122.87000274658203" friendlyPos="true">
-        </detExit>
         <detExit lane="103_2" pos="122.87000274658203" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="103_straight+turn+left" file="detector_output/103_straight+turn+left.xml" pos="492.66,47.63">
+        <detEntry lane="103_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="103_3" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5005_0" file="detector_output/5005_0.xml" pos="43.81,201.45">
-        <detEntry lane="-305_1" pos="0" friendlyPos="true">
+    <e3Detector id="103_straight+right" file="detector_output/103_straight+right.xml" pos="492.66,47.63">
+        <detEntry lane="103_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-305_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="-305_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-305_1" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
-        <detExit lane="-305_2" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
-        <detExit lane="-305_3" pos="122.45999908447266" friendlyPos="true">
+        <detExit lane="103_1" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5005_1" file="detector_output/5005_1.xml" pos="43.81,201.45">
-        <detEntry lane="-104_1" pos="0" friendlyPos="true">
+    <e3Detector id="911_straight" file="detector_output/911_straight.xml" pos="492.66,47.63">
+        <detEntry lane="911_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="911_2" pos="28.790000915527344" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="911_straight+turn+left" file="detector_output/911_straight+turn+left.xml" pos="492.66,47.63">
+        <detEntry lane="911_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="911_3" pos="28.790000915527344" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="911_straight+right" file="detector_output/911_straight+right.xml" pos="492.66,47.63">
+        <detEntry lane="911_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="911_1" pos="28.790000915527344" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="924_straight" file="detector_output/924_straight.xml" pos="492.66,47.63">
+        <detEntry lane="924_2" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="924_2" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="924_straight+turn+left" file="detector_output/924_straight+turn+left.xml" pos="492.66,47.63">
+        <detEntry lane="924_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="924_3" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="924_straight+right" file="detector_output/924_straight+right.xml" pos="492.66,47.63">
+        <detEntry lane="924_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="924_1" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-104_straight" file="detector_output/-104_straight.xml" pos="43.81,201.45">
         <detEntry lane="-104_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-104_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-104_1" pos="122.87000274658203" friendlyPos="true">
-        </detExit>
         <detExit lane="-104_2" pos="122.87000274658203" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-104_straight+turn+left" file="detector_output/-104_straight+turn+left.xml" pos="43.81,201.45">
+        <detEntry lane="-104_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-104_3" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5005_2" file="detector_output/5005_2.xml" pos="43.81,201.45">
-        <detEntry lane="301_1" pos="0" friendlyPos="true">
+    <e3Detector id="-104_straight+right" file="detector_output/-104_straight+right.xml" pos="43.81,201.45">
+        <detEntry lane="-104_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="-104_1" pos="122.87000274658203" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-305_straight" file="detector_output/-305_straight.xml" pos="43.81,201.45">
+        <detEntry lane="-305_2" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-305_2" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-305_straight+turn+left" file="detector_output/-305_straight+turn+left.xml" pos="43.81,201.45">
+        <detEntry lane="-305_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-305_3" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-305_straight+right" file="detector_output/-305_straight+right.xml" pos="43.81,201.45">
+        <detEntry lane="-305_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-305_1" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="301_straight" file="detector_output/301_straight.xml" pos="43.81,201.45">
         <detEntry lane="301_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="301_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="301_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
         <detExit lane="301_2" pos="122.3499984741211" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="301_straight+turn+left" file="detector_output/301_straight+turn+left.xml" pos="43.81,201.45">
+        <detEntry lane="301_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="301_3" pos="122.3499984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5005_3" file="detector_output/5005_3.xml" pos="43.81,201.45">
-        <detEntry lane="902_1" pos="0" friendlyPos="true">
+    <e3Detector id="301_straight+right" file="detector_output/301_straight+right.xml" pos="43.81,201.45">
+        <detEntry lane="301_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="301_1" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="902_straight" file="detector_output/902_straight.xml" pos="43.81,201.45">
         <detEntry lane="902_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="902_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="902_1" pos="28.780000686645508" friendlyPos="true">
-        </detExit>
         <detExit lane="902_2" pos="28.780000686645508" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="902_straight+turn+left" file="detector_output/902_straight+turn+left.xml" pos="43.81,201.45">
+        <detEntry lane="902_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="902_3" pos="28.780000686645508" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5006_0" file="detector_output/5006_0.xml" pos="193.87,200.02">
-        <detEntry lane="-306_1" pos="0" friendlyPos="true">
+    <e3Detector id="902_straight+right" file="detector_output/902_straight+right.xml" pos="43.81,201.45">
+        <detEntry lane="902_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-306_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="-306_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-306_1" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
-        <detExit lane="-306_2" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
-        <detExit lane="-306_3" pos="122.45999908447266" friendlyPos="true">
+        <detExit lane="902_1" pos="28.780000686645508" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5006_1" file="detector_output/5006_1.xml" pos="193.87,200.02">
-        <detEntry lane="-105_1" pos="0" friendlyPos="true">
-        </detEntry>
+    <e3Detector id="-105_straight" file="detector_output/-105_straight.xml" pos="193.87,200.02">
         <detEntry lane="-105_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-105_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-105_1" pos="122.95999908447266" friendlyPos="true">
-        </detExit>
         <detExit lane="-105_2" pos="122.95999908447266" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-105_straight+turn+left" file="detector_output/-105_straight+turn+left.xml" pos="193.87,200.02">
+        <detEntry lane="-105_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-105_3" pos="122.95999908447266" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5006_2" file="detector_output/5006_2.xml" pos="193.87,200.02">
-        <detEntry lane="302_1" pos="0" friendlyPos="true">
+    <e3Detector id="-105_straight+right" file="detector_output/-105_straight+right.xml" pos="193.87,200.02">
+        <detEntry lane="-105_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="302_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="302_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="302_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="302_2" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="302_3" pos="122.3499984741211" friendlyPos="true">
+        <detExit lane="-105_1" pos="122.95999908447266" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5006_3" file="detector_output/5006_3.xml" pos="193.87,200.02">
-        <detEntry lane="104_1" pos="0" friendlyPos="true">
+    <e3Detector id="-306_straight" file="detector_output/-306_straight.xml" pos="193.87,200.02">
+        <detEntry lane="-306_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="-306_2" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-306_straight+turn+left" file="detector_output/-306_straight+turn+left.xml" pos="193.87,200.02">
+        <detEntry lane="-306_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-306_3" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-306_straight+right" file="detector_output/-306_straight+right.xml" pos="193.87,200.02">
+        <detEntry lane="-306_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-306_1" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="104_straight" file="detector_output/104_straight.xml" pos="193.87,200.02">
         <detEntry lane="104_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="104_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="104_1" pos="122.87000274658203" friendlyPos="true">
-        </detExit>
         <detExit lane="104_2" pos="122.87000274658203" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="104_straight+turn+left" file="detector_output/104_straight+turn+left.xml" pos="193.87,200.02">
+        <detEntry lane="104_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="104_3" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5007_0" file="detector_output/5007_0.xml" pos="344.02,198.59">
-        <detEntry lane="-307_1" pos="0" friendlyPos="true">
+    <e3Detector id="104_straight+right" file="detector_output/104_straight+right.xml" pos="193.87,200.02">
+        <detEntry lane="104_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-307_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="-307_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-307_1" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
-        <detExit lane="-307_2" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
-        <detExit lane="-307_3" pos="122.45999908447266" friendlyPos="true">
+        <detExit lane="104_1" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5007_1" file="detector_output/5007_1.xml" pos="344.02,198.59">
-        <detEntry lane="-106_1" pos="0" friendlyPos="true">
+    <e3Detector id="302_straight" file="detector_output/302_straight.xml" pos="193.87,200.02">
+        <detEntry lane="302_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="302_2" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="302_straight+turn+left" file="detector_output/302_straight+turn+left.xml" pos="193.87,200.02">
+        <detEntry lane="302_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="302_3" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="302_straight+right" file="detector_output/302_straight+right.xml" pos="193.87,200.02">
+        <detEntry lane="302_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="302_1" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-106_straight" file="detector_output/-106_straight.xml" pos="344.02,198.59">
         <detEntry lane="-106_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-106_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-106_1" pos="122.87000274658203" friendlyPos="true">
-        </detExit>
         <detExit lane="-106_2" pos="122.87000274658203" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-106_straight+turn+left" file="detector_output/-106_straight+turn+left.xml" pos="344.02,198.59">
+        <detEntry lane="-106_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-106_3" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5007_2" file="detector_output/5007_2.xml" pos="344.02,198.59">
-        <detEntry lane="303_1" pos="0" friendlyPos="true">
+    <e3Detector id="-106_straight+right" file="detector_output/-106_straight+right.xml" pos="344.02,198.59">
+        <detEntry lane="-106_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="303_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="303_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="303_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="303_2" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="303_3" pos="122.3499984741211" friendlyPos="true">
+        <detExit lane="-106_1" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5007_3" file="detector_output/5007_3.xml" pos="344.02,198.59">
-        <detEntry lane="105_1" pos="0" friendlyPos="true">
+    <e3Detector id="-307_straight" file="detector_output/-307_straight.xml" pos="344.02,198.59">
+        <detEntry lane="-307_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="-307_2" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-307_straight+turn+left" file="detector_output/-307_straight+turn+left.xml" pos="344.02,198.59">
+        <detEntry lane="-307_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-307_3" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-307_straight+right" file="detector_output/-307_straight+right.xml" pos="344.02,198.59">
+        <detEntry lane="-307_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-307_1" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="105_straight" file="detector_output/105_straight.xml" pos="344.02,198.59">
         <detEntry lane="105_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="105_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="105_1" pos="122.95999908447266" friendlyPos="true">
-        </detExit>
         <detExit lane="105_2" pos="122.95999908447266" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="105_straight+turn+left" file="detector_output/105_straight+turn+left.xml" pos="344.02,198.59">
+        <detEntry lane="105_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="105_3" pos="122.95999908447266" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5008_0" file="detector_output/5008_0.xml" pos="494.08,197.17">
-        <detEntry lane="-308_1" pos="0" friendlyPos="true">
+    <e3Detector id="105_straight+right" file="detector_output/105_straight+right.xml" pos="344.02,198.59">
+        <detEntry lane="105_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="105_1" pos="122.95999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="303_straight" file="detector_output/303_straight.xml" pos="344.02,198.59">
+        <detEntry lane="303_2" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="303_2" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="303_straight+turn+left" file="detector_output/303_straight+turn+left.xml" pos="344.02,198.59">
+        <detEntry lane="303_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="303_3" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="303_straight+right" file="detector_output/303_straight+right.xml" pos="344.02,198.59">
+        <detEntry lane="303_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="303_1" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-308_straight" file="detector_output/-308_straight.xml" pos="494.08,197.17">
         <detEntry lane="-308_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-308_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-308_1" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
         <detExit lane="-308_2" pos="122.45999908447266" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-308_straight+turn+left" file="detector_output/-308_straight+turn+left.xml" pos="494.08,197.17">
+        <detEntry lane="-308_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-308_3" pos="122.45999908447266" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5008_1" file="detector_output/5008_1.xml" pos="494.08,197.17">
-        <detEntry lane="912_1" pos="0" friendlyPos="true">
+    <e3Detector id="-308_straight+right" file="detector_output/-308_straight+right.xml" pos="494.08,197.17">
+        <detEntry lane="-308_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="912_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="912_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="912_1" pos="28.780000686645508" friendlyPos="true">
-        </detExit>
-        <detExit lane="912_2" pos="28.780000686645508" friendlyPos="true">
-        </detExit>
-        <detExit lane="912_3" pos="28.780000686645508" friendlyPos="true">
+        <detExit lane="-308_1" pos="122.45999908447266" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5008_2" file="detector_output/5008_2.xml" pos="494.08,197.17">
-        <detEntry lane="304_1" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="304_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="304_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="304_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="304_2" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="304_3" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5008_3" file="detector_output/5008_3.xml" pos="494.08,197.17">
-        <detEntry lane="106_1" pos="0" friendlyPos="true">
-        </detEntry>
+    <e3Detector id="106_straight" file="detector_output/106_straight.xml" pos="494.08,197.17">
         <detEntry lane="106_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="106_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="106_1" pos="122.87000274658203" friendlyPos="true">
-        </detExit>
         <detExit lane="106_2" pos="122.87000274658203" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="106_straight+turn+left" file="detector_output/106_straight+turn+left.xml" pos="494.08,197.17">
+        <detEntry lane="106_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="106_3" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5009_0" file="detector_output/5009_0.xml" pos="45.24,351.1">
-        <detEntry lane="-309_1" pos="0" friendlyPos="true">
+    <e3Detector id="106_straight+right" file="detector_output/106_straight+right.xml" pos="494.08,197.17">
+        <detEntry lane="106_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-309_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="-309_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-309_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="-309_2" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="-309_3" pos="122.3499984741211" friendlyPos="true">
+        <detExit lane="106_1" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5009_1" file="detector_output/5009_1.xml" pos="45.24,351.1">
-        <detEntry lane="-107_1" pos="0" friendlyPos="true">
+    <e3Detector id="304_straight" file="detector_output/304_straight.xml" pos="494.08,197.17">
+        <detEntry lane="304_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="304_2" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="304_straight+turn+left" file="detector_output/304_straight+turn+left.xml" pos="494.08,197.17">
+        <detEntry lane="304_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="304_3" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="304_straight+right" file="detector_output/304_straight+right.xml" pos="494.08,197.17">
+        <detEntry lane="304_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="304_1" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="912_straight" file="detector_output/912_straight.xml" pos="494.08,197.17">
+        <detEntry lane="912_2" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="912_2" pos="28.780000686645508" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="912_straight+turn+left" file="detector_output/912_straight+turn+left.xml" pos="494.08,197.17">
+        <detEntry lane="912_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="912_3" pos="28.780000686645508" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="912_straight+right" file="detector_output/912_straight+right.xml" pos="494.08,197.17">
+        <detEntry lane="912_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="912_1" pos="28.780000686645508" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-107_straight" file="detector_output/-107_straight.xml" pos="45.24,351.1">
         <detEntry lane="-107_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-107_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-107_1" pos="122.87000274658203" friendlyPos="true">
-        </detExit>
         <detExit lane="-107_2" pos="122.87000274658203" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-107_straight+turn+left" file="detector_output/-107_straight+turn+left.xml" pos="45.24,351.1">
+        <detEntry lane="-107_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-107_3" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5009_2" file="detector_output/5009_2.xml" pos="45.24,351.1">
-        <detEntry lane="305_1" pos="0" friendlyPos="true">
+    <e3Detector id="-107_straight+right" file="detector_output/-107_straight+right.xml" pos="45.24,351.1">
+        <detEntry lane="-107_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="-107_1" pos="122.87000274658203" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-309_straight" file="detector_output/-309_straight.xml" pos="45.24,351.1">
+        <detEntry lane="-309_2" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-309_2" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-309_straight+turn+left" file="detector_output/-309_straight+turn+left.xml" pos="45.24,351.1">
+        <detEntry lane="-309_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-309_3" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-309_straight+right" file="detector_output/-309_straight+right.xml" pos="45.24,351.1">
+        <detEntry lane="-309_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-309_1" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="305_straight" file="detector_output/305_straight.xml" pos="45.24,351.1">
         <detEntry lane="305_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="305_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="305_1" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
         <detExit lane="305_2" pos="122.45999908447266" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="305_straight+turn+left" file="detector_output/305_straight+turn+left.xml" pos="45.24,351.1">
+        <detEntry lane="305_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="305_3" pos="122.45999908447266" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5009_3" file="detector_output/5009_3.xml" pos="45.24,351.1">
-        <detEntry lane="903_1" pos="0" friendlyPos="true">
+    <e3Detector id="305_straight+right" file="detector_output/305_straight+right.xml" pos="45.24,351.1">
+        <detEntry lane="305_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="305_1" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="903_straight" file="detector_output/903_straight.xml" pos="45.24,351.1">
         <detEntry lane="903_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="903_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="903_1" pos="28.790000915527344" friendlyPos="true">
-        </detExit>
         <detExit lane="903_2" pos="28.790000915527344" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="903_straight+turn+left" file="detector_output/903_straight+turn+left.xml" pos="45.24,351.1">
+        <detEntry lane="903_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="903_3" pos="28.790000915527344" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5010_0" file="detector_output/5010_0.xml" pos="195.3,349.67">
-        <detEntry lane="-310_1" pos="0" friendlyPos="true">
+    <e3Detector id="903_straight+right" file="detector_output/903_straight+right.xml" pos="45.24,351.1">
+        <detEntry lane="903_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-310_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="-310_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-310_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="-310_2" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="-310_3" pos="122.3499984741211" friendlyPos="true">
+        <detExit lane="903_1" pos="28.790000915527344" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5010_1" file="detector_output/5010_1.xml" pos="195.3,349.67">
-        <detEntry lane="-108_1" pos="0" friendlyPos="true">
-        </detEntry>
+    <e3Detector id="-108_straight" file="detector_output/-108_straight.xml" pos="195.3,349.67">
         <detEntry lane="-108_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-108_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-108_1" pos="122.94999694824219" friendlyPos="true">
-        </detExit>
         <detExit lane="-108_2" pos="122.94999694824219" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-108_straight+turn+left" file="detector_output/-108_straight+turn+left.xml" pos="195.3,349.67">
+        <detEntry lane="-108_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-108_3" pos="122.94999694824219" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5010_2" file="detector_output/5010_2.xml" pos="195.3,349.67">
-        <detEntry lane="306_1" pos="0" friendlyPos="true">
+    <e3Detector id="-108_straight+right" file="detector_output/-108_straight+right.xml" pos="195.3,349.67">
+        <detEntry lane="-108_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="306_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="306_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="306_1" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
-        <detExit lane="306_2" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
-        <detExit lane="306_3" pos="122.45999908447266" friendlyPos="true">
+        <detExit lane="-108_1" pos="122.94999694824219" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5010_3" file="detector_output/5010_3.xml" pos="195.3,349.67">
-        <detEntry lane="107_1" pos="0" friendlyPos="true">
+    <e3Detector id="-310_straight" file="detector_output/-310_straight.xml" pos="195.3,349.67">
+        <detEntry lane="-310_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="-310_2" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-310_straight+turn+left" file="detector_output/-310_straight+turn+left.xml" pos="195.3,349.67">
+        <detEntry lane="-310_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-310_3" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-310_straight+right" file="detector_output/-310_straight+right.xml" pos="195.3,349.67">
+        <detEntry lane="-310_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-310_1" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="107_straight" file="detector_output/107_straight.xml" pos="195.3,349.67">
         <detEntry lane="107_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="107_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="107_1" pos="122.87000274658203" friendlyPos="true">
-        </detExit>
         <detExit lane="107_2" pos="122.87000274658203" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="107_straight+turn+left" file="detector_output/107_straight+turn+left.xml" pos="195.3,349.67">
+        <detEntry lane="107_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="107_3" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5011_0" file="detector_output/5011_0.xml" pos="345.44,348.24">
-        <detEntry lane="-311_1" pos="0" friendlyPos="true">
+    <e3Detector id="107_straight+right" file="detector_output/107_straight+right.xml" pos="195.3,349.67">
+        <detEntry lane="107_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-311_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="-311_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-311_1" pos="122.36000061035156" friendlyPos="true">
-        </detExit>
-        <detExit lane="-311_2" pos="122.36000061035156" friendlyPos="true">
-        </detExit>
-        <detExit lane="-311_3" pos="122.36000061035156" friendlyPos="true">
+        <detExit lane="107_1" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5011_1" file="detector_output/5011_1.xml" pos="345.44,348.24">
-        <detEntry lane="-109_1" pos="0" friendlyPos="true">
+    <e3Detector id="306_straight" file="detector_output/306_straight.xml" pos="195.3,349.67">
+        <detEntry lane="306_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="306_2" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="306_straight+turn+left" file="detector_output/306_straight+turn+left.xml" pos="195.3,349.67">
+        <detEntry lane="306_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="306_3" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="306_straight+right" file="detector_output/306_straight+right.xml" pos="195.3,349.67">
+        <detEntry lane="306_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="306_1" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-109_straight" file="detector_output/-109_straight.xml" pos="345.44,348.24">
         <detEntry lane="-109_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-109_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-109_1" pos="122.87000274658203" friendlyPos="true">
-        </detExit>
         <detExit lane="-109_2" pos="122.87000274658203" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-109_straight+turn+left" file="detector_output/-109_straight+turn+left.xml" pos="345.44,348.24">
+        <detEntry lane="-109_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-109_3" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5011_2" file="detector_output/5011_2.xml" pos="345.44,348.24">
-        <detEntry lane="307_1" pos="0" friendlyPos="true">
+    <e3Detector id="-109_straight+right" file="detector_output/-109_straight+right.xml" pos="345.44,348.24">
+        <detEntry lane="-109_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="307_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="307_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="307_1" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
-        <detExit lane="307_2" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
-        <detExit lane="307_3" pos="122.45999908447266" friendlyPos="true">
+        <detExit lane="-109_1" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5011_3" file="detector_output/5011_3.xml" pos="345.44,348.24">
-        <detEntry lane="108_1" pos="0" friendlyPos="true">
+    <e3Detector id="-311_straight" file="detector_output/-311_straight.xml" pos="345.44,348.24">
+        <detEntry lane="-311_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="-311_2" pos="122.36000061035156" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-311_straight+turn+left" file="detector_output/-311_straight+turn+left.xml" pos="345.44,348.24">
+        <detEntry lane="-311_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-311_3" pos="122.36000061035156" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-311_straight+right" file="detector_output/-311_straight+right.xml" pos="345.44,348.24">
+        <detEntry lane="-311_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="-311_1" pos="122.36000061035156" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="108_straight" file="detector_output/108_straight.xml" pos="345.44,348.24">
         <detEntry lane="108_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="108_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="108_1" pos="122.94999694824219" friendlyPos="true">
-        </detExit>
         <detExit lane="108_2" pos="122.94999694824219" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="108_straight+turn+left" file="detector_output/108_straight+turn+left.xml" pos="345.44,348.24">
+        <detEntry lane="108_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="108_3" pos="122.94999694824219" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5012_0" file="detector_output/5012_0.xml" pos="495.5,346.82">
-        <detEntry lane="-312_1" pos="0" friendlyPos="true">
+    <e3Detector id="108_straight+right" file="detector_output/108_straight+right.xml" pos="345.44,348.24">
+        <detEntry lane="108_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="108_1" pos="122.94999694824219" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="307_straight" file="detector_output/307_straight.xml" pos="345.44,348.24">
+        <detEntry lane="307_2" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="307_2" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="307_straight+turn+left" file="detector_output/307_straight+turn+left.xml" pos="345.44,348.24">
+        <detEntry lane="307_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="307_3" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="307_straight+right" file="detector_output/307_straight+right.xml" pos="345.44,348.24">
+        <detEntry lane="307_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="307_1" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-312_straight" file="detector_output/-312_straight.xml" pos="495.5,346.82">
         <detEntry lane="-312_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-312_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-312_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
         <detExit lane="-312_2" pos="122.3499984741211" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-312_straight+turn+left" file="detector_output/-312_straight+turn+left.xml" pos="495.5,346.82">
+        <detEntry lane="-312_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-312_3" pos="122.3499984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5012_1" file="detector_output/5012_1.xml" pos="495.5,346.82">
-        <detEntry lane="913_1" pos="0" friendlyPos="true">
+    <e3Detector id="-312_straight+right" file="detector_output/-312_straight+right.xml" pos="495.5,346.82">
+        <detEntry lane="-312_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="913_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="913_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="913_1" pos="28.780000686645508" friendlyPos="true">
-        </detExit>
-        <detExit lane="913_2" pos="28.780000686645508" friendlyPos="true">
-        </detExit>
-        <detExit lane="913_3" pos="28.780000686645508" friendlyPos="true">
+        <detExit lane="-312_1" pos="122.3499984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5012_2" file="detector_output/5012_2.xml" pos="495.5,346.82">
-        <detEntry lane="308_1" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="308_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="308_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="308_1" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
-        <detExit lane="308_2" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
-        <detExit lane="308_3" pos="122.45999908447266" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5012_3" file="detector_output/5012_3.xml" pos="495.5,346.82">
-        <detEntry lane="109_1" pos="0" friendlyPos="true">
-        </detEntry>
+    <e3Detector id="109_straight" file="detector_output/109_straight.xml" pos="495.5,346.82">
         <detEntry lane="109_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="109_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="109_1" pos="122.87000274658203" friendlyPos="true">
-        </detExit>
         <detExit lane="109_2" pos="122.87000274658203" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="109_straight+turn+left" file="detector_output/109_straight+turn+left.xml" pos="495.5,346.82">
+        <detEntry lane="109_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="109_3" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5013_0" file="detector_output/5013_0.xml" pos="46.66,500.64">
-        <detEntry lane="931_1" pos="0" friendlyPos="true">
+    <e3Detector id="109_straight+right" file="detector_output/109_straight+right.xml" pos="495.5,346.82">
+        <detEntry lane="109_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="931_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="931_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="931_1" pos="34.029998779296875" friendlyPos="true">
-        </detExit>
-        <detExit lane="931_2" pos="34.029998779296875" friendlyPos="true">
-        </detExit>
-        <detExit lane="931_3" pos="34.029998779296875" friendlyPos="true">
+        <detExit lane="109_1" pos="122.87000274658203" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5013_1" file="detector_output/5013_1.xml" pos="46.66,500.64">
-        <detEntry lane="-110_1" pos="0" friendlyPos="true">
+    <e3Detector id="308_straight" file="detector_output/308_straight.xml" pos="495.5,346.82">
+        <detEntry lane="308_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="308_2" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="308_straight+turn+left" file="detector_output/308_straight+turn+left.xml" pos="495.5,346.82">
+        <detEntry lane="308_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="308_3" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="308_straight+right" file="detector_output/308_straight+right.xml" pos="495.5,346.82">
+        <detEntry lane="308_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="308_1" pos="122.45999908447266" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="913_straight" file="detector_output/913_straight.xml" pos="495.5,346.82">
+        <detEntry lane="913_2" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="913_2" pos="28.780000686645508" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="913_straight+turn+left" file="detector_output/913_straight+turn+left.xml" pos="495.5,346.82">
+        <detEntry lane="913_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="913_3" pos="28.780000686645508" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="913_straight+right" file="detector_output/913_straight+right.xml" pos="495.5,346.82">
+        <detEntry lane="913_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="913_1" pos="28.780000686645508" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-110_straight" file="detector_output/-110_straight.xml" pos="46.66,500.64">
         <detEntry lane="-110_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-110_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-110_1" pos="122.86000061035156" friendlyPos="true">
-        </detExit>
         <detExit lane="-110_2" pos="122.86000061035156" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-110_straight+turn+left" file="detector_output/-110_straight+turn+left.xml" pos="46.66,500.64">
+        <detEntry lane="-110_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-110_3" pos="122.86000061035156" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5013_2" file="detector_output/5013_2.xml" pos="46.66,500.64">
-        <detEntry lane="309_1" pos="0" friendlyPos="true">
+    <e3Detector id="-110_straight+right" file="detector_output/-110_straight+right.xml" pos="46.66,500.64">
+        <detEntry lane="-110_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="-110_1" pos="122.86000061035156" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="309_straight" file="detector_output/309_straight.xml" pos="46.66,500.64">
         <detEntry lane="309_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="309_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="309_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
         <detExit lane="309_2" pos="122.3499984741211" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="309_straight+turn+left" file="detector_output/309_straight+turn+left.xml" pos="46.66,500.64">
+        <detEntry lane="309_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="309_3" pos="122.3499984741211" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5013_3" file="detector_output/5013_3.xml" pos="46.66,500.64">
-        <detEntry lane="904_1" pos="0" friendlyPos="true">
+    <e3Detector id="309_straight+right" file="detector_output/309_straight+right.xml" pos="46.66,500.64">
+        <detEntry lane="309_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="309_1" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="904_straight" file="detector_output/904_straight.xml" pos="46.66,500.64">
         <detEntry lane="904_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="904_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="904_1" pos="28.780000686645508" friendlyPos="true">
-        </detExit>
         <detExit lane="904_2" pos="28.780000686645508" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="904_straight+turn+left" file="detector_output/904_straight+turn+left.xml" pos="46.66,500.64">
+        <detEntry lane="904_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="904_3" pos="28.780000686645508" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5014_0" file="detector_output/5014_0.xml" pos="196.72,499.21">
-        <detEntry lane="932_1" pos="0" friendlyPos="true">
+    <e3Detector id="904_straight+right" file="detector_output/904_straight+right.xml" pos="46.66,500.64">
+        <detEntry lane="904_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="932_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="932_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="932_1" pos="34.029998779296875" friendlyPos="true">
-        </detExit>
-        <detExit lane="932_2" pos="34.029998779296875" friendlyPos="true">
-        </detExit>
-        <detExit lane="932_3" pos="34.029998779296875" friendlyPos="true">
+        <detExit lane="904_1" pos="28.780000686645508" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5014_1" file="detector_output/5014_1.xml" pos="196.72,499.21">
-        <detEntry lane="-111_1" pos="0" friendlyPos="true">
+    <e3Detector id="931_straight" file="detector_output/931_straight.xml" pos="46.66,500.64">
+        <detEntry lane="931_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="931_2" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="931_straight+turn+left" file="detector_output/931_straight+turn+left.xml" pos="46.66,500.64">
+        <detEntry lane="931_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="931_3" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="931_straight+right" file="detector_output/931_straight+right.xml" pos="46.66,500.64">
+        <detEntry lane="931_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="931_1" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-111_straight" file="detector_output/-111_straight.xml" pos="196.72,499.21">
         <detEntry lane="-111_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-111_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-111_1" pos="122.94999694824219" friendlyPos="true">
-        </detExit>
         <detExit lane="-111_2" pos="122.94999694824219" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-111_straight+turn+left" file="detector_output/-111_straight+turn+left.xml" pos="196.72,499.21">
+        <detEntry lane="-111_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-111_3" pos="122.94999694824219" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5014_2" file="detector_output/5014_2.xml" pos="196.72,499.21">
-        <detEntry lane="310_1" pos="0" friendlyPos="true">
+    <e3Detector id="-111_straight+right" file="detector_output/-111_straight+right.xml" pos="196.72,499.21">
+        <detEntry lane="-111_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="310_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="310_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="310_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="310_2" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="310_3" pos="122.3499984741211" friendlyPos="true">
+        <detExit lane="-111_1" pos="122.94999694824219" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5014_3" file="detector_output/5014_3.xml" pos="196.72,499.21">
-        <detEntry lane="110_1" pos="0" friendlyPos="true">
-        </detEntry>
+    <e3Detector id="110_straight" file="detector_output/110_straight.xml" pos="196.72,499.21">
         <detEntry lane="110_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="110_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="110_1" pos="122.86000061035156" friendlyPos="true">
-        </detExit>
         <detExit lane="110_2" pos="122.86000061035156" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="110_straight+turn+left" file="detector_output/110_straight+turn+left.xml" pos="196.72,499.21">
+        <detEntry lane="110_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="110_3" pos="122.86000061035156" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5015_0" file="detector_output/5015_0.xml" pos="346.86,497.79">
-        <detEntry lane="933_1" pos="0" friendlyPos="true">
+    <e3Detector id="110_straight+right" file="detector_output/110_straight+right.xml" pos="196.72,499.21">
+        <detEntry lane="110_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="933_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="933_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="933_1" pos="34.02000045776367" friendlyPos="true">
-        </detExit>
-        <detExit lane="933_2" pos="34.02000045776367" friendlyPos="true">
-        </detExit>
-        <detExit lane="933_3" pos="34.02000045776367" friendlyPos="true">
+        <detExit lane="110_1" pos="122.86000061035156" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5015_1" file="detector_output/5015_1.xml" pos="346.86,497.79">
-        <detEntry lane="-112_1" pos="0" friendlyPos="true">
+    <e3Detector id="310_straight" file="detector_output/310_straight.xml" pos="196.72,499.21">
+        <detEntry lane="310_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="310_2" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="310_straight+turn+left" file="detector_output/310_straight+turn+left.xml" pos="196.72,499.21">
+        <detEntry lane="310_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="310_3" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="310_straight+right" file="detector_output/310_straight+right.xml" pos="196.72,499.21">
+        <detEntry lane="310_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="310_1" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="932_straight" file="detector_output/932_straight.xml" pos="196.72,499.21">
+        <detEntry lane="932_2" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="932_2" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="932_straight+turn+left" file="detector_output/932_straight+turn+left.xml" pos="196.72,499.21">
+        <detEntry lane="932_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="932_3" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="932_straight+right" file="detector_output/932_straight+right.xml" pos="196.72,499.21">
+        <detEntry lane="932_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="932_1" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="-112_straight" file="detector_output/-112_straight.xml" pos="346.86,497.79">
         <detEntry lane="-112_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="-112_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="-112_1" pos="122.86000061035156" friendlyPos="true">
-        </detExit>
         <detExit lane="-112_2" pos="122.86000061035156" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="-112_straight+turn+left" file="detector_output/-112_straight+turn+left.xml" pos="346.86,497.79">
+        <detEntry lane="-112_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="-112_3" pos="122.86000061035156" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5015_2" file="detector_output/5015_2.xml" pos="346.86,497.79">
-        <detEntry lane="311_1" pos="0" friendlyPos="true">
+    <e3Detector id="-112_straight+right" file="detector_output/-112_straight+right.xml" pos="346.86,497.79">
+        <detEntry lane="-112_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="311_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="311_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="311_1" pos="122.36000061035156" friendlyPos="true">
-        </detExit>
-        <detExit lane="311_2" pos="122.36000061035156" friendlyPos="true">
-        </detExit>
-        <detExit lane="311_3" pos="122.36000061035156" friendlyPos="true">
+        <detExit lane="-112_1" pos="122.86000061035156" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5015_3" file="detector_output/5015_3.xml" pos="346.86,497.79">
-        <detEntry lane="111_1" pos="0" friendlyPos="true">
-        </detEntry>
+    <e3Detector id="111_straight" file="detector_output/111_straight.xml" pos="346.86,497.79">
         <detEntry lane="111_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="111_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="111_1" pos="122.94999694824219" friendlyPos="true">
-        </detExit>
         <detExit lane="111_2" pos="122.94999694824219" friendlyPos="true">
         </detExit>
+    </e3Detector>
+    <e3Detector id="111_straight+turn+left" file="detector_output/111_straight+turn+left.xml" pos="346.86,497.79">
+        <detEntry lane="111_3" pos="0" friendlyPos="true">
+        </detEntry>
         <detExit lane="111_3" pos="122.94999694824219" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5016_0" file="detector_output/5016_0.xml" pos="496.91,496.36">
-        <detEntry lane="934_1" pos="0" friendlyPos="true">
+    <e3Detector id="111_straight+right" file="detector_output/111_straight+right.xml" pos="346.86,497.79">
+        <detEntry lane="111_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="934_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="934_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="934_1" pos="34.029998779296875" friendlyPos="true">
-        </detExit>
-        <detExit lane="934_2" pos="34.029998779296875" friendlyPos="true">
-        </detExit>
-        <detExit lane="934_3" pos="34.029998779296875" friendlyPos="true">
+        <detExit lane="111_1" pos="122.94999694824219" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5016_1" file="detector_output/5016_1.xml" pos="496.91,496.36">
-        <detEntry lane="914_1" pos="0" friendlyPos="true">
+    <e3Detector id="311_straight" file="detector_output/311_straight.xml" pos="346.86,497.79">
+        <detEntry lane="311_2" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="914_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="914_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="914_1" pos="28.790000915527344" friendlyPos="true">
-        </detExit>
-        <detExit lane="914_2" pos="28.790000915527344" friendlyPos="true">
-        </detExit>
-        <detExit lane="914_3" pos="28.790000915527344" friendlyPos="true">
+        <detExit lane="311_2" pos="122.36000061035156" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5016_2" file="detector_output/5016_2.xml" pos="496.91,496.36">
-        <detEntry lane="312_1" pos="0" friendlyPos="true">
+    <e3Detector id="311_straight+turn+left" file="detector_output/311_straight+turn+left.xml" pos="346.86,497.79">
+        <detEntry lane="311_3" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane="312_2" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="312_3" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane="312_1" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="312_2" pos="122.3499984741211" friendlyPos="true">
-        </detExit>
-        <detExit lane="312_3" pos="122.3499984741211" friendlyPos="true">
+        <detExit lane="311_3" pos="122.36000061035156" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5016_3" file="detector_output/5016_3.xml" pos="496.91,496.36">
-        <detEntry lane="112_1" pos="0" friendlyPos="true">
+    <e3Detector id="311_straight+right" file="detector_output/311_straight+right.xml" pos="346.86,497.79">
+        <detEntry lane="311_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="311_1" pos="122.36000061035156" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="933_straight" file="detector_output/933_straight.xml" pos="346.86,497.79">
+        <detEntry lane="933_2" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="933_2" pos="34.02000045776367" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="933_straight+turn+left" file="detector_output/933_straight+turn+left.xml" pos="346.86,497.79">
+        <detEntry lane="933_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="933_3" pos="34.02000045776367" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="933_straight+right" file="detector_output/933_straight+right.xml" pos="346.86,497.79">
+        <detEntry lane="933_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="933_1" pos="34.02000045776367" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="112_straight" file="detector_output/112_straight.xml" pos="496.91,496.36">
         <detEntry lane="112_2" pos="0" friendlyPos="true">
         </detEntry>
+        <detExit lane="112_2" pos="122.86000061035156" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="112_straight+turn+left" file="detector_output/112_straight+turn+left.xml" pos="496.91,496.36">
         <detEntry lane="112_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="112_3" pos="122.86000061035156" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="112_straight+right" file="detector_output/112_straight+right.xml" pos="496.91,496.36">
+        <detEntry lane="112_1" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane="112_1" pos="122.86000061035156" friendlyPos="true">
         </detExit>
-        <detExit lane="112_2" pos="122.86000061035156" friendlyPos="true">
+    </e3Detector>
+    <e3Detector id="312_straight" file="detector_output/312_straight.xml" pos="496.91,496.36">
+        <detEntry lane="312_2" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="312_2" pos="122.3499984741211" friendlyPos="true">
         </detExit>
-        <detExit lane="112_3" pos="122.86000061035156" friendlyPos="true">
+    </e3Detector>
+    <e3Detector id="312_straight+turn+left" file="detector_output/312_straight+turn+left.xml" pos="496.91,496.36">
+        <detEntry lane="312_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="312_3" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="312_straight+right" file="detector_output/312_straight+right.xml" pos="496.91,496.36">
+        <detEntry lane="312_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="312_1" pos="122.3499984741211" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="914_straight" file="detector_output/914_straight.xml" pos="496.91,496.36">
+        <detEntry lane="914_2" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="914_2" pos="28.790000915527344" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="914_straight+turn+left" file="detector_output/914_straight+turn+left.xml" pos="496.91,496.36">
+        <detEntry lane="914_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="914_3" pos="28.790000915527344" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="914_straight+right" file="detector_output/914_straight+right.xml" pos="496.91,496.36">
+        <detEntry lane="914_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="914_1" pos="28.790000915527344" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="934_straight" file="detector_output/934_straight.xml" pos="496.91,496.36">
+        <detEntry lane="934_2" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="934_2" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="934_straight+turn+left" file="detector_output/934_straight+turn+left.xml" pos="496.91,496.36">
+        <detEntry lane="934_3" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="934_3" pos="34.029998779296875" friendlyPos="true">
+        </detExit>
+    </e3Detector>
+    <e3Detector id="934_straight+right" file="detector_output/934_straight+right.xml" pos="496.91,496.36">
+        <detEntry lane="934_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detExit lane="934_1" pos="34.029998779296875" friendlyPos="true">
         </detExit>
     </e3Detector>
 </additional>

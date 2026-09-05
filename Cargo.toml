@@ -95,6 +95,13 @@ i_overlay = { version = "=4.5.2", default-features = false }
 sumo-types = { path = "../sumo-types" }
 
 [dev-dependencies]
+# Only for tests/zone_fixtures.rs, which compares a fixture's committed
+# shape against a fresh run by *area* rather than vertex by vertex (see
+# that file's own docs on why exact comparison was the wrong contract).
+# `geo` is already a regular dependency of the library itself, resolved to
+# the same version, so this costs no extra compilation — an integration
+# test just doesn't inherit the library's own dependencies.
+geo = { version = "0.33.1", default-features = false }
 # Only for tests/pedestrian_zones_detect_real_halted_pedestrians.rs: polls a
 # real running `sumo` over TraCI to check that the pedestrian zones this
 # crate generates actually see who's waiting in them. `zone_generator`/

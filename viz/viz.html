@@ -7,7 +7,10 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     html, body, #map { height: 100%; margin: 0; }
-    #status { position: absolute; top: 10px; left: 10px; z-index: 1000; background: white; padding: 6px 10px; border-radius: 6px; font: 13px sans-serif; box-shadow: 0 1px 6px rgba(0,0,0,0.3); }
+    #map { background: #eef1f4; }
+    #status { position: absolute; top: 10px; left: 10px; z-index: 1000; background: white; padding: 6px 10px; border-radius: 6px; font: 13px sans-serif; box-shadow: 0 1px 6px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 8px; }
+    #dataset-select, #fixture-zone-select { font: 13px sans-serif; }
+    #fixture-zone-select { max-width: 220px; }
     #error {
       display: none; position: absolute; top: 50px; left: 10px; z-index: 1000; max-width: 320px;
       background: white; padding: 8px 12px; border-radius: 6px; font: 13px sans-serif;
@@ -35,36 +38,158 @@
     }
     #layers-body { padding: 0 10px 8px; }
     #layers-panel.collapsed #layers-body { display: none; }
+
+    #vertex-panel {
+      display: none;
+      position: absolute; top: 10px; right: 10px; z-index: 1000;
+      background: white; border-radius: 6px; box-shadow: 0 1px 6px rgba(0,0,0,0.3);
+      font: 13px sans-serif; width: 260px; overflow: hidden;
+    }
+    #vertex-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 10px; cursor: pointer; user-select: none;
+    }
+    #vertex-panel-close {
+      background: none; border: none; font: 15px sans-serif; cursor: pointer; color: #666; padding: 0 4px;
+    }
+    #comparison-toggles {
+      display: flex; gap: 12px; padding: 6px 10px; font-size: 12px; border-top: 1px solid #eee; color: #333;
+    }
+    #comparison-toggles label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+    #comparison-toggles input:disabled { cursor: default; }
+    #comparison-toggles label:has(input:disabled) { color: #aaa; cursor: default; }
+    #expected-fixture-name { color: #999; font-size: 11px; }
+    #vertex-panel.collapsed #comparison-toggles { display: none; }
+    #vertex-panel-body { max-height: 320px; overflow-y: auto; border-top: 1px solid #eee; }
+    #vertex-panel.collapsed #vertex-panel-body { display: none; }
+    #vertex-panel-body table { width: 100%; border-collapse: collapse; }
+    #vertex-panel-body td { padding: 3px 10px; font-size: 12px; white-space: nowrap; }
+    #vertex-panel-body tr:nth-child(even) { background: #f7f7f7; }
+    #vertex-panel-body tr:hover { background: #eef4fb; cursor: pointer; }
+    #vertex-panel-body tr.selected { background: #cfe4fb; }
+    #vertex-panel-body tr.selected:hover { background: #cfe4fb; }
+    #vertex-panel-body td.index { color: #999; }
+    #vertex-panel-body td.insert, #vertex-panel-body td.delete { width: 1%; }
+    #vertex-panel-body td.insert button, #vertex-panel-body td.delete button {
+      border: none; background: none; font: 13px sans-serif; cursor: pointer; padding: 0 4px;
+    }
+    #vertex-panel-body td.insert button { color: #1e7e34; }
+    #vertex-panel-body td.delete button { color: #c0392b; }
+    #vertex-panel-body td.delete button:disabled { color: #ccc; cursor: default; }
+    #vertex-edits-note { padding: 6px 10px; font-size: 11px; color: #a15c00; background: #fff8e6; border-top: 1px solid #eee; display: none; }
+    #vertex-edits-note.visible { display: block; }
+    #vertex-edits-note.warning { color: #c0392b; background: #fdeaea; }
+
+    .vertex-marker-wrapper { background: transparent; border: none; }
+    .vertex-marker-dot { width: 100%; height: 100%; border-radius: 50%; box-sizing: border-box; cursor: move; }
+    .vertex-marker-dot.default { background: #fff; border: 2px solid #222; }
+    .vertex-marker-dot.selected { background: #2980b9; border: 2px solid #1d5c8a; }
+
+    #fixture-actions {
+      display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px; border-top: 1px solid #eee;
+    }
+    #fixture-actions button {
+      flex: 1 1 auto; font: 12px sans-serif; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px;
+      background: #fafafa; cursor: pointer;
+    }
+    #fixture-actions button:hover { background: #f0f0f0; }
+    #fixture-actions button:disabled { opacity: 0.5; cursor: default; }
+    #fixture-status { width: 100%; font-size: 12px; color: #666; }
+    #fixture-status.error { color: #c0392b; }
+    #fixture-status.ok { color: #1e7e34; }
   </style>
 </head>
 <body>
 <div id="map"></div>
-<div id="status">Loading zones.geojson…</div>
+<div id="status">
+  <select id="dataset-select"></select>
+  <select id="fixture-zone-select">
+    <option value="" selected disabled>Zonas con expected…</option>
+  </select>
+  <label><input type="checkbox" id="filter-mismatched-only" /> solo con diferencias</label>
+  <span id="status-text">Loading…</span>
+</div>
 <div id="error">
-  Couldn't fetch <code>zones.geojson</code> — this page needs to be served
-  over <code>http://</code>, not opened directly as a <code>file://</code>
-  URL (browsers block local fetches for that). From this directory, run:
-  <pre>python3 -m http.server 8000</pre>
+  Couldn't fetch this dataset's own <code>zones.vehicles.geojson</code> /
+  <code>zones.pedestrians.geojson</code> — either it hasn't been generated
+  yet (see <code>viz/README.md</code>'s own "Usage" section) or this page
+  needs to be served over <code>http://</code>, not opened directly as a
+  <code>file://</code> URL (browsers block local fetches for that). From
+  this directory, run:
+  <pre>python3 serve.py</pre>
   then open <code>http://localhost:8000/viz.html</code>.
 </div>
 <div id="search-box">
-  <input id="search-input" type="text" placeholder="Buscar zona por id… (p.ej. 30112795#1_straight)" autocomplete="off" />
+  <input id="search-input" type="text" placeholder="Buscar zona o semáforo por id… (p.ej. 30112795#1_straight)" autocomplete="off" />
   <div id="search-results"></div>
   <div id="search-empty">Sin resultados</div>
+</div>
+<div id="vertex-panel">
+  <div id="vertex-panel-header">
+    <span id="vertex-panel-title">Vértices</span>
+    <button id="vertex-panel-close" title="Cerrar">×</button>
+  </div>
+  <div id="comparison-toggles">
+    <label><input type="checkbox" id="toggle-actual" checked /> Actual</label>
+    <label><input type="checkbox" id="toggle-expected" /> Expected<span id="expected-fixture-name"></span></label>
+  </div>
+  <div id="vertex-panel-body"></div>
+  <div id="vertex-edits-note"></div>
+  <div id="fixture-actions">
+    <button id="save-zone-fixture">Guardar esta zona</button>
+    <button id="save-intersection-fixture">Guardar intersección</button>
+    <button id="remove-expected-zone">Quitar de expected</button>
+    <div id="fixture-status"></div>
+  </div>
 </div>
 <div id="layers-panel">
   <button id="layers-toggle">▾ Layers</button>
   <div id="layers-body">
+    <label><input type="checkbox" id="toggle-basemap" /> basemap (OSM tiles)</label><br/>
     <label><input type="checkbox" id="toggle-ped" checked /> pedestrian</label><br/>
-    <label><input type="checkbox" id="toggle-veh" checked /> vehicle</label>
+    <label><input type="checkbox" id="toggle-veh" checked /> vehicle</label><br/>
+    <label><input type="checkbox" id="toggle-net" /> network: lane centerlines</label><br/>
+    <label><input type="checkbox" id="toggle-net-footprint" /> network: lane footprints (full width)</label><br/>
+    <label><input type="checkbox" id="toggle-net-tls" /> network: traffic lights</label>
+    <span id="net-status" style="color:#999"></span>
   </div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 <script>
+// Every dataset with its own `viz/data/<name>/` output (see viz/README.md's
+// own "Usage" section) — not every `data/` network: `test_4x4_ped`'s own
+// `.net.xml` is unprojected (`location/@projParameter="!"`), and
+// `geojson_output::write` refuses to build GeoJSON from one at all (no real
+// lon/lat to give it), so there's nothing this page could ever fetch for
+// it. `linkoping` is a bare `.osm` file, not a `.net.xml` at all yet.
+const DATASETS = ["barcelona", "eixample", "test_4x4_3lanes"];
+const DEFAULT_DATASET = "barcelona";
+const urlParams = new URLSearchParams(location.search);
+const DATASET = DATASETS.includes(urlParams.get("net")) ? urlParams.get("net") : DEFAULT_DATASET;
+const DATA_DIR = `./data/${DATASET}`;
+
+const datasetSelect = document.getElementById("dataset-select");
+datasetSelect.innerHTML = DATASETS.map(
+  (name) => `<option value="${name}"${name === DATASET ? " selected" : ""}>${name}</option>`
+).join("");
+datasetSelect.addEventListener("change", () => {
+  const url = new URL(location.href);
+  url.searchParams.set("net", datasetSelect.value);
+  location.href = url.toString();
+});
+
 const PEDESTRIAN_COLOR = "#8e44ad";
 const VEHICLE_COLOR = "#2980b9";
 const HIGHLIGHT_COLOR = "#e74c3c";
+// A single fixed color, not one keyed off a traffic light's own `state`:
+// that property is the connection's *static* link state from the .net.xml
+// (e.g. "tls_off_blinking" when the file's default is the light switched
+// off), not a live phase color — coloring by it would misleadingly imply
+// "this is green/red right now", which nothing in a .net.xml alone can
+// tell you. The full state/link_index/lane detail is in each marker's
+// popup instead.
+const TRAFFIC_LIGHT_COLOR = "#e74c3c";
 
 function isPedestrian(feature) {
   return feature.properties.waiting_zone_id.endsWith("_ped");
@@ -100,12 +225,11 @@ function dissolvedFeature(feature) {
   // `turf.union` dissolves the latter cleanly but generally can't merge
   // two polygons that only *touch* at one point, since there's no actual
   // overlapping area or boundary segment for it to combine. A hairline
-  // buffer first turns "touches at a point" into "genuinely overlaps by a
-  // centimetre", which is enough for the union to go through — 1cm is far
-  // below anything visible at any zoom level this map renders at, the
-  // same "not worth reproducing" scale `simplify_points`'s own tolerance
-  // already treats as noise.
-  const buffered = (polygon) => turf.buffer(polygon, 0.01, { units: "meters" });
+  // buffer first turns "touches at a point" into "genuinely overlaps".
+  // Reprojection can leave a short gap wider than a centimetre, so use a
+  // temporary 25cm bridge and shrink the dissolved result back afterwards.
+  const buffered = (polygon) => turf.buffer(polygon, 0.25, { units: "meters" });
+  const unbuffered = (polygon) => turf.buffer(polygon, -0.25, { units: "meters" });
 
   let merged = buffered(turf.polygon(polygons[0]));
   for (const coordinates of polygons.slice(1)) {
@@ -120,20 +244,62 @@ function dissolvedFeature(feature) {
       console.warn(`union failed for ${feature.properties.waiting_zone_id}:`, error);
     }
   }
-  return { type: "Feature", properties: feature.properties, geometry: merged.geometry };
+  const dissolved = unbuffered(merged);
+  return { type: "Feature", properties: feature.properties, geometry: dissolved.geometry };
 }
 
+// The ceiling this page ever zooms to, on its own (`selectZone`'s own
+// `fitBounds`) or through the tile layer below — one constant rather than
+// the same `21` written twice, since the two have to agree: zooming a
+// waiting zone in past what the tile layer supports would show a zone
+// correctly but its basemap as an ever-blurrier upscale of the same z19
+// tile, or (worse, if the two ever drifted apart) past whatever cap
+// Leaflet itself enforces for the *map*, silently clamping tighter than
+// intended.
+const MAX_USEFUL_ZOOM = 21;
+
 const map = L.map("map");
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+const tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   // The map itself allows zooming past 19 (useful for eyeballing lane-level
   // geometry), but OSM's own tile server stops serving new tiles at 19 —
   // without `maxNativeZoom`, Leaflet requests (nonexistent) z20/z21 tiles
   // and gets nothing back, so the basemap goes blank past that point.
   // `maxNativeZoom` tells it to keep reusing z19 tiles, upscaled, instead.
-  maxZoom: 21,
+  maxZoom: MAX_USEFUL_ZOOM,
   maxNativeZoom: 19,
   attribution: "&copy; OpenStreetMap contributors"
-}).addTo(map);
+});
+// Restores each layer-toggle checkbox's checked state from a previous
+// session (`localStorage`, so it survives a reload but not a different
+// browser/profile) and keeps it saved from then on. Also applies `onChange`
+// once immediately, with whatever state the checkbox ends up in (restored,
+// or its plain HTML default otherwise) — the same thing checking the box
+// by hand would do, so a layer that was on when you left is on again when
+// you come back, not just visually ticked. Layers that don't exist yet at
+// this point in the script (`pedLayer`/`vehLayer`, built once their own
+// fetch resolves) guard against that in their own handler instead of
+// depending on this initial call to do anything for them.
+function initToggle(id, onChange) {
+  const el = document.getElementById(id);
+  const key = `viz.toggle.${id}`;
+  const saved = localStorage.getItem(key);
+  if (saved !== null) el.checked = saved === "true";
+  el.addEventListener("change", (e) => {
+    localStorage.setItem(key, e.target.checked);
+    onChange(e);
+  });
+  onChange({ target: el });
+  return el;
+}
+
+// Off by default: OSM's tiles are a live, editable dataset that can drift
+// from the `.net.xml` snapshot this page's other two layers are both drawn
+// from (see viz/README.md's own section on this) — comparing those two
+// against *each other* is the point, and the basemap is a real-world sanity
+// check some sessions want and others find is just visual noise underneath.
+initToggle("toggle-basemap", (e) => {
+  if (e.target.checked) map.addLayer(tileLayer); else map.removeLayer(tileLayer);
+});
 
 const style = (feature) => {
   const c = isPedestrian(feature) ? PEDESTRIAN_COLOR : VEHICLE_COLOR;
@@ -168,28 +334,808 @@ const style = (feature) => {
 };
 
 let pedLayer, vehLayer, allData;
-let layerById = new Map();      // waiting_zone_id -> leaflet layer, for search and click-select
+// id -> leaflet layer, for search and click-select. Holds both zones
+// (keyed by `waiting_zone_id`) and, once loaded, traffic lights (keyed by a
+// synthetic `tl:<traffic_light_id>:<lane_id>` — a single traffic light id
+// can cover several approaches/lanes at once, so the id alone isn't unique).
+let layerById = new Map();
+// Parallel `{ id, label }` list search actually filters over — `label` is
+// what's matched/shown (for a zone, same as `id`; for a traffic light,
+// `"<tl id> (<lane id>)"` so both are searchable at once).
+let searchIndex = [];
 let highlightLayer = null;      // the one currently boosted by a search or click selection
+
+const TRAFFIC_LIGHT_STYLE = { radius: 4, color: "#7f1d0d", weight: 1, fillColor: TRAFFIC_LIGHT_COLOR, fillOpacity: 0.9 };
 
 /// Restyles `layer` as the selected one, tracking it as `highlightLayer` so
 /// a later selection (search or another click) knows to restore this one
 /// to its normal colour first — shared by both selection paths so a search
 /// pick and a direct map click can't leave two zones highlighted at once.
+/// Works for both a zone's own path layer and a traffic light's point
+/// layer (`getLatLng` is how Leaflet tells the two apart — only point
+/// layers have it) since a `CircleMarker`'s radius needs restyling too,
+/// not just its colour, to actually stand out at the same zoom level.
 function applyHighlight(layer) {
+  if (!confirmDiscardEdits()) return;
   clearHighlight();
-  layer.setStyle({
-    color: HIGHLIGHT_COLOR,
-    weight: 2,
-    fillColor: HIGHLIGHT_COLOR,
-    fillOpacity: 0.55,
-    fillRule: 'nonzero', // see style()'s own comment on why evenodd's default is wrong here
-  });
+  const isPoint = typeof layer.getLatLng === "function";
+  layer.setStyle(isPoint
+    ? { radius: 7, color: HIGHLIGHT_COLOR, weight: 2, fillColor: HIGHLIGHT_COLOR, fillOpacity: 0.9 }
+    : {
+        color: HIGHLIGHT_COLOR,
+        weight: 2,
+        fillColor: HIGHLIGHT_COLOR,
+        fillOpacity: 0.55,
+        fillRule: 'nonzero', // see style()'s own comment on why evenodd's default is wrong here
+      });
   layer.bringToFront();
   highlightLayer = layer;
-  searchInput.value = layer.feature.properties.waiting_zone_id;
+  searchInput.value = layer._searchLabel;
   resultsBox.innerHTML = "";
   emptyBox.style.display = "none";
+
+  // A traffic light's own "geometry" is already just the one point its
+  // marker sits at — nothing for a vertex table to add over the popup it
+  // already has.
+  if (isPoint) {
+    hideVertexInspector();
+  } else {
+    showVertexInspector(layer.feature);
+  }
 }
+
+// `feature`'s own geometry, broken into one array of open (not
+// closing-point-repeated) `[lon, lat]` rings per polygon part — a zone can
+// be a MultiPolygon (see `zone_feature`'s own docs on why one lane's own
+// rectangle is never merged into another's), and deletion needs to know
+// which *part* a vertex belongs to, not just its position in one flattened
+// list. `GeoJSON`'s own convention repeats a ring's first coordinate as its
+// last; dropped here (and re-added by `partsToGeometry`) so the working
+// copy never has to special-case "don't let me delete the duplicate".
+function geometryToParts(geometry) {
+  const rings = geometry.type === "Polygon" ? geometry.coordinates
+    : geometry.type === "MultiPolygon" ? geometry.coordinates.map((polygon) => polygon[0])
+    : [];
+  return rings.map((ring) => ring.slice(0, -1).map(([lon, lat]) => [lon, lat]));
+}
+
+// Inverse of `geometryToParts`: closes each part back into a ring and
+// wraps it in the same `Polygon`/`MultiPolygon` shape the original
+// geometry had — every part here is always a single ring with no holes
+// (see `zone_feature`'s own docs), so a `MultiPolygon`'s own per-part inner
+// array is always exactly `[ring]`.
+function partsToGeometry(parts, type) {
+  const closedRings = parts.map((ring) => [...ring, ring[0]]);
+  return type === "MultiPolygon"
+    ? { type, coordinates: closedRings.map((ring) => [ring]) }
+    : { type: "Polygon", coordinates: closedRings };
+}
+
+const vertexMarkersLayer = L.layerGroup().addTo(map);
+const editPreviewLayer = L.layerGroup().addTo(map);
+const expectedPreviewLayer = L.layerGroup().addTo(map);
+const vertexPanel = document.getElementById("vertex-panel");
+const vertexPanelBody = document.getElementById("vertex-panel-body");
+const vertexEditsNote = document.getElementById("vertex-edits-note");
+
+// Mutable working copy of whichever zone the vertex panel is currently
+// showing — `null`/empty when nothing is selected. `editedParts` starts as
+// a deep copy of `currentFeature.geometry`'s own parts and can be deleted
+// from, moved, or added to (see `deleteVertex`/`moveVertex`/
+// `insertVertexAfter`) — none of which is guaranteed to land back on
+// anything `generate()` itself would ever produce, so saving with any edit
+// applied documents a *hand-authored target*, not a verified-correct
+// result; see `tests/fixtures/README.md`'s own "Aspirational fixtures"
+// section. `hasEdits` is `true` as soon as any edit has happened, and
+// stays true even if a later edit on the same zone would restore the
+// original shape exactly — simplest correct rule, and matches "you edited
+// this zone" being a per-selection fact, not a per-vertex one.
+let currentFeature = null;
+let editedParts = [];
+let hasEdits = false;
+// What `hasEdits` should fall back to once `undoStack` empties (see
+// `undoEdit`) — `false` in the old, now-usual case of seeding from the
+// live generated shape, but `true` whenever `showVertexInspector` seeded
+// `editedParts` from a saved `expected` that already differs from that
+// live shape (editing a zone a *second* time — see that function's own
+// docs). Undoing every edit in *this* session only ever gets back to
+// that seed, never past it into the live shape itself.
+let baseHasEdits = false;
+// The vertex a click (row or map marker) most recently landed on — `null`
+// when nothing's selected. Exists so the Delete/Supr key (see the
+// `keydown` listener below) has something to act on without the user's
+// mouse still having to hover the right `×` button; a row click already
+// panned/opened its tooltip before this existed, so selecting is layered
+// onto that same click rather than needing a separate gesture.
+let selectedVertex = null; // { partIdx, vertexIdx }
+
+// Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z history (see `snapshotForUndo`/`undoEdit`/
+// `redoEdit`) — a stack of previous `editedParts` snapshots, per the
+// current zone's own editing session only (reset alongside `editedParts`
+// itself below, and again in `showVertexInspector`): there's no cross-
+// zone "undo the zone I was editing three selections ago" use case, same
+// reasoning as why an in-progress edit itself doesn't carry over.
+let undoStack = [];
+let redoStack = [];
+
+function hideVertexInspector() {
+  vertexMarkersLayer.clearLayers();
+  editPreviewLayer.clearLayers();
+  expectedPreviewLayer.clearLayers();
+  // Undoes whatever the "Actual" checkbox's own opacity toggle left
+  // behind (see `renderComparisonOverlays`) — `clearHighlight` (this
+  // function's other caller, via `applyHighlight`) already restores
+  // `highlightLayer` to its full normal style before nulling it and
+  // calling this, so by the time this runs there `highlightLayer` is
+  // already `null` and this is a no-op; only the direct `×`-button path
+  // (no `clearHighlight` in between) actually needs it. Guarded to the
+  // polygon case for the same reason `renderComparisonOverlays` is.
+  if (highlightLayer && typeof highlightLayer.getLatLng !== "function") {
+    highlightLayer.setStyle({ opacity: 1, fillOpacity: 0.55 });
+  }
+  vertexPanel.style.display = "none";
+  currentFeature = null;
+  editedParts = [];
+  hasEdits = false;
+  baseHasEdits = false;
+  selectedVertex = null;
+  undoStack = [];
+  redoStack = [];
+}
+
+const MIN_RING_VERTICES = 3; // a polygon ring needs at least a triangle
+
+const cloneParts = (parts) => parts.map((ring) => ring.map((point) => point.slice()));
+
+/// Pushes a copy of `editedParts` *as it stands right before a mutation*
+/// (delete/move/insert, each calling this first thing) onto `undoStack`,
+/// and clears `redoStack` — same rule every undo/redo system uses: making
+/// a new edit after undoing some invalidates whatever redo history led
+/// forward from the state you just backed out of, since there's no longer
+/// a single linear future to redo *into*.
+function snapshotForUndo() {
+  undoStack.push(cloneParts(editedParts));
+  redoStack = [];
+}
+
+/// Steps `editedParts` back one snapshot. `hasEdits` falls back to
+/// `baseHasEdits` exactly when `undoStack` empties — the one snapshot
+/// pushed by the very *first* edit of this session is a copy of
+/// `showVertexInspector`'s own seed (`editedParts` as it stood, and
+/// `baseHasEdits` as it was computed, right when the panel opened), so
+/// popping back down to zero snapshots left necessarily lands on that
+/// same seed again (see `snapshotForUndo`'s own docs on why this
+/// invariant holds) — which is `hasEdits: false` in the old, usual case
+/// of seeding from the live shape, but `true` when seeded from an
+/// already-different saved `expected` instead (there's no *further*
+/// undoing into the live shape itself within this session — only a fresh
+/// selection, via `showVertexInspector`, ever reaches that). `selectedVertex`
+/// is cleared rather than guessed at: undoing a delete can change how many
+/// vertices even exist, so there's no single rule for "which one should
+/// still be selected" that's right after every kind of edit.
+function undoEdit() {
+  if (undoStack.length === 0) return;
+  redoStack.push(cloneParts(editedParts));
+  editedParts = undoStack.pop();
+  hasEdits = undoStack.length > 0 || baseHasEdits;
+  selectedVertex = null;
+  renderVertexPanel();
+}
+
+/// Inverse of `undoEdit` — steps `editedParts` forward one snapshot this
+/// session's own `undoEdit` calls put on `redoStack`.
+function redoEdit() {
+  if (redoStack.length === 0) return;
+  undoStack.push(cloneParts(editedParts));
+  editedParts = redoStack.pop();
+  hasEdits = true; // redoing always re-applies at least the one edit `undoEdit` just backed out of
+  selectedVertex = null;
+  renderVertexPanel();
+}
+
+/// Gate for every action that would otherwise silently throw away the
+/// *current* zone's own in-progress edit — selecting a different zone
+/// (`applyHighlight`, shared by a map click, a search pick, and the
+/// "Zonas con expected" menu) or closing the panel outright (`×`).
+///
+/// Checks `undoStack`, not `hasEdits` — deliberately, and not
+/// interchangeably: `hasEdits` answers "does the working copy differ from
+/// the *live* generated shape", which is `true` from the moment the panel
+/// opens on a zone that already has a saved (aspirational) fixture (see
+/// `showVertexInspector`'s own seeding from `expectedByZoneId`), even
+/// before anything's actually happened *this session* — that edit is
+/// already safely on disk, so merely looking at it and clicking away
+/// loses nothing at all, and popping up a confirmation over it was a real
+/// bug (confirmed: it fired on a plain, edit-free selection change just
+/// because the zone happened to have a prior save). `undoStack` only ever
+/// grows when a mutation (`deleteVertex`/`insertVertexAfter`/`moveVertex`)
+/// actually runs *in this session*, and is reset empty by both
+/// `showVertexInspector` and `hideVertexInspector` — so "is it non-empty"
+/// is exactly "would leaving right now lose something not already saved",
+/// the question this gate actually needs answered.
+///
+/// `window.confirm` rather than a custom modal: every caller here is a
+/// plain, synchronous event handler that needs an immediate yes/no answer
+/// before deciding whether to proceed at all, and `confirm`'s own blocking
+/// return value is exactly that — a custom popup would have to turn every
+/// one of those handlers async (and thus, for the map-click case, defer a
+/// decision Leaflet already expects to have chosen a new layer by the end
+/// of), for a purely cosmetic upgrade over a dialog nobody but the editing
+/// developer ever needed to look polished. Undo/redo (`undoEdit`/
+/// `redoEdit`) never call this: neither one *discards* anything, they only
+/// move within history already kept for exactly this zone.
+function confirmDiscardEdits() {
+  if (undoStack.length === 0) return true;
+  return window.confirm("Esta zona tiene cambios sin guardar. ¿Descartarlos?");
+}
+
+/// Removes vertex `vertexIdx` of part `partIdx` from the working copy and
+/// re-renders everything that depends on it (markers, table, preview
+/// outline, fixture buttons' status note). Refuses to shrink any one part
+/// below `MIN_RING_VERTICES` — the delete button for a part's own last 3
+/// vertices is already disabled (see `renderVertexPanel`), this is the
+/// same rule enforced again in case that ever drifts out of sync (the
+/// Delete/Supr key path below doesn't go through that disabled attribute
+/// at all, so this is its only guard).
+///
+/// Leaves the *next* vertex of the same ring selected afterward (same
+/// index, clamped to the shorter ring — or `null` if that was the ring's
+/// last deletable vertex), so pressing Delete/Supr repeatedly walks
+/// through and removes a run of unwanted points without having to
+/// re-click between each one.
+function deleteVertex(partIdx, vertexIdx) {
+  if (editedParts[partIdx].length <= MIN_RING_VERTICES) return;
+  snapshotForUndo();
+  editedParts[partIdx].splice(vertexIdx, 1);
+  hasEdits = true;
+  const ring = editedParts[partIdx];
+  selectedVertex = ring.length > MIN_RING_VERTICES
+    ? { partIdx, vertexIdx: Math.min(vertexIdx, ring.length - 1) }
+    : null;
+  renderVertexPanel();
+}
+
+/// Inserts a new vertex right after `vertexIdx` of part `partIdx`, at the
+/// midpoint of the edge to its own current next vertex (wrapping to the
+/// ring's own first vertex, same as every other neighbour lookup here) —
+/// a deterministic, always-valid starting point the user then drags into
+/// place (see `moveVertex`), rather than guessing where "empty space"
+/// near a click should land on which ring. Selects the new vertex
+/// afterward so it's immediately draggable without a separate click.
+function insertVertexAfter(partIdx, vertexIdx) {
+  snapshotForUndo();
+  const ring = editedParts[partIdx];
+  const [lon1, lat1] = ring[vertexIdx];
+  const [lon2, lat2] = ring[(vertexIdx + 1) % ring.length];
+  ring.splice(vertexIdx + 1, 0, [(lon1 + lon2) / 2, (lat1 + lat2) / 2]);
+  hasEdits = true;
+  selectedVertex = { partIdx, vertexIdx: vertexIdx + 1 };
+  renderVertexPanel();
+}
+
+/// Overwrites vertex `vertexIdx` of part `partIdx` with wherever its own
+/// map marker got dragged to (see `renderVertexPanel`'s own `dragend`
+/// wiring) — the only place a vertex's position actually changes, so
+/// every other edit here is index bookkeeping (`deleteVertex`,
+/// `insertVertexAfter`) and this one is the one genuine "create a point
+/// `generate()` never would have" move (see this file's own docs on
+/// `editedParts`).
+function moveVertex(partIdx, vertexIdx, latlng) {
+  snapshotForUndo();
+  editedParts[partIdx][vertexIdx] = [latlng.lng, latlng.lat];
+  hasEdits = true;
+  selectedVertex = { partIdx, vertexIdx };
+  renderVertexPanel();
+}
+
+/// A small circular `L.divIcon` standing in for `L.circleMarker` — plain
+/// `CircleMarker`s (Leaflet's `Path` layers) have no built-in drag support
+/// at all without an extra plugin this page doesn't otherwise need;
+/// `L.Marker`'s own icon-based dragging (`draggable: true`, wired in
+/// `renderVertexPanel`) is built in, so a lightweight icon matching the
+/// old circle's own look stands in for it instead of adding a dependency
+/// for one feature.
+function vertexIcon(isSelected) {
+  const size = isSelected ? 14 : 10;
+  return L.divIcon({
+    className: "vertex-marker-wrapper",
+    html: `<div class="vertex-marker-dot ${isSelected ? "selected" : "default"}"></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
+/// Selects vertex `vertexIdx` of part `partIdx` — highlights its row and,
+/// unless `skipIcon` (see `dragstart`'s own call in `renderVertexPanel`),
+/// its map marker too (see `vertexIcon`) — without rebuilding the whole
+/// panel (unlike `deleteVertex`/`moveVertex`/`insertVertexAfter`, nothing
+/// about the *data* changes here).
+///
+/// `skipIcon` exists for one reason: Leaflet's own `Marker.setIcon`
+/// recreates that marker's drag handler from scratch every time it runs
+/// (`_initIcon` unconditionally calls `_initInteraction`, which builds a
+/// fresh `Handler.MarkerDrag`) — calling it on the marker a drag *just
+/// started on* tears out the in-progress native mousemove/mouseup
+/// tracking underneath the user's own still-held-down mouse button, so
+/// the drag visibly does nothing at all (confirmed: this is exactly what
+/// broke dragging the first time this was wired up unconditionally on
+/// `dragstart`). The row still highlights during a drag either way — only
+/// the marker's own icon swap waits until `moveVertex`'s own post-`dragend`
+/// re-render, once Leaflet's drag gesture has already fully finished and
+/// there's nothing left for a fresh handler to interrupt.
+function selectVertex(partIdx, vertexIdx, skipIcon = false) {
+  const previous = selectedVertex;
+  selectedVertex = { partIdx, vertexIdx };
+  [previous, selectedVertex].forEach((v) => {
+    if (!v) return;
+    const row = vertexPanelBody.querySelector(`tr[data-part="${v.partIdx}"][data-vertex="${v.vertexIdx}"]`);
+    const isSelected = v === selectedVertex;
+    row?.classList.toggle("selected", isSelected);
+    if (skipIcon) return;
+    const marker = vertexMarkerByKey.get(`${v.partIdx}:${v.vertexIdx}`);
+    marker?.setIcon(vertexIcon(isSelected));
+  });
+}
+
+// `${partIdx}:${vertexIdx}` -> that vertex's own `L.marker`, rebuilt
+// alongside the table by every `renderVertexPanel` call — `selectVertex`
+// needs to restyle a marker by *identity*, and rebuilding this lookup
+// there (rather than, say, storing it on the DOM row) keeps both markers
+// and rows sourced from the exact same loop, so they can never drift.
+let vertexMarkerByKey = new Map();
+
+const EDIT_PREVIEW_STYLE = { color: "#e67e22", weight: 2, dashArray: "4 3", fill: false };
+const EXPECTED_OVERLAY_STYLE = { color: "#27ae60", weight: 2, dashArray: "2 6", fill: false };
+
+// Independent per-selection state for the vertex panel's own "Actual" /
+// "Expected" checkboxes (see `renderComparisonOverlays`) — reset
+// alongside everything else in `showVertexInspector`, since neither one
+// is a standing preference across zones, same reasoning as `editedParts`
+// itself not carrying over.
+let showActualOverlay = true;
+let showExpectedOverlay = false;
+const toggleActualCheckbox = document.getElementById("toggle-actual");
+const toggleExpectedCheckbox = document.getElementById("toggle-expected");
+const expectedFixtureNameLabel = document.getElementById("expected-fixture-name");
+
+/// Applies the vertex panel's own "Actual"/"Expected" checkboxes to the
+/// map: toggles `highlightLayer`'s own opacity (never its colour — that
+/// stays whatever `applyHighlight` already set it to) between fully
+/// visible and fully transparent for "Actual", and draws/clears a green
+/// dashed outline of `expectedByZoneId`'s own saved geometry for
+/// "Expected" — a *different* colour/dash from `EDIT_PREVIEW_STYLE`'s own
+/// orange deliberately, so a saved target and an unsaved in-progress edit
+/// (see `renderVertexPanel`) never look like the same thing on the map.
+/// Guarded to the polygon case only (`typeof getLatLng !== "function"`) —
+/// a traffic light's own point marker never reaches this; `applyHighlight`'s
+/// own docs cover why. Called on every selection change and every
+/// checkbox click; safe to call with nothing selected (both toggles then
+/// just no-op, since `highlightLayer`/`currentFeature` are `null`).
+function renderComparisonOverlays() {
+  if (highlightLayer && typeof highlightLayer.getLatLng !== "function") {
+    highlightLayer.setStyle(showActualOverlay ? { opacity: 1, fillOpacity: 0.55 } : { opacity: 0, fillOpacity: 0 });
+  }
+  expectedPreviewLayer.clearLayers();
+  const zoneId = currentFeature?.properties?.waiting_zone_id;
+  const expected = zoneId && expectedByZoneId.get(zoneId);
+  if (showExpectedOverlay && expected) {
+    L.geoJSON(expected.geometry, { style: () => EXPECTED_OVERLAY_STYLE }).addTo(expectedPreviewLayer);
+  }
+}
+
+toggleActualCheckbox.addEventListener("change", () => {
+  showActualOverlay = toggleActualCheckbox.checked;
+  renderComparisonOverlays();
+});
+toggleExpectedCheckbox.addEventListener("change", () => {
+  showExpectedOverlay = toggleExpectedCheckbox.checked;
+  renderComparisonOverlays();
+});
+
+/// Whether `parts` (see `geometryToParts`) traces a simple ring on every
+/// one of its own parts — `turf.kinks` (already loaded for
+/// `dissolvedFeature`'s own union) finds every self-intersection a ring
+/// has, so "none of them have any" is exactly "every part is simple".
+/// Checked after every edit purely to warn (see `renderVertexPanel`'s own
+/// use of this) — a hand-authored target is allowed to be self-
+/// intersecting for a moment mid-edit, it just shouldn't be saved that
+/// way, since `generate()` itself never produces one.
+function editedGeometryIsSimple(parts) {
+  return parts.every((ring) => {
+    if (ring.length < 3) return true;
+    const closed = [...ring, ring[0]];
+    return turf.kinks(turf.polygon([closed])).features.length === 0;
+  });
+}
+
+/// Redraws the vertex panel's table + map markers from `editedParts`
+/// (the live working copy, not `currentFeature`'s own original geometry —
+/// this is what makes an edit visible immediately) and, only once at
+/// least one edit has actually happened, an orange dashed outline of the
+/// edited shape so its effect is visible on the map itself, not just in
+/// the table. Called once by `showVertexInspector` and again after every
+/// single edit (see `deleteVertex`/`insertVertexAfter`/`moveVertex`).
+function renderVertexPanel() {
+  vertexMarkersLayer.clearLayers();
+  editPreviewLayer.clearLayers();
+  vertexPanelBody.innerHTML = "";
+  vertexMarkerByKey = new Map();
+  const table = document.createElement("table");
+  let globalIndex = 0;
+  let totalVertices = 0;
+  editedParts.forEach((ring, partIdx) => {
+    totalVertices += ring.length;
+    ring.forEach(([lon, lat], vertexIdx) => {
+      const i = globalIndex++;
+      const isSelected = selectedVertex?.partIdx === partIdx && selectedVertex?.vertexIdx === vertexIdx;
+      const marker = L.marker([lat, lon], { icon: vertexIcon(isSelected), draggable: true })
+        .bindTooltip(`${i}: ${lon.toFixed(7)}, ${lat.toFixed(7)}`);
+      marker.addTo(vertexMarkersLayer);
+      marker.on("click", () => selectVertex(partIdx, vertexIdx));
+      marker.on("dragstart", () => selectVertex(partIdx, vertexIdx, true));
+      marker.on("dragend", () => moveVertex(partIdx, vertexIdx, marker.getLatLng()));
+      vertexMarkerByKey.set(`${partIdx}:${vertexIdx}`, marker);
+
+      const row = document.createElement("tr");
+      row.dataset.part = partIdx;
+      row.dataset.vertex = vertexIdx;
+      if (isSelected) row.classList.add("selected");
+      const canDelete = ring.length > MIN_RING_VERTICES;
+      row.innerHTML = `<td class="index">${i}</td><td>${lon.toFixed(7)}</td><td>${lat.toFixed(7)}</td>` +
+        `<td class="insert"><button title="Insertar un vértice nuevo después de este (en el punto medio; luego arrástralo a su sitio)">+</button></td>` +
+        `<td class="delete"><button title="Borrar este vértice (o selecciona la fila y pulsa Supr)"${canDelete ? "" : " disabled"}>×</button></td>`;
+      row.querySelector("td.index").addEventListener("click", () => {
+        selectVertex(partIdx, vertexIdx);
+        map.setView([lat, lon], Math.max(map.getZoom(), 20));
+        marker.openTooltip();
+      });
+      row.querySelector("td.insert button").addEventListener("click", (e) => {
+        e.stopPropagation();
+        insertVertexAfter(partIdx, vertexIdx);
+      });
+      row.querySelector("td.delete button").addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteVertex(partIdx, vertexIdx);
+      });
+      table.appendChild(row);
+    });
+  });
+  vertexPanelBody.appendChild(table);
+  document.getElementById("vertex-panel-title").textContent = `Vértices (${totalVertices})`;
+
+  if (hasEdits) {
+    L.geoJSON(partsToGeometry(editedParts, currentFeature.geometry.type), { style: () => EDIT_PREVIEW_STYLE })
+      .addTo(editPreviewLayer);
+    const simple = editedGeometryIsSimple(editedParts);
+    vertexEditsNote.textContent = simple
+      ? "Editado a mano: al guardar, el test de este fixture fallará hasta que el algoritmo produzca esta misma forma — ver tests/fixtures/README.md."
+      : "⚠ el contorno editado se cruza a sí mismo — arregla eso antes de guardar (generate() nunca produce un anillo no simple).";
+    vertexEditsNote.classList.toggle("warning", !simple);
+    vertexEditsNote.classList.add("visible");
+  } else {
+    vertexEditsNote.classList.remove("visible", "warning");
+  }
+}
+
+// Delete/Supr deletes whichever vertex is currently selected (see
+// `selectVertex`) — the same action the row's own `×` button performs,
+// just from the keyboard. `Delete` is the DOM's own key *name* for this
+// key regardless of what a given keyboard/OS locale prints on it ("Supr"
+// on a Spanish layout, "Del"/"Suppr" elsewhere) — `KeyboardEvent.key` is
+// standardized, not localized, so no locale-specific handling is needed
+// for it at all. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z undo/redo the current
+// zone's own edit history (see `undoEdit`/`redoEdit`) — `metaKey` covers
+// Cmd on a Mac the same way `ctrlKey` covers Ctrl elsewhere, both accepted
+// so this isn't platform-specific either. All three are guarded to skip
+// typing contexts (the search box, or any future text field) so this
+// can't eat a real Delete/Ctrl+Z keystroke meant for editing text just
+// because a zone happens to be selected in the background — and Ctrl+Z
+// beyond that also requires `currentFeature` (an open editing session):
+// with no zone selected there's no history to act on, and letting the
+// browser's own native undo run instead (e.g. inside an address bar) is
+// the more useful default.
+document.addEventListener("keydown", (e) => {
+  const target = e.target;
+  if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+
+  // ←/→ walk the "zonas con expected" menu's own list, so reviewing every
+  // fixture zone in turn is two keys rather than a trip back to the
+  // dropdown for each one.
+  //
+  // The split is on whether a zone from that menu is currently selected,
+  // not on whether the step actually moved: while you're walking the list
+  // the arrows are the list's, all the way to both ends, where they simply
+  // do nothing. Letting the key through at the ends instead would pan the
+  // map out from under the zone you're looking at, as a reward for
+  // pressing → once too often. With no such zone selected they're
+  // Leaflet's own panning arrows, untouched.
+  //
+  // This listener runs in the capture phase for that hand-off to be real:
+  // Leaflet binds its keyboard handler on the map container itself, so a
+  // bubble-phase listener here would only ever see the key *after* the map
+  // had already panned. Capture settles the same race against a focused
+  // `<select>`, where ←/→ natively change the selected option.
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    if (fixtureZoneCurrentId === null) return;
+    e.preventDefault();
+    stepFixtureZone(e.key === "ArrowRight" ? 1 : -1);
+    return;
+  }
+
+  if (e.key === "Delete") {
+    if (!selectedVertex) return;
+    e.preventDefault();
+    deleteVertex(selectedVertex.partIdx, selectedVertex.vertexIdx);
+    return;
+  }
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && currentFeature) {
+    e.preventDefault();
+    if (e.shiftKey) redoEdit(); else undoEdit();
+  }
+}, true);
+
+// Structural equality for two GeoJSON geometry objects — no numeric
+// tolerance, deliberately: both sides here always come from the exact
+// same deterministic `generate()` pipeline (either the live dataset's own
+// output, or `write_expected_geojson`'s — see `tests/zone_fixtures.rs`'s
+// own docs on why float noise/vertex order was never actually a concern
+// for this crate), so a real edit is the *only* thing that can make them
+// differ; there's no float-serialization-roundtrip gap here to tolerate.
+const geometriesEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/// Marks every one of `feature`'s own vertices with a small draggable
+/// marker on the map and lists their exact `[lon, lat]` in the side panel
+/// — clicking a row centres the map on that one vertex, for checking a
+/// suspiciously sharp corner without having to hunt for it by eye first.
+/// Each row also gets an insert (`+`) and a delete (`×`) button (see
+/// `insertVertexAfter`/`deleteVertex`), and every marker can be dragged
+/// (see `moveVertex`) — so this zone's shape can be hand-corrected before
+/// saving it as a test fixture's own expected shape. Re-shown (not left
+/// collapsed) on every new selection: closing it
+/// is a per-selection dismissal, not a standing preference — see this
+/// file's own docs on why `applyHighlight` is the only caller. Any edit
+/// from a previous selection is discarded here, deliberately: there's no
+/// "save my in-progress edit across zones" use case yet, and silently
+/// carrying one over would risk saving the wrong zone's edits.
+///
+/// The working copy seeds from `expectedByZoneId`'s own saved geometry
+/// when this zone has one, *not* `feature.geometry` (the live, freshly
+/// generated shape) — editing a zone a second time should keep refining
+/// whatever was saved last, rather than throwing that away and starting
+/// over from the algorithm's own current output every time the panel
+/// reopens. `hasEdits` starts `true` in exactly that case (whenever the
+/// saved shape actually differs from the live one — see
+/// `geometriesEqual`), since seeding from an already-different shape is
+/// itself the fact "this zone has an unsaved-relative-to-live edit"
+/// means, even before anything's been touched in this session.
+function showVertexInspector(feature) {
+  currentFeature = feature;
+  const zoneId = feature.properties.waiting_zone_id;
+  const expected = expectedByZoneId.get(zoneId);
+  editedParts = geometryToParts(expected ? expected.geometry : feature.geometry);
+  hasEdits = expected ? !geometriesEqual(expected.geometry, feature.geometry) : false;
+  baseHasEdits = hasEdits;
+  selectedVertex = null;
+  undoStack = [];
+  redoStack = [];
+  renderVertexPanel();
+  vertexPanel.classList.remove("collapsed");
+  vertexPanel.style.display = "block";
+
+  showActualOverlay = true;
+  toggleActualCheckbox.checked = true;
+  showExpectedOverlay = Boolean(expected);
+  toggleExpectedCheckbox.checked = Boolean(expected);
+  toggleExpectedCheckbox.disabled = !expected;
+  expectedFixtureNameLabel.textContent = expected ? ` (${expected.fixture})` : "";
+  renderComparisonOverlays();
+
+  wireFixtureButtons(feature);
+}
+
+// Only `[A-Za-z0-9_-]` — matches `viz/serve.py`'s own `SAFE_NAME`
+// whitelist exactly (a zone id's `#`/`+`, e.g. `"94252742#0_straight+left"`,
+// would otherwise fail that check server-side); kept permissive rather
+// than rejecting a name outright since a zone id is never under this
+// page's own control to begin with.
+const safeFixtureName = (raw) => raw.replace(/[^A-Za-z0-9_-]/g, "_");
+
+/// Wires both "save as fixture" buttons to `feature`'s own ids — called
+/// fresh on every new selection (see `showVertexInspector`'s own caller)
+/// so each button's handler always closes over the *currently* selected
+/// zone, not whichever one was selected when the page first loaded.
+/// `.onclick` (not `addEventListener`), deliberately: it replaces the
+/// previous handler outright instead of accumulating one more listener
+/// per selection.
+function wireFixtureButtons(feature) {
+  const zoneId = feature.properties.waiting_zone_id;
+  const intersectionId = feature.properties.intersection_id;
+  const saveZoneButton = document.getElementById("save-zone-fixture");
+  const saveIntersectionButton = document.getElementById("save-intersection-fixture");
+  const statusEl = document.getElementById("fixture-status");
+
+  // `zone_feature::build_feature`'s own docs: `intersection_id` is only
+  // set when the zone's own exit lane resolves a junction at all — absent
+  // for the odd zone that doesn't, and there's no junction id to extract
+  // *around* without it.
+  saveZoneButton.disabled = !intersectionId;
+  saveIntersectionButton.disabled = !intersectionId;
+  if (!intersectionId) {
+    statusEl.textContent = "Esta zona no tiene intersection_id — no se puede extraer.";
+    statusEl.className = "error";
+    return;
+  }
+  statusEl.textContent = "";
+  statusEl.className = "";
+
+  const save = async (name, button) => {
+    // A hand-edit (`deleteVertex`/`insertVertexAfter`/`moveVertex`) that's
+    // left the ring self-crossing (see `editedGeometryIsSimple`) can't be
+    // a real target at all — `generate()` never produces a non-simple
+    // ring, so saving one wouldn't document anything reachable, just a
+    // shape a human hasn't finished editing yet.
+    if (hasEdits && currentFeature === feature && !editedGeometryIsSimple(editedParts)) {
+      statusEl.textContent = "El contorno editado se cruza a sí mismo — arréglalo antes de guardar.";
+      statusEl.className = "error";
+      return;
+    }
+    button.disabled = true;
+    statusEl.textContent = "Extrayendo y generando expected.geojson…";
+    statusEl.className = "";
+    try {
+      const body = { dataset: DATASET, junction_id: intersectionId, name: safeFixtureName(name) };
+      // Only sent when this zone has at least one hand edit (delete,
+      // move, or insert — see `deleteVertex`/`moveVertex`/
+      // `insertVertexAfter`) — the server writes `partsToGeometry`'s own
+      // result over this one feature's geometry in the freshly generated
+      // `expected.geojson`, in place of whatever `generate()` itself
+      // produced for it. That fixture's own test will fail immediately
+      // after (nothing taught the algorithm to reproduce a hand-authored
+      // point) — this documents an aspirational target, not a verified-
+      // correct result; see this file's own `#vertex-edits-note`.
+      if (hasEdits && currentFeature === feature) {
+        body.edited_zone_id = feature.properties.waiting_zone_id;
+        body.edited_geometry = partsToGeometry(editedParts, feature.geometry.type);
+      }
+      const response = await fetch("/api/save_fixture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json();
+      if (!result.ok) throw new Error(result.error);
+      statusEl.textContent = body.edited_geometry
+        ? `Guardado en ${result.path} (editado a mano) — el test de este fixture fallará hasta corregir el algoritmo. Revisa el diff antes de hacer commit (ver tests/fixtures/README.md).`
+        : `Guardado en ${result.path} — revisa el diff y visualízalo antes de hacer commit (ver tests/fixtures/README.md).`;
+      statusEl.className = "ok";
+
+      // The whole point of saving is to end up with something visible —
+      // see this file's own note on why a save used to leave the map
+      // looking exactly like nothing had happened. Re-fetches (a save can
+      // put this zone's own id into `expectedByZoneId` for the first
+      // time, or move it to a newer fixture) and, if this is still the
+      // zone the panel has open, turns the "Expected" toggle on so the
+      // saved shape shows immediately without an extra click.
+      await refreshExpectedZones();
+      if (currentFeature === feature) {
+        const hasExpected = expectedByZoneId.has(feature.properties.waiting_zone_id);
+        toggleExpectedCheckbox.disabled = !hasExpected;
+        showExpectedOverlay = hasExpected;
+        toggleExpectedCheckbox.checked = hasExpected;
+        expectedFixtureNameLabel.textContent = hasExpected ? ` (${expectedByZoneId.get(feature.properties.waiting_zone_id).fixture})` : "";
+        renderComparisonOverlays();
+
+        // Whatever was in `editedParts` at the moment of this save is now
+        // safely on disk — resets `undoStack` (see `confirmDiscardEdits`'s
+        // own docs on why *it*, not `hasEdits`, is "would leaving now lose
+        // something unsaved") so a save doesn't leave a stale "you have
+        // unsaved changes" warning sitting over a state that's already
+        // been written out. `baseHasEdits` moves to match `hasEdits` right
+        // now for the same reason `undoEdit` relies on it staying in sync
+        // with whatever `editedParts` can no longer be undone past.
+        undoStack = [];
+        redoStack = [];
+        baseHasEdits = hasEdits;
+      }
+    } catch (error) {
+      statusEl.textContent = `Error: ${error.message}`;
+      statusEl.className = "error";
+    } finally {
+      button.disabled = !intersectionId;
+    }
+  };
+
+  saveZoneButton.onclick = () => save(zoneId, saveZoneButton);
+  saveIntersectionButton.onclick = () => save(intersectionId, saveIntersectionButton);
+
+  wireRemoveExpectedButton(feature, zoneId, statusEl);
+}
+
+/// "Quitar de expected": for a zone whose committed `expected.geojson`
+/// entry turned out wrong (see `serve.py`'s own
+/// `_handle_remove_expected_zone` docs for the real Barcelona case this
+/// exists for — an incidental bystander swept in by "Guardar
+/// intersección" whose small extract wasn't faithful for it), stops
+/// treating that entry as a validated target: server-side, either
+/// deletes the zone's own now-pointless dedicated fixture outright, or
+/// strips just this one feature and excludes it from that fixture's own
+/// comparison going forward (`tests/zone_fixtures.rs`'s own "Excluded
+/// zones").
+///
+/// Disabled whenever this zone has no `expected` entry at all — nothing
+/// to remove — re-checked fresh on every call since `expectedByZoneId`
+/// can change under a given selection (a fixture save elsewhere, another
+/// removal). Re-wired per selection exactly like `wireFixtureButtons`'s
+/// own two save buttons, for the same reason: `.onclick` has to close
+/// over *this* call's own `zoneId`, not whichever zone was selected when
+/// the page first loaded.
+function wireRemoveExpectedButton(feature, zoneId, statusEl) {
+  const button = document.getElementById("remove-expected-zone");
+  const expected = expectedByZoneId.get(zoneId);
+  button.disabled = !expected;
+  if (!expected) return;
+
+  button.onclick = async () => {
+    const confirmed = window.confirm(
+      `¿Quitar "${zoneId}" de expected? Esto borra su entrada en ` +
+        `${expected.fixture}/expected.geojson (o el fixture entero, si era su única zona) ` +
+        `y no se puede deshacer desde aquí.`
+    );
+    if (!confirmed) return;
+
+    button.disabled = true;
+    statusEl.textContent = "Quitando de expected…";
+    statusEl.className = "";
+    try {
+      const response = await fetch("/api/remove_expected_zone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ zone_id: zoneId }),
+      });
+      const result = await response.json();
+      if (!result.ok) throw new Error(result.error);
+
+      const parts = [];
+      if (result.updated.length) parts.push(`quitada de ${result.updated.join(", ")}`);
+      if (result.deleted.length) parts.push(`fixture(s) borrado(s): ${result.deleted.join(", ")}`);
+      statusEl.textContent = parts.join("; ");
+      statusEl.className = "ok";
+
+      // Same reasoning as the save flow's own re-fetch (see `save`'s own
+      // docs above): this zone's own entry in `expectedByZoneId` just
+      // changed (removed outright), and the "Expected" toggle/overlay and
+      // the "zonas con expected" menu both read straight from it.
+      await refreshExpectedZones();
+      if (currentFeature === feature) {
+        toggleExpectedCheckbox.disabled = true;
+        toggleExpectedCheckbox.checked = false;
+        showExpectedOverlay = false;
+        expectedFixtureNameLabel.textContent = "";
+        renderComparisonOverlays();
+        // Not the full `wireFixtureButtons`: that resets `statusEl` itself
+        // right at its own start (its own save buttons' guard-clause
+        // messaging), which would immediately overwrite the success
+        // message this handler just set. Only this button's own disabled
+        // state actually needs refreshing here.
+        wireRemoveExpectedButton(feature, zoneId, statusEl);
+      }
+    } catch (error) {
+      statusEl.textContent = `Error: ${error.message}`;
+      statusEl.className = "error";
+      button.disabled = false;
+    }
+  };
+}
+
+document.getElementById("vertex-panel-close").addEventListener("click", () => {
+  if (!confirmDiscardEdits()) return;
+  hideVertexInspector();
+});
+document.getElementById("vertex-panel-header").addEventListener("click", (e) => {
+  if (e.target.id === "vertex-panel-close") return; // the × has its own handler; don't also toggle collapse
+  vertexPanel.classList.toggle("collapsed");
+});
 
 // Google's own "Urls" API for a Street View deep link: `map_action=pano`
 // with a bare lat/lng opens the nearest available panorama to that point,
@@ -226,14 +1172,23 @@ const onEachFeature = (feature, layer) => {
   });
 };
 
-fetch("./zones.geojson")
-  .then((response) => {
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+// `geojson_output::write` now splits its own output by mode (`cdn.md`'s
+// catalogue is split the same way) -- fetched as 2 files and merged back
+// into one `FeatureCollection` here rather than this page also needing 2
+// independent code paths downstream: `isPedestrian` below already tells
+// the 2 kinds apart per-feature for styling/toggling, so nothing past this
+// point needs to know they arrived separately.
+const fetchJson = (path) =>
+  fetch(path).then((response) => {
+    if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${path}`);
     return response.json();
-  })
-  .then((data) => {
+  });
+
+Promise.all([fetchJson(`${DATA_DIR}/zones.vehicles.geojson`), fetchJson(`${DATA_DIR}/zones.pedestrians.geojson`)])
+  .then(([vehicles, pedestrians]) => {
+    const data = { type: "FeatureCollection", features: [...vehicles.features, ...pedestrians.features] };
     allData = data;
-    document.getElementById("status").textContent =
+    document.getElementById("status-text").textContent =
       `${data.features.length} zones`;
 
     // Dissolved once, up front, rather than per-render: `turf.union` over
@@ -246,11 +1201,27 @@ fetch("./zones.geojson")
 
     const indexLayer = (feature, layer) => {
       onEachFeature(feature, layer);
-      layerById.set(feature.properties.waiting_zone_id, layer);
+      const id = feature.properties.waiting_zone_id;
+      layer._searchLabel = id;
+      layer._restoreStyle = () => layer.setStyle(style(feature));
+      layerById.set(id, layer);
+      searchIndex.push({ id, label: id });
     };
 
-    pedLayer = L.geoJSON(pedestrian, { style, onEachFeature: indexLayer }).addTo(map);
-    vehLayer = L.geoJSON(vehicle, { style, onEachFeature: indexLayer }).addTo(map);
+    pedLayer = L.geoJSON(pedestrian, { style, onEachFeature: indexLayer });
+    vehLayer = L.geoJSON(vehicle, { style, onEachFeature: indexLayer });
+    // Not unconditionally `.addTo(map)`: by the time this fetch resolves,
+    // `initToggle` (see its own docs) has already restored these two
+    // checkboxes' checked state from a previous session, or left the
+    // HTML's own default otherwise — that's what should decide whether a
+    // layer nothing has an `onChange` handler to apply yet starts visible.
+    if (document.getElementById("toggle-ped").checked) pedLayer.addTo(map);
+    if (document.getElementById("toggle-veh").checked) vehLayer.addTo(map);
+
+    // `layerById` is only just now fully populated (see `indexLayer`
+    // above) — re-run in case `/api/fixture_zone_ids` (below) already
+    // resolved first and found nothing available yet.
+    populateFixtureZoneSelect();
 
     const bounds = L.geoJSON(data).getBounds();
     if (bounds.isValid()) {
@@ -260,18 +1231,372 @@ fetch("./zones.geojson")
     }
   })
   .catch((err) => {
-    document.getElementById("status").textContent = "Failed to load";
+    document.getElementById("status-text").textContent = "Failed to load";
     document.getElementById("error").style.display = "block";
     console.error(err);
   });
 
-document.getElementById("toggle-ped").addEventListener("change", (e) => {
-  if (!pedLayer) return;
+// `waiting_zone_id` -> `{ fixture, geometry }` for every zone that
+// appears in some committed `tests/fixtures/*/expected.geojson` (see
+// `serve.py`'s own `/api/fixture_zone_ids`) — independent of which
+// dataset this page currently has loaded, since a fixture is its own
+// tiny extract, not tied to any one dataset's own `viz/data/<name>/`
+// output. Two independent uses: `populateFixtureZoneSelect` (its own
+// keys, intersected with `layerById` so the menu only ever offers a zone
+// id this page can actually jump to right now) and the vertex panel's own
+// "Expected" toggle (its own geometry, drawn as a comparison overlay —
+// see `renderComparisonOverlays`).
+let expectedByZoneId = new Map();
+const fixtureZoneSelect = document.getElementById("fixture-zone-select");
+
+// The ids the menu currently offers, in the exact order it offers them,
+// plus which one is "where we are" — the two things ←/→ navigation needs
+// (see `stepFixtureZone`) and neither of which the `<select>` itself can
+// hold, since it resets to its own placeholder after every pick.
+//
+// The cursor is the *id*, not its index: `populateFixtureZoneSelect` runs
+// again on a dataset switch and after every fixture save, and both can
+// change the list's own length and ordering underneath us. An index would
+// silently come to mean a different zone; an id either survives into the
+// new list or doesn't, and `null` is the honest answer when it doesn't.
+let fixtureZoneIds = [];
+let fixtureZoneCurrentId = null;
+
+// Reuses `tests/zone_fixtures.rs`'s own criterion exactly (see that
+// file's own "Why this compares areas, not vertices" docs), so "shows up
+// here" and "would fail `cargo test`" mean the same thing: half a
+// percent of a zone's own area is well below anything a client's GPS
+// fix could ever resolve, so this is deliberately not "any pixel
+// differs" — it's "would a human reviewing this actually call it a
+// different shape".
+const MAX_DIFFERING_AREA_FRACTION = 0.005;
+
+/// The share of `expectedGeometry`'s own area that it and `actualGeometry`
+/// disagree about — `0` for identical ground, `1` for shapes that don't
+/// overlap at all. `turf.difference` (not a hand-rolled area check) so
+/// this is exact for the same non-convex, multi-vertex shapes this
+/// crate's own output always is, not an approximation that could disagree
+/// with `cargo test`'s own Rust-side answer for the same pair.
+// How many times `differingAreaFraction`'s own `turf.difference` call has
+// thrown so far this page load — logged as one running count rather than
+// once per pair (see that function's own docs on why a throw is expected,
+// not exceptional, on real data): confirmed on the real Barcelona dataset,
+// 13 of 246 zones hit this on at least one of the two directions checked,
+// and a full stack trace repeated 19 times over is far less useful than
+// one number saying how many pairs this filter's own answer is
+// conservative about.
+let turfDifferenceFailureCount = 0;
+
+function differingAreaFraction(expectedGeometry, actualGeometry) {
+  const expectedFeature = turf.feature(expectedGeometry);
+  const actualFeature = turf.feature(actualGeometry);
+  const expectedArea = turf.area(expectedFeature);
+  const actualArea = turf.area(actualFeature);
+  const reference = Math.max(expectedArea, actualArea);
+  if (reference <= 0) return actualArea > 0 ? 1 : 0;
+
+  const areaOnlyIn = (a, b) => {
+    try {
+      const diff = turf.difference(a, b);
+      return diff ? turf.area(diff) : 0;
+    } catch (error) {
+      // Mirrors this crate's own leniency toward near-degenerate boolean
+      // ops elsewhere (`geojson_output`'s own docs on why a self-touching
+      // contour gets a second pass rather than a hard failure) — a
+      // browse-time filter shouldn't throw over one odd polygon when the
+      // worst case is just "this pair isn't flagged", not a wrong answer
+      // shipped anywhere. Real Barcelona data confirms this isn't rare
+      // enough to treat as exceptional: turf's own boolean ops are less
+      // robust on real, near-degenerate vertices than this crate's own
+      // Rust-side `geo`/`i_overlay` pipeline the shapes actually came
+      // from, so this is a known, standing gap between "what the browser
+      // can check" and "what `cargo test` checks" — not a bug to chase
+      // down per pair.
+      turfDifferenceFailureCount += 1;
+      return 0;
+    }
+  };
+  return Math.max(areaOnlyIn(expectedFeature, actualFeature), areaOnlyIn(actualFeature, expectedFeature)) / reference;
+}
+
+/// Whether `id`'s own committed `expected.geojson` shape and its current
+/// live `generate()` output disagree by more than
+/// [`MAX_DIFFERING_AREA_FRACTION`] — `false` (not flagged) for a zone
+/// missing either side, since there's nothing to compare yet, not a
+/// mismatch to report.
+function zoneDoesNotMatchExpected(id) {
+  const expected = expectedByZoneId.get(id);
+  const layer = layerById.get(id);
+  if (!expected || !layer?.feature) return false;
+  return differingAreaFraction(expected.geometry, layer.feature.geometry) > MAX_DIFFERING_AREA_FRACTION;
+}
+
+function populateFixtureZoneSelect() {
+  const onlyMismatched = document.getElementById("filter-mismatched-only").checked;
+  turfDifferenceFailureCount = 0;
+  fixtureZoneIds = [...expectedByZoneId.keys()]
+    .filter((id) => layerById.has(id))
+    .filter((id) => !onlyMismatched || zoneDoesNotMatchExpected(id))
+    .sort();
+  if (onlyMismatched && turfDifferenceFailureCount > 0) {
+    console.warn(
+      `differingAreaFraction: turf.difference failed ${turfDifferenceFailureCount} time(s) while filtering — ` +
+        `those pairs fall back to "no difference found" for whichever direction failed, so a real mismatch could ` +
+        `be under-counted (never over-counted) for them; see differingAreaFraction's own docs.`
+    );
+  }
+  if (fixtureZoneCurrentId !== null && !fixtureZoneIds.includes(fixtureZoneCurrentId)) {
+    fixtureZoneCurrentId = null;
+  }
+  fixtureZoneSelect.innerHTML =
+    `<option value="" selected disabled></option>` +
+    fixtureZoneIds.map((id) => `<option value="${id}">${id}</option>`).join("");
+  updateFixtureZonePlaceholder();
+}
+
+// The placeholder doubles as the only readout of where ←/→ currently
+// sit: the menu resets to it after every pick (see the `change` handler),
+// so without this there'd be nothing on screen saying which of the N
+// zones is selected, or that stepping through them is possible at all.
+function updateFixtureZonePlaceholder() {
+  const placeholder = fixtureZoneSelect.options[0];
+  if (!placeholder) return;
+  const onlyMismatched = document.getElementById("filter-mismatched-only").checked;
+  const label = onlyMismatched ? "No coinciden" : "Zonas con expected";
+  placeholder.textContent =
+    fixtureZoneCurrentId === null
+      ? `${label} (${fixtureZoneIds.length})…`
+      : `${label} (${fixtureZoneIds.indexOf(fixtureZoneCurrentId) + 1}/${fixtureZoneIds.length}) ←→`;
+}
+
+// Persisted like every other layer toggle (`initToggle`'s own docs) and
+// re-populates the menu immediately on every change, the same as a
+// dataset switch or a fixture save already does — a filter that only
+// took effect on the *next* unrelated refresh would be confusing to
+// operate.
+initToggle("filter-mismatched-only", () => populateFixtureZoneSelect());
+
+// `selectZone`, plus the bookkeeping that makes this zone the one ←/→
+// step from. Every *other* way of selecting a zone (a search result, a
+// click on the map) clears that cursor inside `selectZone` itself, so
+// the arrows only ever walk the menu's own list and never strand you
+// somewhere unrelated to it — which is exactly the scope asked for.
+function selectFixtureZone(id) {
+  selectZone(id);
+  fixtureZoneCurrentId = id;
+  updateFixtureZonePlaceholder();
+}
+
+// Moves `delta` places along the menu's own list, or does nothing at
+// either end of it.
+//
+// Deliberately clamped rather than wrapped: a wrap is indistinguishable
+// from an ordinary step on screen, so silently starting over from the far
+// end of 139 zones is much harder to notice than simply not moving — and
+// the placeholder's own `i/N` readout (see
+// `updateFixtureZonePlaceholder`) is there to say which end you're at.
+function stepFixtureZone(delta) {
+  if (fixtureZoneCurrentId === null) return;
+  const from = fixtureZoneIds.indexOf(fixtureZoneCurrentId);
+  const to = from + delta;
+  if (from < 0 || to < 0 || to >= fixtureZoneIds.length) return;
+  selectFixtureZone(fixtureZoneIds[to]);
+}
+
+// Fires `selectZone` (the same action a search result's own click does —
+// pan/zoom, highlight, open the popup, show the vertex inspector) rather
+// than *being* a persistent selection: reset to the placeholder right
+// after, so picking the same zone twice in a row still fires again
+// instead of the browser treating it as a no-op "already selected" change.
+fixtureZoneSelect.addEventListener("change", () => {
+  const id = fixtureZoneSelect.value;
+  fixtureZoneSelect.value = "";
+  // Hand focus back to the page. A focused `<select>` is where ←/→ mean
+  // "change the selected option" natively, and leaving it focused would
+  // also draw a focus ring on a control that has just reset itself to a
+  // placeholder — misleading on both counts. The `keydown` listener's own
+  // capture phase already wins that race regardless (see there), so this
+  // is about the ring as much as the keys.
+  fixtureZoneSelect.blur();
+  if (id) selectFixtureZone(id);
+});
+
+// Fetched once on page load, and again after every successful fixture
+// save (see `wireFixtureButtons`'s own `save`) — a save can put a zone's
+// own id in `expectedByZoneId` for the very first time, or move it to a
+// newer fixture, and neither the dropdown nor a currently-open "Expected"
+// toggle should need a full page reload to notice.
+function refreshExpectedZones() {
+  return fetch("/api/fixture_zone_ids")
+    .then((response) => (response.ok ? response.json() : { zones: {} }))
+    .then((data) => {
+      expectedByZoneId = new Map(Object.entries(data.zones));
+      populateFixtureZoneSelect();
+    })
+    .catch((err) => console.error("fetching /api/fixture_zone_ids:", err));
+}
+
+refreshExpectedZones();
+
+initToggle("toggle-ped", (e) => {
+  if (!pedLayer) return; // not built yet at this call's own initial firing; the zones fetch's own `.then()` applies this checkbox's restored state instead
   if (e.target.checked) map.addLayer(pedLayer); else map.removeLayer(pedLayer);
 });
-document.getElementById("toggle-veh").addEventListener("change", (e) => {
+initToggle("toggle-veh", (e) => {
   if (!vehLayer) return;
   if (e.target.checked) map.addLayer(vehLayer); else map.removeLayer(vehLayer);
+});
+
+// The real .net.xml, reprojected to lon/lat by `examples/net_to_geojson.rs`
+// (same PROJ4 pipeline `geojson_output` itself uses) — lets you compare the
+// generated zones directly against SUMO's own network geometry, instead of
+// trusting OSM tiles to agree with what SUMO actually modelled (they don't
+// always: OSM gets edited, the network snapshot doesn't). Fetched lazily,
+// only on first toggle: at ~70k features this is nearly two orders of
+// magnitude heavier than zones.geojson, not worth paying for on every load
+// of this page when most sessions never need it.
+//
+// Two representations of the same lanes, toggled independently:
+// - "centerline": one thin line per lane. Cheap, but two adjacent lanes'
+//   centerlines can sit close enough together to look like "the two edges
+//   of one lane" at a glance — not enough to judge "does the zone span the
+//   lane's *full width*" by eye.
+// - "footprint": each lane's centerline buffered by its own real `width`
+//   (same technique `geometry.rs::buffer_shape` uses for zones themselves)
+//   — directly comparable to a zone's own drawn width, no mental math
+//   required.
+const NET_FUNCTION_STYLE = {
+  normal: { color: "#333333", weight: 1.5 },
+  internal: { color: "#999999", weight: 1 },
+  crossing: { color: "#e67e22", weight: 1 },
+  walkingarea: { color: "#8e44ad", weight: 1 },
+};
+const netStyle = (feature) => NET_FUNCTION_STYLE[feature.properties.function] || NET_FUNCTION_STYLE.normal;
+// Colored by `vclass` (still split vehicle/pedestrian, so "which of these
+// overlapping lanes at a junction is the one a given zone was built from"
+// stays answerable) but deliberately *not* `PEDESTRIAN_COLOR`/
+// `VEHICLE_COLOR` — those are the zones' own colors, and a zone is drawn
+// directly on top of its own footprint here. Same color for both meant the
+// zone all but disappeared into its footprint wherever they overlapped
+// exactly, which is most of a zone's own area; these are picked to have
+// nothing in common with either zone color instead.
+const VCLASS_FOOTPRINT_COLOR = { vehicle: "#f39c12", pedestrian: "#16a085", other: "#999999" };
+const footprintStyle = (feature) => {
+  const color = VCLASS_FOOTPRINT_COLOR[feature.properties.vclass] || VCLASS_FOOTPRINT_COLOR.other;
+  return { color, weight: 1, fillColor: color, fillOpacity: 0.25 };
+};
+// Internal/connector/crossing/walkingarea footprints are real geometry, but
+// there are many of them packed into a small area at every junction (one
+// per turning movement) — enough to turn a junction into a solid block of
+// overlapping fills. `normal` edges (ordinary named streets, most of a
+// zone's own chain) are what this layer is for by default; flip this to
+// `true` at the console for the junction-level detail.
+let showAllNetFunctions = false;
+
+// Same rule `zone_generator`'s own `signal_controlled_lanes` uses (see
+// `examples/net_to_geojson.rs`'s own docs) — one marker per signalized
+// approach, at SUMO's own stop-line point (the end of the lane's shape).
+let netCenterlineLayer = null;
+let netFootprintLayer = null;
+let netTrafficLightLayer = null;
+let netLoadPromise = null;
+const netToggle = document.getElementById("toggle-net");
+const netFootprintToggle = document.getElementById("toggle-net-footprint");
+const netTlsToggle = document.getElementById("toggle-net-tls");
+const netStatus = document.getElementById("net-status");
+
+function loadNetLayer() {
+  if (netLoadPromise) return netLoadPromise;
+  netStatus.textContent = " loading…";
+  netLoadPromise = fetch(`${DATA_DIR}/net.geojson`)
+    .then((response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    })
+    .then((data) => {
+      const byKind = (kind) => ({ type: "FeatureCollection", features: data.features.filter((f) => f.properties.geometry_kind === kind) });
+      netCenterlineLayer = L.geoJSON(byKind("centerline"), {
+        renderer: L.canvas(), // ~35k features: SVG (one DOM node per line) chokes here
+        style: netStyle,
+      });
+      netFootprintLayer = L.geoJSON(byKind("footprint"), {
+        renderer: L.canvas(),
+        style: footprintStyle,
+        filter: (feature) => showAllNetFunctions || feature.properties.function === "normal",
+      });
+      netTrafficLightLayer = L.geoJSON(byKind("traffic_light"), {
+        pointToLayer: (feature, latlng) => L.circleMarker(latlng, TRAFFIC_LIGHT_STYLE),
+        onEachFeature: (feature, layer) => {
+          const p = feature.properties;
+          // One marker per lane now, not per movement (see
+          // `examples/net_to_geojson.rs`'s own docs on the "double row of
+          // traffic lights" this used to draw at 0.0mm apart) — a lane
+          // with more than one signal-controlled movement lists all of
+          // them here, one line per `link_indices`/`states` pair, instead
+          // of spreading them across indistinguishable stacked markers.
+          const movements = p.link_indices
+            .map((link, i) => `link ${link} (${p.states[i]})`)
+            .join("<br/>");
+          layer.bindPopup(`tl <b>${p.traffic_light_ids.join(", ")}</b><br/>lane ${p.lane_id}<br/>${movements}`);
+          layer.on("click", (e) => {
+            L.DomEvent.stopPropagation(e); // see onEachFeature's own comment on why
+            if (maybeOpenStreetView(e)) return;
+            applyHighlight(layer);
+          });
+          // Indexed here (once, thanks to `netLoadPromise` memoizing this
+          // whole `.then`) rather than only when the layer's own checkbox
+          // is toggled: search should find a traffic light by id even in
+          // a session that never turns the marker layer on to look at it.
+          // One feature per lane now (see this handler's own popup-
+          // building comment above), so `lane_id` alone is already unique
+          // — the `tl:` prefix and id are kept only for readability/
+          // consistency with a zone's own id scheme, not because more
+          // than one feature could still collide on `lane_id` alone.
+          const id = `tl:${p.traffic_light_ids.join(",")}:${p.lane_id}`;
+          const label = `${p.traffic_light_ids.join(",")} (${p.lane_id})`;
+          layer._searchLabel = label;
+          layer._restoreStyle = () => layer.setStyle(TRAFFIC_LIGHT_STYLE);
+          layerById.set(id, layer);
+          searchIndex.push({ id, label });
+        },
+      });
+      netStatus.textContent = "";
+    })
+    .catch((err) => {
+      netStatus.textContent = " failed to load";
+      console.error(err);
+    });
+  return netLoadPromise;
+}
+
+initToggle("toggle-net", (e) => {
+  if (!e.target.checked) {
+    if (netCenterlineLayer) map.removeLayer(netCenterlineLayer);
+    return;
+  }
+  loadNetLayer().then(() => {
+    if (netCenterlineLayer && netToggle.checked) netCenterlineLayer.addTo(map);
+  });
+});
+
+initToggle("toggle-net-footprint", (e) => {
+  if (!e.target.checked) {
+    if (netFootprintLayer) map.removeLayer(netFootprintLayer);
+    return;
+  }
+  loadNetLayer().then(() => {
+    if (netFootprintLayer && netFootprintToggle.checked) netFootprintLayer.addTo(map);
+  });
+});
+
+initToggle("toggle-net-tls", (e) => {
+  if (!e.target.checked) {
+    if (netTrafficLightLayer) map.removeLayer(netTrafficLightLayer);
+    return;
+  }
+  loadNetLayer().then(() => {
+    if (netTrafficLightLayer && netTlsToggle.checked) netTrafficLightLayer.addTo(map);
+  });
 });
 
 const layersPanel = document.getElementById("layers-panel");
@@ -290,51 +1615,106 @@ const MAX_RESULTS = 25;
 
 function clearHighlight() {
   if (highlightLayer) {
-    highlightLayer.setStyle(style(highlightLayer.feature));
+    highlightLayer._restoreStyle();
     highlightLayer = null;
   }
+  hideVertexInspector();
 }
 
-// Search picks a zone that might be off-screen, so it also re-centres the
-// map; a direct click on the map (see `applyHighlight`, shared by both)
-// doesn't need or want that — the user is already looking right at it.
+// Search picks a zone or traffic light that might be off-screen, so it
+// also re-centres the map; a direct click on the map (see `applyHighlight`,
+// shared by both) doesn't need or want that — the user is already looking
+// right at it. `layer.getBounds` only exists on a zone's own path layer, not
+// a traffic light's point layer (see `applyHighlight`'s own comment) — a
+// bare point has no bounds of its own to fit, only a centre to view.
 function selectZone(id) {
   const layer = layerById.get(id);
   if (!layer) return;
-  applyHighlight(layer);
-  map.fitBounds(layer.getBounds(), { maxZoom: 19, padding: [60, 60] });
+  // Selecting a zone any other way (a search result, a click on the map)
+  // takes it out of the "zonas con expected" menu's own sequence —
+  // `selectFixtureZone` sets the cursor back immediately afterwards for
+  // the one path that *is* in it. Without this, ←/→ would keep stepping
+  // from wherever the menu was last left, which is not where the user is
+  // looking any more.
+  fixtureZoneCurrentId = null;
+  updateFixtureZonePlaceholder();
+  if (typeof layer.getLatLng === "function") {
+    // Search finds a traffic light regardless of whether its own layer is
+    // currently on the map (see the search `input` handler's own comment
+    // on why `loadNetLayer` is warmed eagerly) — picking one from search
+    // results is exactly the moment to actually turn that layer on, or the
+    // marker `applyHighlight` is about to restyle would be invisible.
+    if (!map.hasLayer(netTrafficLightLayer)) {
+      netTrafficLightLayer.addTo(map);
+      netTlsToggle.checked = true;
+    }
+    applyHighlight(layer);
+    map.setView(layer.getLatLng(), Math.max(map.getZoom(), 19));
+  } else {
+    applyHighlight(layer);
+    // `maxZoom: MAX_USEFUL_ZOOM`, not the `19` this used to hardcode: a
+    // waiting zone's own size varies from a ~3m pedestrian crossing up to
+    // a multi-lane approach spanning 100m+, and `fitBounds` already picks
+    // the zoom that fits *whichever* one this is against the padded
+    // bounds — that's the "dynamic per zone size" part, and it was already
+    // happening. `19` just capped the answer for every zone tighter than
+    // roughly a car's length, which is most pedestrian zones and plenty of
+    // short vehicle ones: fitBounds asks for z25 on a 3m-wide crossing, and
+    // used to get z19 instead, landing the zone as a small shape in the
+    // middle of a mostly-empty viewport — not "too far" in the sense of
+    // the wrong place, but in the sense of not being zoomed to the zone at
+    // all. A zone that genuinely needs more room than `MAX_USEFUL_ZOOM`
+    // allows (an intersection cluster, a long approach) is unaffected
+    // either way — `fitBounds` was already choosing a looser zoom for
+    // those, well under either cap.
+    map.fitBounds(layer.getBounds(), { maxZoom: MAX_USEFUL_ZOOM, padding: [60, 60] });
+  }
   layer.openPopup();
 }
 
 function renderResults(matches) {
   resultsBox.innerHTML = "";
   emptyBox.style.display = matches.length === 0 ? "block" : "none";
-  matches.slice(0, MAX_RESULTS).forEach((id) => {
+  matches.slice(0, MAX_RESULTS).forEach(({ id, label }) => {
     const row = document.createElement("div");
-    row.textContent = id;
+    row.textContent = label;
+    row.dataset.id = id; // label is shown/matched; id (they differ for a traffic light) is what selectZone needs
     row.addEventListener("click", () => selectZone(id));
     resultsBox.appendChild(row);
   });
 }
 
 searchInput.addEventListener("input", () => {
+  // Traffic lights only enter `searchIndex` once `net.geojson` has loaded
+  // (see the traffic light layer's own `onEachFeature`, above) — warm it
+  // in the background on the first keystroke, rather than only once its
+  // own checkbox is toggled, so search finds a traffic light by id even in
+  // a session that never turns that layer on to look at it. Memoized by
+  // `loadNetLayer` itself (`netLoadPromise`), so this is a no-op on every
+  // keystroke after the first.
+  loadNetLayer();
+
+  // Not `clearHighlight()` on every keystroke here (it used to be): that
+  // would silently discard an in-progress vertex edit (see
+  // `confirmDiscardEdits`) the instant you typed a character while
+  // searching for a *different* zone, with no chance to confirm — the
+  // current highlight/vertex panel now only ever changes once you
+  // actually pick a result, through `selectZone` -> `applyHighlight`,
+  // which already guards on this and calls `clearHighlight()` itself.
   const q = searchInput.value.trim().toLowerCase();
-  clearHighlight();
   if (q.length < 2 || !allData) {
     resultsBox.innerHTML = "";
     emptyBox.style.display = "none";
     return;
   }
-  const matches = allData.features
-    .map((f) => f.properties.waiting_zone_id)
-    .filter((id) => id.toLowerCase().includes(q));
+  const matches = searchIndex.filter(({ label }) => label.toLowerCase().includes(q));
   renderResults(matches);
 });
 
 searchInput.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   const first = resultsBox.querySelector("div");
-  if (first) selectZone(first.textContent);
+  if (first) selectZone(first.dataset.id);
 });
 </script>
 </body>

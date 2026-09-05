@@ -6,13 +6,15 @@ mod reprojection;
 mod tests;
 
 pub use feature::{to_feature_collection, write};
-pub use overlaps::overlapping_zone_ids;
+pub use overlaps::{overlapping_zone_ids, overlapping_zone_ids_larger_than};
+#[cfg(test)]
+pub(crate) use overlaps::distance_to_polygon;
 
 #[cfg(test)]
-pub(crate) use feature::{build_feature, stop_line_point, zone_feature};
+pub(crate) use feature::zone_feature;
 #[cfg(test)]
-pub(crate) use geometry::{single_successors, zone_modes, zone_polygon};
+pub(crate) use geometry::single_successors;
 #[cfg(test)]
-pub(crate) use overlaps::{feature_rings, resolve_overlaps};
+pub(crate) use overlaps::{feature_rings, find_near_touch, weld_near_touch_and_split};
 #[cfg(test)]
 pub(crate) use reprojection::{MIN_DRAWN_LANE_LENGTH_METERS, Reprojector};

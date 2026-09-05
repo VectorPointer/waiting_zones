@@ -27,11 +27,16 @@ crossing:
 cargo run -- path/to/network.net.xml --max-zone-length 20
 ```
 
-Use `--geojson` to also write the zones as a GeoJSON `FeatureCollection`,
-reprojected to WGS84 lon/lat for a client that geofences from its own GPS:
+Use `--geojson` to also write the zones as GeoJSON `FeatureCollection`s,
+reprojected to WGS84 lon/lat for a client that geofences from its own GPS.
+Split into 2 files by mode — `cdn.md`'s catalogue is split the same way, so a
+client resolving a vehicle position never has to fetch (or hold) the
+pedestrian half of a territory's own zones, and vice versa — the suffix is
+inserted before the given path's own extension:
 
 ```sh
 cargo run -- path/to/network.net.xml --geojson path/to/zones.geojson
+# writes path/to/zones.vehicles.geojson and path/to/zones.pedestrians.geojson
 ```
 
 This requires the input network to be georeferenced (`.net.xml`'s

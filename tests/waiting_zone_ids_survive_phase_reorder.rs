@@ -24,14 +24,14 @@ fn ids_keep_naming_the_same_lanes_after_reversing_every_signal_programs_phase_or
     let mut network =
         sumo_types::read_network(&net_file).expect("reading the sample Barcelona network");
 
-    let original = waiting_zones::zone_generator::generate(&network, None);
+    let original = waiting_zones::zone_generator::generate(&network, None, false);
     let original_lanes_by_id = lanes_by_id(&original);
 
     for program in &mut network.traffic_light_programs {
         program.phases.reverse();
     }
 
-    let reordered = waiting_zones::zone_generator::generate(&network, None);
+    let reordered = waiting_zones::zone_generator::generate(&network, None, false);
     let reordered_lanes_by_id = lanes_by_id(&reordered);
 
     assert_eq!(

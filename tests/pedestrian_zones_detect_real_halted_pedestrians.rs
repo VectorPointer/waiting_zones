@@ -83,7 +83,7 @@ fn pedestrian_waiting_zones_detect_every_genuinely_halted_pedestrian() {
     let route_file = manifest_dir.join(ROUTE_FILE);
 
     let network = sumo_types::read_network(&net_file).expect("reading test_4x4_ped's net.xml");
-    let zones = waiting_zones::zone_generator::generate(&network, None);
+    let zones = waiting_zones::zone_generator::generate(&network, None, false);
     let pedestrian_zones: Vec<&E3Detector> =
         zones.iter().filter(|z| !z.detect_persons.is_empty()).collect();
     assert!(

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  Zero vehicles, on purpose: `pedestrian_crossing`'s whole point is a
+  pedestrian competing against heavy vehicle demand — this one removes the
+  vehicle side entirely, to isolate the pedestrian side of `phase_score`
+  on its own. `territory::zones::derive_zones` hands the control loop all
+  eight of B3's zones (four vehicle, four pedestrian, tagged via
+  `Zone::is_pedestrian`); with zero vehicles, every vehicle zone's
+  occupancy is zero, but the four pedestrian ones are real — one per
+  crossing, each polled and fed into `phase_score` (`Mode::OnFoot`,
+  walking-speed `ZoneParams`) same as a vehicle zone would be. So this
+  answers: with real per-crossing pedestrian occupancy as the *only*
+  signal `phase_score` has (not vehicles, not anti-starvation alone
+  padding it out), how long does a pedestrian actually wait, and does
+  that beat the junction's own conventional fixed-time program? (It does:
+  mean `waitingTime` across all twelve walks was 19.67s under the fixed
+  90s cycle, 7.50s under the engine, same seed — see this scenario's own
+  `#[test]`.)
+
+  Junction B3's own program (`net.xml`) is a fixed 90s cycle: phase 0 (37s)
+  serves the crossings on the "horizontal" street (A3B3/C3B3), phase 3
+  (37s) serves the ones on the "vertical" street (B2B3/B4B3) — worked out
+  from `net.xml`'s own `<connection tl="B3" linkIndex="...">` entries and
+  each phase's `state` string, the same way `territory::zones::derive_zones`
+  does it, just by hand here. `ped_v*` cross the vertical street (served by
+  phase 3, walking from C3B3 to B4B3 like `pedestrian_crossing`'s own
+  `ped0` — confirmed clean in that scenario's own real-`sumo` runs);
+  `ped_h*` cross the horizontal one (served by phase 0, the mirror walk,
+  B4B3 to A3B3).
+
+  Twelve pedestrians (six per axis), one every ~15s from depart=0 to
+  depart=165 — just over 2 full 90s cycles — specifically so departures
+  land across every offset into the cycle, not clustered near one phase
+  change. A pedestrian departing right as their axis's phase ends should
+  see close to the worst case (most of the *other* phase's ~53s to wait
+  through); one departing right as it begins should see close to zero.
+  Deliberately no `.restrictions.xml`: this is an observational scenario
+  (see this crate's own `scenario.rs` docs on why that file is optional),
+  not a pass/fail one — read `waitingTime` off the printed pedestrian
+  table (`CONTROL_LOOP_REPORT=2` for one row per person instead of the
+  aggregate).
+-->
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <person id="ped_v0" depart="0">
+        <walk from="C3B3" to="B4B3"/>
+    </person>
+    <person id="ped_h0" depart="15">
+        <walk from="B4B3" to="A3B3"/>
+    </person>
+    <person id="ped_v1" depart="30">
+        <walk from="C3B3" to="B4B3"/>
+    </person>
+    <person id="ped_h1" depart="45">
+        <walk from="B4B3" to="A3B3"/>
+    </person>
+    <person id="ped_v2" depart="60">
+        <walk from="C3B3" to="B4B3"/>
+    </person>
+    <person id="ped_h2" depart="75">
+        <walk from="B4B3" to="A3B3"/>
+    </person>
+    <person id="ped_v3" depart="90">
+        <walk from="C3B3" to="B4B3"/>
+    </person>
+    <person id="ped_h3" depart="105">
+        <walk from="B4B3" to="A3B3"/>
+    </person>
+    <person id="ped_v4" depart="120">
+        <walk from="C3B3" to="B4B3"/>
+    </person>
+    <person id="ped_h4" depart="135">
+        <walk from="B4B3" to="A3B3"/>
+    </person>
+    <person id="ped_v5" depart="150">
+        <walk from="C3B3" to="B4B3"/>
+    </person>
+    <person id="ped_h5" depart="165">
+        <walk from="B4B3" to="A3B3"/>
+    </person>
+</routes>

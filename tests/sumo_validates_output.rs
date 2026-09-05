@@ -45,7 +45,7 @@ fn generated_output_loads_in_sumo_without_errors() {
 
     let network =
         sumo_types::read_network(&net_file).expect("reading the sample Barcelona network");
-    let zones = waiting_zones::zone_generator::generate(&network, None);
+    let zones = waiting_zones::zone_generator::generate(&network, None, false);
     assert!(
         !zones.is_empty(),
         "the sample network should produce at least one waiting zone; \

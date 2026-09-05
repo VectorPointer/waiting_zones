@@ -77,6 +77,31 @@
 //! — a kind that legitimately has none) is skipped with a per-lane warning
 //! rather than guessing.
 //!
+//! A joined program can also produce two *separate* movement groups
+//! ([`group_key_for_lane`]'s own identity, `(from_edge, directions)`) for
+//! what is, physically, one queue: a single upstream lane forks — at an
+//! ordinary, unsignalized junction, not the cluster itself — into two
+//! lanes that each land on a *different* member junction of the same
+//! `joinTLS` cluster, both still governed by the identical combined
+//! program and both still going the same direction on the far side.
+//! Confirmed on real Barcelona data: `50926859#0` and `50926861#0`, two
+//! lanes of "Avinguda de Salvador Espriu" forking off one upstream edge,
+//! land 3.5m apart on two junctions joined under one `joinedS_...`
+//! program — a driver in either lane queues for the exact same red light,
+//! so reporting them as two independent "straight" zones is a modelling
+//! artifact, not two real movements. [`merge_fork_sibling_groups`] folds
+//! such siblings back into one zone (both lanes as entries *and* exits —
+//! the queue really does span both) after every junction's own groups are
+//! built, using exactly the same non-cryptographic signal `zone_generator`
+//! already trusts elsewhere for this: matching turn direction plus a
+//! shared *controlling program* (not just "governs the same physical
+//! spot", which a large `joinTLS` cluster could satisfy for two genuinely
+//! different streets) plus a shared *immediate* predecessor edge (proof
+//! the two lanes are actually the same fork, not just coincidentally
+//! agreeing on direction and program). Any one of the three alone isn't
+//! enough — only together do they pin down "provably one fork, both
+//! branches of which report to the same physical light".
+//!
 //! Pedestrian waiting zones follow the exact same movement identity: SUMO
 //! already lists a walkingarea lane among a signalized junction's
 //! `incLanes`, right alongside the vehicle lanes it shares the junction
@@ -95,10 +120,10 @@
 use anstream::eprintln;
 use anstyle::{AnsiColor, Style};
 use std::collections::{HashMap, HashSet};
-use sumo_types::additional::domain::{DetectorGate, DetectorId, E3Detector, LanePosition, LaneRef};
+use sumo_types::additional::domain::{DetectorGate, DetectorId, E3Detector, LanePosition, LaneRef, PersonMode};
 use sumo_types::domain::{
-    Connection, ConnectionDirection, EdgeFunction, EdgeId, Junction, JunctionKind, LaneId,
-    LaneIndex, LinkIndex, Network, TrafficLightId, TrafficLightProgram,
+    Connection, ConnectionDirection, EdgeFunction, EdgeId, Junction, JunctionId, JunctionKind,
+    LaneId, LaneIndex, LinkIndex, Network, TrafficLightId, TrafficLightProgram,
 };
 use sumo_types::uom::si::f64::Length;
 use sumo_types::uom::si::length::meter;
@@ -129,18 +154,13 @@ fn is_traffic_light(kind: JunctionKind) -> bool {
 }
 
 /// A lane's length together with whether it's restricted to pedestrians
-/// only (`allow="pedestrian"` in `.net.xml`, e.g. crossings and
-/// walkingareas) — used to exclude sidewalk/walkingarea lanes that SUMO
-/// lists among a junction's `incLanes` alongside the real vehicle lanes,
-/// straight from SUMO's own vClass permissions instead of the edge's
-/// `function` label.
+/// only — used to exclude sidewalk/walkingarea lanes that SUMO lists among
+/// a junction's `incLanes` alongside the real vehicle lanes, straight from
+/// SUMO's own vClass permissions (`Lane::is_pedestrian_only`) instead of
+/// the edge's `function` label.
 struct LaneInfo {
     length: Length,
     pedestrian_only: bool,
-}
-
-fn is_pedestrian_only(allow: &[String]) -> bool {
-    !allow.is_empty() && allow.iter().all(|vclass| vclass == "pedestrian")
 }
 
 /// Whether `link_index` indexes into every phase of `program` — i.e.
@@ -164,7 +184,14 @@ fn link_index_in_range(program: &TrafficLightProgram, link_index: LinkIndex) -> 
 ///
 /// `max_zone_length` caps how far each zone's entry extends from the stop
 /// line; `None` means the full lane, as before.
-pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<E3Detector> {
+///
+/// `stop_at_complex_intersections`: see [`extended_entry_lanes`]'s own docs
+/// on the stopping condition it adds.
+pub fn generate(
+    network: &Network,
+    max_zone_length: Option<Length>,
+    stop_at_complex_intersections: bool,
+) -> Vec<E3Detector> {
     let lanes: HashMap<&LaneId, LaneInfo> = network
         .edges
         .iter()
@@ -174,7 +201,7 @@ pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<E3Det
                 &lane.id,
                 LaneInfo {
                     length: lane.length,
-                    pedestrian_only: is_pedestrian_only(&lane.allow),
+                    pedestrian_only: lane.is_pedestrian_only(),
                 },
             )
         })
@@ -191,6 +218,19 @@ pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<E3Det
                 .iter()
                 .map(move |lane| ((&edge.id, lane.index), &lane.id))
         })
+        .collect();
+
+    // The reverse of the edge -> lanes relationship `network.edges` already
+    // encodes directly — which edge a given lane belongs to. Only needed by
+    // `merge_fork_sibling_groups` (via `predecessor_edges`), to turn a
+    // predecessor *lane* (what `predecessors_by_lane` walks in) into the
+    // predecessor *edge* two fork siblings need to share (see the module
+    // docs) — a fork's two branches are almost always two different lanes
+    // of that one shared upstream edge, not the same lane.
+    let edge_by_lane: HashMap<&LaneId, &EdgeId> = network
+        .edges
+        .iter()
+        .flat_map(|edge| edge.lanes.iter().map(move |lane| (&lane.id, &edge.id)))
         .collect();
 
     // Every edge SUMO itself generated to model the physical path *through*
@@ -304,6 +344,59 @@ pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<E3Det
         programs_by_id.entry(&program.id).or_insert(program);
     }
 
+    // Every real edge's own start junction — needed only alongside
+    // `stop_at_complex_intersections` below. A connection's own signal sits
+    // at the junction joining its `from_edge` to its `to_edge`, which is
+    // that `to_edge`'s own start (equivalently, `from_edge`'s own end —
+    // same junction, named from whichever side is convenient); a
+    // predecessor's connection into a given `lane_id` always lands at
+    // `lane_id`'s own edge's start, by definition of "predecessor", so this
+    // is also exactly what `extended_entry_lanes` needs to name the
+    // junction it would be crossing into on its way to a given predecessor.
+    let edge_start_junction: HashMap<&EdgeId, &JunctionId> = network
+        .edges
+        .iter()
+        .filter_map(|edge| Some((&edge.id, edge.from.as_ref()?)))
+        .collect();
+
+    // The same lookup, keyed by lane instead of edge — what
+    // `extended_entry_lanes` actually has on hand (a `LaneId`) when it
+    // needs to name the junction a given predecessor's connection lands at.
+    let edge_start_junction_by_lane: HashMap<&LaneId, &JunctionId> = network
+        .edges
+        .iter()
+        .filter_map(|edge| Some((edge.from.as_ref()?, &edge.lanes)))
+        .flat_map(|(junction, lanes)| lanes.iter().map(move |lane| (&lane.id, junction)))
+        .collect();
+
+    // Every junction that's part of some `joinTLS`-merged program spanning
+    // more than one junction — a real, physically complex intersection SUMO
+    // modeled as a cluster of closely-spaced nodes linked by near-zero-
+    // length edges (see the module docs on why a joined program's id, not
+    // any one junction's own id, is the only thing naming it). Grouping
+    // every real-to-real connection by its own `tl` id and collecting each
+    // group's distinct junctions finds this without ever having to parse
+    // that id string — `joinedS_<id>_..._#Nmore` truncates the member list
+    // once it's long, so the member ids it hides couldn't be recovered from
+    // it even if this did try to parse it. A program naming only one
+    // junction (the overwhelming majority — an ordinary single-junction
+    // signal) never contributes anything here, so this changes nothing
+    // about the ordinary case.
+    let mut junctions_by_tl_id: HashMap<&TrafficLightId, HashSet<&JunctionId>> = HashMap::new();
+    for connection in network.connections.iter().filter(is_real_to_real) {
+        if let (Some(tl_id), Some(&junction)) =
+            (&connection.traffic_light, edge_start_junction.get(&connection.to_edge))
+        {
+            junctions_by_tl_id.entry(tl_id).or_default().insert(junction);
+        }
+    }
+    let complex_intersection_junctions: HashSet<&JunctionId> = junctions_by_tl_id
+        .values()
+        .filter(|junctions| junctions.len() > 1)
+        .flatten()
+        .copied()
+        .collect();
+
     let graph = ConnectivityGraph {
         lane_ids_by_edge_and_index: &lane_ids_by_edge_and_index,
         connections_by_from_lane: &connections_by_from_lane,
@@ -311,24 +404,32 @@ pub fn generate(network: &Network, max_zone_length: Option<Length>) -> Vec<E3Det
         signal_controlled_lanes: &signal_controlled_lanes,
         via_lane_between: &via_lane_between,
         lanes: &lanes,
+        edge_start_junction_by_lane: &edge_start_junction_by_lane,
+        complex_intersection_junctions: &complex_intersection_junctions,
+        edge_by_lane: &edge_by_lane,
+        stop_at_complex_intersections,
     };
 
-    network
+    let traffic_light_junctions: Vec<&Junction> = network
         .junctions
         .iter()
         .filter(|junction| is_traffic_light(junction.kind))
-        .flat_map(|junction| {
-            let mut zones = vehicle_zones(junction, &lanes, &graph, &programs_by_id, max_zone_length);
-            zones.extend(pedestrian_zones(
-                junction,
-                &lanes,
-                &graph,
-                &programs_by_id,
-                max_zone_length,
-            ));
-            zones
-        })
-        .collect()
+        .collect();
+
+    // Vehicle zones are collected across *every* traffic-light junction at
+    // once, not one at a time — `merge_fork_sibling_groups` (see the
+    // module docs) needs to see fork siblings that land on two different
+    // junctions before it can recognize them as the same movement, which a
+    // per-junction pass could never do regardless of what it checked
+    // internally. Pedestrian zones have no such cross-junction case (a
+    // walkingarea's own entry is never extended or merged — see
+    // [`pedestrian_zones`]'s own docs), so they stay a straightforward
+    // per-junction pass.
+    let mut zones = vehicle_zones(&traffic_light_junctions, &lanes, &graph, &programs_by_id, max_zone_length);
+    for junction in &traffic_light_junctions {
+        zones.extend(pedestrian_zones(junction, &lanes, &graph, &programs_by_id, max_zone_length));
+    }
+    zones
 }
 
 /// The lane-connectivity indices [`full_lane_boundaries`] needs to walk a
@@ -346,6 +447,28 @@ struct ConnectivityGraph<'a> {
     /// backward, the same source [`full_lane_boundaries`] already reads
     /// lengths from for every other lane.
     lanes: &'a HashMap<&'a LaneId, LaneInfo>,
+    /// The junction a given lane's own edge starts at — only consulted when
+    /// `stop_at_complex_intersections` is set (see
+    /// [`extended_entry_lanes`]'s own docs on the stopping condition it
+    /// adds).
+    edge_start_junction_by_lane: &'a HashMap<&'a LaneId, &'a JunctionId>,
+    /// Every junction that's part of some `joinTLS`-merged traffic light
+    /// program spanning more than one junction (see [`generate`]'s own docs
+    /// on how this is computed) — only consulted when
+    /// `stop_at_complex_intersections` is set.
+    complex_intersection_junctions: &'a HashSet<&'a JunctionId>,
+    /// Every lane's own edge — [`predecessor_edges`]'s own lookup, turning
+    /// a predecessor *lane* into the edge [`merge_fork_sibling_groups`]
+    /// actually compares (see that function's own docs on why a fork's two
+    /// branches are almost always two different lanes of one shared
+    /// upstream edge, not the same lane).
+    edge_by_lane: &'a HashMap<&'a LaneId, &'a EdgeId>,
+    /// See [`extended_entry_lanes`]'s own docs on the stopping condition
+    /// this gates. Off by default ([`crate::config::Config`]'s own docs on
+    /// the CLI flag) — it trades away ever reaching a genuinely upstream
+    /// signal beyond a complex intersection for guaranteed-simple geometry
+    /// through it, and that trade isn't free everywhere it'd apply.
+    stop_at_complex_intersections: bool,
 }
 
 /// Builds entry/exit detector gates for each lane in `lane_ids` that's known
@@ -470,6 +593,25 @@ fn successor_lane_count(lane_id: &LaneId, graph: &ConnectivityGraph<'_>) -> usiz
 ///   already has its own waiting zone, and extending through it would draw
 ///   a rectangle right on top of that zone's own rather than next to it
 ///   (`signal_controlled_lanes`, checked via `graph`).
+/// - (only when `graph.stop_at_complex_intersections` is set) `lane_id`
+///   itself already sits at a junction that's part of a `joinTLS`-merged
+///   program spanning more than one junction
+///   (`graph.complex_intersection_junctions`) — a real, physically complex
+///   intersection SUMO modeled as a cluster of closely-spaced nodes linked
+///   by near-zero-length edges. Nothing inside that cluster individually
+///   looks like a fork or an existing signal (`successor_lane_count` is 1,
+///   `signal_controlled_lanes` doesn't contain it), so without this,
+///   extension walks straight through the whole cluster, unioning dozens of
+///   tiny, oddly-angled lane buffers into one zone polygon — confirmed on
+///   real Barcelona data (`203480266#0_straight`), where this produced a
+///   ring with over a dozen self-intersections. This is `false` by default
+///   (`crate::config::Config`'s own docs on the CLI flag it comes from): it
+///   trades away ever reaching a genuinely upstream signal beyond the
+///   cluster for guaranteed-simple geometry through it, and that trade
+///   isn't free everywhere it'd apply — an ordinary single-junction signal
+///   never has more than one junction in its own program, so this never
+///   changes anything about the overwhelming majority of zones regardless
+///   of the flag.
 ///
 /// Every lane along the way up to (but not past) either stopping point is
 /// included, not only the furthest-back one — [`full_lane_boundaries`]
@@ -511,6 +653,14 @@ fn extended_entry_lanes<'a>(
     remaining_budget: Length,
 ) -> Vec<&'a LaneId> {
     if remaining_budget <= Length::new::<meter>(0.0) || !visited.insert(lane_id) {
+        return Vec::new();
+    }
+    if graph.stop_at_complex_intersections
+        && graph
+            .edge_start_junction_by_lane
+            .get(lane_id)
+            .is_some_and(|junction| graph.complex_intersection_junctions.contains(junction))
+    {
         return Vec::new();
     }
     let Some(predecessors) = graph.predecessors_by_lane.get(lane_id) else {
@@ -745,7 +895,7 @@ fn zone_from_group(
     graph: &ConnectivityGraph<'_>,
     junction: &Junction,
     reach: EntryReach,
-    detect_persons: Vec<String>,
+    detect_persons: Vec<PersonMode>,
 ) -> Option<E3Detector> {
     let (entries, exits) = full_lane_boundaries(lane_ids, lanes, graph, reach);
     if entries.is_empty() {
@@ -769,36 +919,189 @@ fn zone_from_group(
     })
 }
 
-/// The vehicle waiting zones queued on `junction`'s incoming lanes, one per
-/// distinct movement.
+/// One vehicle movement group before it becomes an `E3Detector`: which
+/// junction it was grouped at, its movement identity, and its lanes. Kept
+/// as a value (rather than folded straight into [`zone_from_group`] the
+/// way [`pedestrian_zones`] does) only so [`merge_fork_sibling_groups`]
+/// can see every junction's groups side by side first — see the module
+/// docs on why that has to happen across junctions, not within one.
+struct VehicleGroup<'a> {
+    /// Every source edge this group covers — exactly one unless
+    /// [`merge_fork_sibling_groups`] folded fork siblings together, in
+    /// which case one per sibling, sorted, so the merged id is the same
+    /// regardless of which junction happened to be visited first.
+    from_edges: Vec<EdgeId>,
+    directions: Vec<ConnectionDirection>,
+    lane_ids: Vec<LaneId>,
+    /// The junction whose `incLanes` this group was built from — the
+    /// zone's own `icon_position`. For a merged group, the sibling with the
+    /// smallest `from_edge` wins, again purely for determinism.
+    junction: &'a Junction,
+}
+
+/// The vehicle waiting zones queued on every junction in `junctions`'
+/// incoming lanes, one per distinct movement — with fork siblings landing
+/// on different junctions of one `joinTLS` cluster folded into a single
+/// zone first (see [`merge_fork_sibling_groups`]).
 fn vehicle_zones(
-    junction: &Junction,
+    junctions: &[&Junction],
     lanes: &HashMap<&LaneId, LaneInfo>,
     graph: &ConnectivityGraph<'_>,
     programs: &HashMap<&TrafficLightId, &TrafficLightProgram>,
     max_zone_length: Option<Length>,
 ) -> Vec<E3Detector> {
-    // sidewalk/walkingarea lanes feeding into the junction are pedestrians'
-    // concern (`pedestrian_zones`), not vehicles'.
-    let lane_ids = junction
-        .incoming_lanes
-        .iter()
-        .filter(|lane_id| !lanes.get(lane_id).is_some_and(|info| info.pedestrian_only));
+    let mut groups = Vec::new();
+    for &junction in junctions {
+        // sidewalk/walkingarea lanes feeding into the junction are
+        // pedestrians' concern (`pedestrian_zones`), not vehicles'.
+        let lane_ids = junction
+            .incoming_lanes
+            .iter()
+            .filter(|lane_id| !lanes.get(lane_id).is_some_and(|info| info.pedestrian_only));
+        for ((from_edge, directions), lane_ids) in
+            group_lanes(junction, lane_ids, graph.connections_by_from_lane, programs)
+        {
+            groups.push(VehicleGroup { from_edges: vec![from_edge], directions, lane_ids, junction });
+        }
+    }
 
-    group_lanes(junction, lane_ids, graph.connections_by_from_lane, programs)
+    merge_fork_sibling_groups(groups, graph)
         .into_iter()
-        .filter_map(|((from_edge, directions), lane_ids)| {
+        .filter_map(|group| {
             zone_from_group(
-                movement_id(&from_edge, &directions),
-                &lane_ids,
+                merged_movement_id(&group.from_edges, &group.directions),
+                &group.lane_ids,
                 lanes,
                 graph,
-                junction,
+                group.junction,
                 EntryReach { max_zone_length, extend_backward: true },
                 Vec::new(),
             )
         })
         .collect()
+}
+
+/// Every real edge that feeds directly into any lane of `lane_ids` —
+/// the "immediate predecessor edge" side of [`merge_fork_sibling_groups`]'s
+/// own three-way check. Edges rather than lanes: a fork's two branches
+/// are almost always two different lanes of one shared upstream edge
+/// (confirmed on the real Barcelona case the module docs describe:
+/// `50926865#6` lane 1 feeds `50926859#0`, lane 2 feeds `50926861#0`),
+/// so comparing predecessor *lanes* would never find them equal.
+///
+/// A predecessor that is itself a signal-controlled approach is left out:
+/// the module docs' own criterion is a fork "at an ordinary, unsignalized
+/// junction, not the cluster itself" — two lanes forking off an already
+/// signalized approach queue at *that* light first, each behind its own
+/// downstream one, and folding them together there would draw one zone
+/// across two genuinely separate queues.
+fn predecessor_edges<'a>(lane_ids: &[LaneId], graph: &ConnectivityGraph<'a>) -> HashSet<&'a EdgeId> {
+    lane_ids
+        .iter()
+        .filter_map(|lane_id| graph.predecessors_by_lane.get(lane_id))
+        .flatten()
+        .filter(|predecessor| !graph.signal_controlled_lanes.contains(*predecessor))
+        .filter_map(|predecessor| graph.edge_by_lane.get(predecessor).copied())
+        .collect()
+}
+
+/// Every traffic-light program controlling some connection out of a lane
+/// in `lane_ids` — the "shared controlling program" side of
+/// [`merge_fork_sibling_groups`]'s own three-way check.
+fn controlling_programs<'a>(lane_ids: &[LaneId], graph: &ConnectivityGraph<'a>) -> HashSet<&'a TrafficLightId> {
+    lane_ids
+        .iter()
+        .filter_map(|lane_id| graph.connections_by_from_lane.get(lane_id))
+        .flatten()
+        .filter_map(|connection| connection.traffic_light.as_ref())
+        .collect()
+}
+
+/// Folds fork siblings back into one group — see the module docs for the
+/// real Barcelona case this exists for. Two groups merge when *all three*
+/// hold: identical turn directions, at least one controlling program in
+/// common, and at least one immediate (unsignalized) predecessor edge in
+/// common; merging is transitive, so three-way forks fold into one too.
+/// Any group that matches nothing passes through untouched, which on an
+/// ordinary single-junction signal is every group.
+///
+/// Output order is by the merged group's own sorted `from_edges`, so
+/// `generate`'s own output stays reproducible run to run — the groups
+/// arrive here in junction order, which is file order, but a merged group
+/// belongs to two junctions at once and needs a single, stable place.
+fn merge_fork_sibling_groups<'a>(groups: Vec<VehicleGroup<'a>>, graph: &ConnectivityGraph<'_>) -> Vec<VehicleGroup<'a>> {
+    // Union-find over group indices, keyed by every (directions, program,
+    // predecessor edge) triple a group can claim: two groups claiming the
+    // same triple are siblings.
+    let mut parent: Vec<usize> = (0..groups.len()).collect();
+    fn root(parent: &mut [usize], mut i: usize) -> usize {
+        while parent[i] != i {
+            parent[i] = parent[parent[i]];
+            i = parent[i];
+        }
+        i
+    }
+
+    let mut by_triple: HashMap<(&[ConnectionDirection], &TrafficLightId, &EdgeId), usize> = HashMap::new();
+    for (index, group) in groups.iter().enumerate() {
+        let predecessors = predecessor_edges(&group.lane_ids, graph);
+        for program in controlling_programs(&group.lane_ids, graph) {
+            for &predecessor in &predecessors {
+                match by_triple.entry((group.directions.as_slice(), program, predecessor)) {
+                    std::collections::hash_map::Entry::Vacant(slot) => {
+                        slot.insert(index);
+                    }
+                    std::collections::hash_map::Entry::Occupied(slot) => {
+                        let (a, b) = (root(&mut parent, *slot.get()), root(&mut parent, index));
+                        if a != b {
+                            parent[b] = a;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut merged: HashMap<usize, VehicleGroup<'a>> = HashMap::new();
+    for (index, group) in groups.into_iter().enumerate() {
+        let key = root(&mut parent, index);
+        match merged.entry(key) {
+            std::collections::hash_map::Entry::Vacant(slot) => {
+                slot.insert(group);
+            }
+            std::collections::hash_map::Entry::Occupied(mut slot) => {
+                let existing = slot.get_mut();
+                if group.from_edges < existing.from_edges {
+                    existing.junction = group.junction;
+                }
+                existing.from_edges.extend(group.from_edges);
+                existing.from_edges.sort();
+                existing.from_edges.dedup();
+                existing.lane_ids.extend(group.lane_ids);
+            }
+        }
+    }
+
+    let mut merged: Vec<VehicleGroup<'a>> = merged.into_values().collect();
+    merged.sort_by(|a, b| (&a.from_edges, &a.directions).cmp(&(&b.from_edges, &b.directions)));
+    merged
+}
+
+/// [`movement_id`] for a group covering one or more source edges: a
+/// single edge gives exactly the id it always has; a merged fork-sibling
+/// group joins its (sorted) edges with `+` in front of the shared
+/// direction suffix, e.g. `50926859#0+50926861#0_straight`. A single id
+/// for the single zone, rather than one sibling's id "winning" — either
+/// choice would silently reuse an id that used to name a different,
+/// narrower zone.
+fn merged_movement_id(from_edges: &[EdgeId], directions: &[ConnectionDirection]) -> String {
+    let directions_suffix = movement_id(&EdgeId(String::new()), directions);
+    let edges = from_edges
+        .iter()
+        .map(|edge| edge.0.strip_prefix(':').unwrap_or(&edge.0))
+        .collect::<Vec<_>>()
+        .join("+");
+    format!("{edges}{directions_suffix}")
 }
 
 /// The pedestrian waiting zones approaching `junction`'s signalized
@@ -859,7 +1162,7 @@ fn pedestrian_zones(
                 graph,
                 junction,
                 EntryReach { max_zone_length, extend_backward: false },
-                vec!["walk".into()],
+                vec![PersonMode::Walk],
             )
         })
         .collect()
@@ -1064,7 +1367,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let zones = generate(&network, None, false);
 
         assert_eq!(
             zones.len(),
@@ -1099,7 +1402,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let zones = generate(&network, None, false);
 
         assert_eq!(zones.len(), 2, "different edges are different movements");
         assert_eq!(zones[0].id, DetectorId("e0_straight".into()));
@@ -1131,8 +1434,8 @@ mod tests {
             ..Default::default()
         };
 
-        let original = generate(&network_with_phases(vec!["Gr", "rG"]), None);
-        let reordered = generate(&network_with_phases(vec!["rG", "Gr"]), None);
+        let original = generate(&network_with_phases(vec!["Gr", "rG"]), None, false);
+        let reordered = generate(&network_with_phases(vec!["rG", "Gr"]), None, false);
 
         let ids = |zones: &[E3Detector]| {
             let mut ids: Vec<_> = zones.iter().map(|z| z.id.0.clone()).collect();
@@ -1161,7 +1464,7 @@ mod tests {
             ..Default::default()
         };
 
-        assert!(generate(&network, None).is_empty());
+        assert!(generate(&network, None, false).is_empty());
     }
 
     /// Regression test for the bug this module's docs describe at length:
@@ -1183,7 +1486,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let zones = generate(&network, None, false);
 
         assert_eq!(
             zones.len(),
@@ -1203,7 +1506,7 @@ mod tests {
             ..Default::default()
         };
 
-        assert!(generate(&network, None).is_empty());
+        assert!(generate(&network, None, false).is_empty());
     }
 
     #[test]
@@ -1229,7 +1532,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let zones = generate(&network, None, false);
 
         assert_eq!(zones.len(), 1, "the walkingarea lane isn't a vehicle lane");
         assert_eq!(zones[0].entries.len(), 1);
@@ -1270,10 +1573,10 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let zones = generate(&network, None, false);
         let pedestrian_zone = zones
             .iter()
-            .find(|zone| zone.detect_persons.contains(&"walk".to_string()))
+            .find(|zone| zone.detect_persons.contains(&PersonMode::Walk))
             .expect("a pedestrian zone for the walkingarea");
 
         assert_eq!(zones.len(), 2, "one vehicle zone and one pedestrian zone");
@@ -1327,10 +1630,10 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let zones = generate(&network, None, false);
         let pedestrian_zone = zones
             .iter()
-            .find(|zone| zone.detect_persons.contains(&"walk".to_string()))
+            .find(|zone| zone.detect_persons.contains(&PersonMode::Walk))
             .expect("a pedestrian zone for the walkingarea");
 
         assert_eq!(
@@ -1375,7 +1678,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let zones = generate(&network, None, false);
 
         assert_eq!(zones.len(), 1);
         assert_eq!(zones[0].id, DetectorId("j0_w0_straight_ped".into()));
@@ -1391,7 +1694,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, Some(Length::new::<meter>(20.0)));
+        let zones = generate(&network, Some(Length::new::<meter>(20.0)), false);
 
         assert_eq!(zones.len(), 1);
         assert_eq!(
@@ -1414,7 +1717,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, Some(Length::new::<meter>(1000.0)));
+        let zones = generate(&network, Some(Length::new::<meter>(1000.0)), false);
 
         assert_eq!(
             zones[0].entries[0].position,
@@ -1451,7 +1754,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let zones = generate(&network, None, false);
 
         assert_eq!(zones.len(), 2, "two signal groups at the same junction");
         for zone in &zones {
@@ -1555,7 +1858,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let zones = generate(&network, None, false);
         assert_eq!(zones.len(), 1);
         let zone = &zones[0];
 
@@ -1604,7 +1907,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let zones = generate(&network, None, false);
         let zone = &zones[0];
 
         let mut entry_lanes: Vec<String> = zone.entries.iter().map(|g| g.lane.0.clone()).collect();
@@ -1637,7 +1940,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let zones = generate(&network, None, false);
         let zone = &zones[0];
 
         assert_eq!(zone.entries.len(), 1);
@@ -1678,7 +1981,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let zones = generate(&network, None, false);
         let j0_zone = zones
             .iter()
             .find(|z| z.exits.iter().any(|g| g.lane == LaneRef("e1_0".into())))
@@ -1717,7 +2020,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, None);
+        let zones = generate(&network, None, false);
         let zone = &zones[0];
 
         let mut entry_lanes: Vec<String> = zone.entries.iter().map(|g| g.lane.0.clone()).collect();
@@ -1749,7 +2052,7 @@ mod tests {
             ..Default::default()
         };
 
-        let zones = generate(&network, Some(Length::new::<meter>(20.0)));
+        let zones = generate(&network, Some(Length::new::<meter>(20.0)), false);
         let zone = &zones[0];
 
         assert_eq!(zone.entries.len(), 1);
@@ -1795,6 +2098,9 @@ mod tests {
             (&lane_a, LaneInfo { length: Length::new::<meter>(10.0), pedestrian_only: false }),
             (&lane_b, LaneInfo { length: Length::new::<meter>(10.0), pedestrian_only: false }),
         ]);
+        let edge_start_junction_by_lane: HashMap<&LaneId, &JunctionId> = HashMap::new();
+        let complex_intersection_junctions: HashSet<&JunctionId> = HashSet::new();
+        let edge_by_lane: HashMap<&LaneId, &EdgeId> = HashMap::new();
         let graph = ConnectivityGraph {
             lane_ids_by_edge_and_index: &lane_ids_by_edge_and_index,
             connections_by_from_lane: &connections_by_from_lane,
@@ -1802,6 +2108,10 @@ mod tests {
             signal_controlled_lanes: &signal_controlled_lanes,
             via_lane_between: &via_lane_between,
             lanes: &lanes,
+            edge_start_junction_by_lane: &edge_start_junction_by_lane,
+            complex_intersection_junctions: &complex_intersection_junctions,
+            edge_by_lane: &edge_by_lane,
+            stop_at_complex_intersections: false,
         };
 
         let mut visited = HashSet::new();
@@ -1856,6 +2166,9 @@ mod tests {
             (&lane_b, LaneInfo { length: segment_length, pedestrian_only: false }),
             (&lane_c, LaneInfo { length: segment_length, pedestrian_only: false }),
         ]);
+        let edge_start_junction_by_lane: HashMap<&LaneId, &JunctionId> = HashMap::new();
+        let complex_intersection_junctions: HashSet<&JunctionId> = HashSet::new();
+        let edge_by_lane: HashMap<&LaneId, &EdgeId> = HashMap::new();
         let graph = ConnectivityGraph {
             lane_ids_by_edge_and_index: &lane_ids_by_edge_and_index,
             connections_by_from_lane: &connections_by_from_lane,
@@ -1863,11 +2176,96 @@ mod tests {
             signal_controlled_lanes: &signal_controlled_lanes,
             via_lane_between: &via_lane_between,
             lanes: &lanes,
+            edge_start_junction_by_lane: &edge_start_junction_by_lane,
+            complex_intersection_junctions: &complex_intersection_junctions,
+            edge_by_lane: &edge_by_lane,
+            stop_at_complex_intersections: false,
         };
 
         let mut visited = HashSet::new();
         let budget = Length::new::<meter>(DEFAULT_EXTENSION_METERS);
         let frontier = extended_entry_lanes(&lane_a, &graph, &mut visited, budget);
         assert_eq!(frontier, vec![&lane_b], "b (150m) fits the 300m budget, c (300m more) doesn't");
+    }
+
+    #[test]
+    fn stop_at_complex_intersections_flag_gates_the_new_stopping_condition() {
+        // A plain a <- b <- c chain (no fork, no signal anywhere) where b's
+        // own edge starts at `junction` -- the only thing that's supposed
+        // to make a difference here is whether `junction` is in
+        // `complex_intersection_junctions` *and* the flag asking to treat
+        // that as a stop is actually on. With the flag off, this is just
+        // an ordinary unbounded walk (see
+        // `extended_entry_lanes_stops_once_the_budget_runs_out`'s own
+        // fixture) and reaches all the way to `c`; with it on, `b` is
+        // still included (its own predecessor's connection lands there
+        // regardless), but the walk doesn't go looking at *b's own*
+        // predecessors once it's standing at a junction that's part of a
+        // real, physically complex intersection.
+        let lane_a = LaneId("a_0".into());
+        let lane_b = LaneId("b_0".into());
+        let lane_c = LaneId("c_0".into());
+        let edge_a = EdgeId("a".into());
+        let edge_b = EdgeId("b".into());
+        let edge_c = EdgeId("c".into());
+        let junction = JunctionId("complex_junction".into());
+
+        let connection_b_to_a = plain_connection("b", 0, "a", 0);
+        let connection_c_to_b = plain_connection("c", 0, "b", 0);
+
+        let lane_ids_by_edge_and_index: HashMap<(&EdgeId, LaneIndex), &LaneId> = HashMap::from([
+            ((&edge_a, LaneIndex(0)), &lane_a),
+            ((&edge_b, LaneIndex(0)), &lane_b),
+            ((&edge_c, LaneIndex(0)), &lane_c),
+        ]);
+        let connections_by_from_lane: HashMap<&LaneId, Vec<&Connection>> = HashMap::from([
+            (&lane_b, vec![&connection_b_to_a]),
+            (&lane_c, vec![&connection_c_to_b]),
+        ]);
+        let predecessors_by_lane: HashMap<&LaneId, HashSet<&LaneId>> = HashMap::from([
+            (&lane_a, HashSet::from([&lane_b])),
+            (&lane_b, HashSet::from([&lane_c])),
+        ]);
+        let signal_controlled_lanes: HashSet<&LaneId> = HashSet::new();
+        let via_lane_between: HashMap<(&LaneId, &LaneId), &LaneId> = HashMap::new();
+        let lanes: HashMap<&LaneId, LaneInfo> = HashMap::from([
+            (&lane_a, LaneInfo { length: Length::new::<meter>(10.0), pedestrian_only: false }),
+            (&lane_b, LaneInfo { length: Length::new::<meter>(10.0), pedestrian_only: false }),
+            (&lane_c, LaneInfo { length: Length::new::<meter>(10.0), pedestrian_only: false }),
+        ]);
+        // Only `b` sits at the complex junction — `a` and `c` are ordinary
+        // ground, so this only ever changes what happens *at* `b`.
+        let edge_start_junction_by_lane: HashMap<&LaneId, &JunctionId> =
+            HashMap::from([(&lane_b, &junction)]);
+        let complex_intersection_junctions: HashSet<&JunctionId> = HashSet::from([&junction]);
+        let edge_by_lane: HashMap<&LaneId, &EdgeId> = HashMap::new();
+
+        let budget = Length::new::<meter>(DEFAULT_EXTENSION_METERS);
+
+        let graph_flag_off = ConnectivityGraph {
+            lane_ids_by_edge_and_index: &lane_ids_by_edge_and_index,
+            connections_by_from_lane: &connections_by_from_lane,
+            predecessors_by_lane: &predecessors_by_lane,
+            signal_controlled_lanes: &signal_controlled_lanes,
+            via_lane_between: &via_lane_between,
+            lanes: &lanes,
+            edge_start_junction_by_lane: &edge_start_junction_by_lane,
+            complex_intersection_junctions: &complex_intersection_junctions,
+            edge_by_lane: &edge_by_lane,
+            stop_at_complex_intersections: false,
+        };
+        let mut visited = HashSet::new();
+        let frontier = extended_entry_lanes(&lane_a, &graph_flag_off, &mut visited, budget);
+        assert_eq!(frontier, vec![&lane_b, &lane_c], "flag off: an ordinary unbounded walk reaches c");
+
+        let graph_flag_on = ConnectivityGraph { stop_at_complex_intersections: true, ..graph_flag_off };
+        let mut visited = HashSet::new();
+        let frontier = extended_entry_lanes(&lane_a, &graph_flag_on, &mut visited, budget);
+        assert_eq!(
+            frontier,
+            vec![&lane_b],
+            "flag on: b is still included (a's own predecessor), but the walk stops \
+             there instead of also looking at b's own predecessor c"
+        );
     }
 }

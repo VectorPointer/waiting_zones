@@ -9,7 +9,7 @@ use sumo_types::additional::domain::E3Detector;
 use sumo_types::domain::{EdgeFunction, EdgeId, Lane, LaneIndex, Network, Point, Shape, VClass};
 use sumo_types::uom::si::f64::Length;
 use sumo_types::uom::si::length::meter;
-use crate::geojson_output::overlaps::{drop_slivers, snap_coords};
+use crate::geojson_output::overlaps::{drop_interior_rings, drop_slivers, snap_coords};
 use crate::geojson_output::reprojection::{
     distance_from_start, padded_entry, shape_length, trimmed_path_points,
 };
@@ -19,7 +19,7 @@ pub const ROUND_JOIN_SEGMENT_ANGLE_RADIANS: f64 = 0.3;
 pub fn shapes_to_multipolygon(shapes: i_overlay::i_shape::base::data::Shapes<[f64; 2]>) -> MultiPolygon<f64> {
     let close = |points: Vec<[f64; 2]>| -> LineString<f64> {
         let mut coords: Vec<Coord<f64>> = points.into_iter().map(|[x, y]| Coord { x, y }).collect();
-        if coords.first().is_some() && coords.first() != coords.last() {
+        if !coords.is_empty() && coords.first() != coords.last() {
             coords.push(coords[0]);
         }
         LineString::new(coords)
@@ -33,6 +33,104 @@ pub fn shapes_to_multipolygon(shapes: i_overlay::i_shape::base::data::Shapes<[f6
                 }
                 let exterior = close(contours.remove(0));
                 let interiors = contours.into_iter().map(close).collect();
+                Some(GeoPolygon::new(exterior, interiors))
+            })
+            .collect(),
+    )
+}
+
+/// How close a vertex's two neighbours (skipping the vertex itself) have
+/// to land, in metres, to treat that vertex as a spike tip worth removing
+/// — see [`weld_and_remove_spikes`]'s own docs for the shape of defect
+/// this catches. Two independently-buffered pieces meant to share a
+/// boundary exactly land their own copy of that shared point a few
+/// millimetres apart (confirmed on real Barcelona data,
+/// `1395134884#0_straight`: ~3mm), not exactly on top of each other —
+/// `i_overlay`'s own `DeSpikeContour` needs the two neighbours to be
+/// exactly, bit-for-bit equal to fire at all (it checks the two edge
+/// vectors' cross product against exactly zero) and silently no-ops on a
+/// few millimetres of real floating-point noise, so it can't be reused
+/// as-is here. Comfortably above that few-millimetre noise floor and
+/// comfortably below anything a real lane's own geometry legitimately
+/// bends within.
+pub const SPIKE_WELD_EPSILON_METERS: f64 = 0.15;
+
+/// Removes two shapes of noise from a ring, both stemming from the exact
+/// same root cause: two independently-buffered pieces meant to share a
+/// boundary exactly (two parallel same-edge lanes' own core gates, or a
+/// chain meeting the neighbouring lane's own core gate) land their own
+/// copy of that shared point a few millimetres apart rather than exactly
+/// on top of each other, confirmed on real Barcelona data
+/// (`1395134884#0_straight`) with no `resolve_overlaps` cut involved at
+/// all, so the fix belongs here, on the union's own output, not on
+/// `resolve_overlaps`:
+///
+/// - A vertex `p1` whose immediate neighbours `p0`/`p2` land within
+///   [`SPIKE_WELD_EPSILON_METERS`] of each other — the boundary running
+///   out to `p1` and straight back rather than continuing past it,
+///   enclosing no real area of its own. Removing `p1` alone would leave
+///   `p0` and `p2` as an (almost) exact duplicate pair right next to each
+///   other; removing both collapses that pair down to the one real point
+///   they both approximate.
+/// - Two *adjacent* vertices that are themselves within
+///   [`SPIKE_WELD_EPSILON_METERS`] of each other, with no spike tip
+///   between them at all. Sub-centimetre apart, the edge joining them is
+///   too short for its own direction to mean anything, which then reads
+///   as a sharp turn at *its* neighbours purely from that noise — dropping
+///   one of the pair removes the meaningless edge rather than leaving it
+///   in to keep confusing its neighbours' own angles.
+///
+/// Runs to a fixed point (removing one instance can expose another
+/// behind it), bounded by the ring's own shrinking length rather than
+/// risking an infinite loop.
+fn weld_and_remove_spikes(mut points: Vec<Coord<f64>>) -> Vec<Coord<f64>> {
+    loop {
+        let n = points.len();
+        if n < 4 {
+            return points;
+        }
+        let close = |a: Coord<f64>, b: Coord<f64>| (b.x - a.x).hypot(b.y - a.y) < SPIKE_WELD_EPSILON_METERS;
+        let duplicate = (0..n).find(|&i| close(points[i], points[(i + 1) % n]));
+        if let Some(i) = duplicate {
+            points.remove((i + 1) % n);
+            continue;
+        }
+        let spike = (0..n).find(|&i| close(points[(i + n - 1) % n], points[(i + 1) % n]));
+        let Some(i) = spike else {
+            return points;
+        };
+        let i2 = (i + 1) % n;
+        points = points
+            .into_iter()
+            .enumerate()
+            .filter_map(|(j, p)| (j != i && j != i2).then_some(p))
+            .collect();
+    }
+}
+
+/// [`weld_and_remove_spikes`], applied to every ring of `polygon`.
+pub fn despike(polygon: MultiPolygon<f64>) -> MultiPolygon<f64> {
+    let despike_ring = |ring: &LineString<f64>| -> Option<LineString<f64>> {
+        let mut coords: Vec<Coord<f64>> = ring.coords().copied().collect();
+        if !coords.is_empty() && coords.first() == coords.last() {
+            coords.pop();
+        }
+        let cleaned = weld_and_remove_spikes(coords);
+        if cleaned.len() < 3 {
+            return None;
+        }
+        let mut closed = cleaned;
+        closed.push(closed[0]);
+        Some(LineString::new(closed))
+    };
+
+    MultiPolygon::new(
+        polygon
+            .0
+            .into_iter()
+            .filter_map(|part| {
+                let exterior = despike_ring(part.exterior())?;
+                let interiors = part.interiors().iter().filter_map(despike_ring).collect();
                 Some(GeoPolygon::new(exterior, interiors))
             })
             .collect(),
@@ -60,6 +158,38 @@ pub fn merged_core_polygon(lane_gates: &[(&Lane, Length, Length)]) -> MultiPolyg
         .unwrap_or_else(|| MultiPolygon::new(Vec::new()))
 }
 
+/// Below this share of a walkingarea's own `length * width`, the area its
+/// `shape` encloses is too small to be the footprint that shape is
+/// supposed to outline — see [`pedestrian_lane_polygon`] for what's done
+/// about it.
+///
+/// Real Barcelona data puts the median walkingarea at 1.06 (an outline
+/// enclosing very nearly what its own reported length and width predict,
+/// which is what a correct one looks like) with the 5th percentile still
+/// at 0.17, and then a separate population of 190 lanes — 2.3% of all
+/// 8282 — sitting at a flat, unambiguous **zero**. This is set low enough
+/// to name only that second population: a walkingarea with a merely
+/// unusual footprint keeps being read exactly as before, and nothing
+/// here second-guesses `netconvert` about a shape it drew coherently.
+const MIN_PLAUSIBLE_OUTLINE_AREA_RATIO: f64 = 0.05;
+
+/// The ground a walkingarea covers, read from the closed outline its
+/// `shape` is meant to be.
+///
+/// "Meant to be" is load-bearing: `netconvert` also emits walkingareas
+/// whose `shape` traces a path out and straight back rather than around a
+/// region, enclosing (near-)zero area despite a perfectly ordinary
+/// `length` and `width` — 190 of Barcelona's own 8282, confirmed against
+/// the network directly. Read as an outline, such a lane yields no zone at
+/// all: a pedestrian zone that silently doesn't exist for a crossing
+/// people are demonstrably using, which is exactly the upstream-defect
+/// class this crate has no way to fix at the source and every reason not
+/// to propagate. For those, the convex hull of the lane's own shape points
+/// stands in — the smallest region containing every point `netconvert`
+/// placed for this walkingarea, so it's bounded by that lane's own
+/// footprint by construction and can't reach ground the lane doesn't
+/// occupy (unlike [`fill_small_concavities`]'s own former whole-zone hull,
+/// which could and did — see its docs).
 pub fn pedestrian_lane_polygon(lane: &Lane) -> MultiPolygon<f64> {
     let mut coords: Vec<Coord<f64>> = lane.shape.0.iter().map(|p| Coord { x: p.x, y: p.y }).collect();
     if coords.len() < 3 {
@@ -69,6 +199,11 @@ pub fn pedestrian_lane_polygon(lane: &Lane) -> MultiPolygon<f64> {
         coords.push(coords[0]);
     }
     let raw = MultiPolygon::new(vec![GeoPolygon::new(LineString::new(coords), Vec::new())]);
+
+    let nominal_area = lane.length.get::<meter>() * lane.width.get::<meter>();
+    if raw.unsigned_area() < nominal_area * MIN_PLAUSIBLE_OUTLINE_AREA_RATIO {
+        return MultiPolygon::new(vec![raw.convex_hull()]);
+    }
     // Real Barcelona walkingarea outlines aren't always simple polygons on
     // their own — confirmed on real data, some self-touch or self-cross
     // exactly like the hand-built shapes this crate used to have to guard
@@ -190,7 +325,23 @@ pub fn chain_shape<'a>(
         if let Some(via_id) = via
             && let Some(&via_lane) = lanes.get(via_id)
         {
-            points.extend(via_lane.shape.0.iter().copied());
+            // A straight line between the via's own endpoints, not its
+            // real (possibly sharply curved) shape: SUMO draws a via lane
+            // as the *actual* swept turning path through a junction, which
+            // at a busy, tightly-packed intersection can be a long, bent
+            // curve — several such curves from different approaches
+            // converging within a few metres of each other is exactly what
+            // produced `203480266#0_straight`'s own self-intersecting ring
+            // (confirmed: its own merge point combines a ~1.5m direct via
+            // with a ~13m, 5-point sweeping one). The straight line still
+            // meets both real lanes on either side exactly — a via's own
+            // endpoints are shared with theirs by construction — so the
+            // chain stays one continuous, gap-free path; it just stops
+            // carrying the via's own interior bends into the union.
+            if let (Some(&first), Some(&last)) = (via_lane.shape.0.first(), via_lane.shape.0.last()) {
+                points.push(first);
+                points.push(last);
+            }
         }
         terminal_successor = Some(successor.to_string());
         // Stop at the zone's own controlled lane (not an ancestor at all)
@@ -212,11 +363,23 @@ pub const SIMPLIFY_TOLERANCE_METERS: f64 = 0.05;
 
 const MAX_FILLED_CONCAVITY_AREA_RATIO: f64 = 1.25;
 
+/// Replaces a part with its own convex hull when that barely changes its
+/// area — smoothing away the sub-metre notch a union of two buffers
+/// leaves at their seam, without moving a boundary that encloses real
+/// ground.
+///
+/// Deliberately per part, never over the whole `MultiPolygon` at once. An
+/// earlier version took the hull of everything first and returned it
+/// whenever *its* area passed the same ratio test, which on a zone whose
+/// parts are genuinely disconnected (a core gate plus an extended-ancestor
+/// chain that doesn't reach it — see [`zone_polygon`]) bridged straight
+/// across the gap between them and claimed it: measured on real Barcelona
+/// data, 154 vehicle zones grew by 3816m² in total that way, one of them
+/// (`550667908#0_straight`) tripling from 55m² to 166m² by swallowing
+/// ground no lane of its own covers. A zone ends where the gap is (see
+/// `to_feature_collection`'s own `keep_part_near` reduction); filling one
+/// in here quietly undid that.
 fn fill_small_concavities(polygon: MultiPolygon<f64>) -> MultiPolygon<f64> {
-    let hull = polygon.convex_hull();
-    if hull.unsigned_area() <= polygon.unsigned_area() * MAX_FILLED_CONCAVITY_AREA_RATIO {
-        return MultiPolygon::new(vec![hull]);
-    }
     MultiPolygon::new(
         polygon
             .0
@@ -411,7 +574,14 @@ pub fn zone_polygon(
     // lane buffers meet. Unioning the finished result with itself makes the
     // overlay engine normalize that contour before it is serialized, rather
     // than exposing the touching boundary as an incision in the zone.
-    let polygon = fill_small_concavities(polygon.union(&polygon));
+    let polygon = fill_small_concavities(despike(polygon.union(&polygon)));
     let polygon = if is_pedestrian { polygon } else { polygon.simplify(SIMPLIFY_TOLERANCE_METERS) };
-    Ok(snap_coords(drop_slivers(polygon)))
+    // `simplify`'s own Douglas-Peucker pass can drop a vertex that used to
+    // sit between two of `despike`'s own near-duplicates above, newly
+    // making them adjacent to each other where they weren't when `despike`
+    // ran the first time -- run it again on whatever `simplify` leaves
+    // behind, rather than leaving that new pair for the next thing down
+    // the pipe to trip over.
+    let polygon = despike(polygon);
+    Ok(drop_interior_rings(snap_coords(drop_slivers(polygon))))
 }
