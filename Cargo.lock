@@ -896,7 +896,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "sumo-types"
-version = "0.2.2"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f677e31749d26ff41024e22ab65a284dae7e69a93c319093bc029f1b2d8ae930"
 dependencies = [
  "Inflector",
  "derive_more",

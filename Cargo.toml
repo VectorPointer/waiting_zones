@@ -39,7 +39,7 @@ derive_more = { version = "2.1.1", features = ["display", "from", "as_ref"] }
 # `Display`/`From`/`AsRef` derives generate impls of the std traits, so
 # nothing from it crosses the boundary. That copy is purely for this crate's
 # own types and its version is free.)
-sumo-types = { version = "0.2.1", features = ["additional", "write"] }
+sumo-types = { version = "0.3.0", features = ["additional", "write"] }
 # Reprojects a network's local/projected coordinates (`.net.xml`'s own CRS,
 # e.g. UTM) back to WGS84 lon/lat for the GeoJSON output — the coordinate
 # system GPS and GeoJSON both assume. Pure Rust, no `libproj` system
@@ -84,15 +84,10 @@ geo = { version = "0.33.1", default-features = false }
 # `i_overlay`'s own `allow_multithreading`/`glam`/`serde` extras.
 i_overlay = { version = "=4.5.2", default-features = false }
 
-# Temporary, until `sumo-types` 0.2.2 (adding `domain::VClass` /
-# `Lane::permits`, used by `geojson_output`'s own `zone_modes`) is actually
-# published to crates.io — `[patch]`, not a path dependency on `sumo-types`
-# itself above: it keeps the declared `version = "0.2.1"` requirement (still
-# satisfied by 0.2.2 — `^0.2.1`) as what a real consumer resolves, and is a
-# one-line removal once the real release exists, rather than the permanent
-# path-dependency drift the comment above already rejected.
-[patch.crates-io]
-sumo-types = { path = "../sumo-types" }
+# `sumo-types` 0.3.0 (adding `domain::VClass` / `Lane::permits`, used by
+# `geojson_output`'s own `zone_modes`) is on crates.io, so the temporary
+# `[patch.crates-io]` that pointed at the sibling checkout is gone and the
+# requirement above resolves the published release.
 
 [dev-dependencies]
 # Only for tests/zone_fixtures.rs, which compares a fixture's committed
@@ -108,4 +103,4 @@ geo = { version = "0.33.1", default-features = false }
 # `zone_output` themselves never talk to a running simulation, so this has
 # no business being a regular dependency — path, not crates.io, same
 # reasoning `control_loop`'s own Cargo.toml gives for its sibling crates.
-traci = { path = "../engine/traci" }
+traci = { path = "../traci" }

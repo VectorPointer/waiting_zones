@@ -1,8 +1,10 @@
 /target
 detector_output/
 
-# viz.html itself is checked in (dev tooling); the data it fetches is a
-# regeneratable build artifact -- see viz/README.md.
-/viz/zones.add.xml
-/viz/zones.geojson
+# viz.html itself is checked in (dev tooling); the data it fetches (one
+# subdirectory per dataset -- see viz/README.md) is a regeneratable build
+# artifact.
+/viz/data/
 /viz/server.log
+/viz/fixtures/
+/viz/__pycache__/
