@@ -7,7 +7,7 @@ mod tests {
     use crate::geojson_output::{
         find_near_touch, weld_near_touch_and_split, MIN_DRAWN_LANE_LENGTH_METERS,
         distance_to_polygon, relax_needle_vertices_everywhere, Reprojector, feature_rings,
-        overlapping_zone_ids, single_successors, to_feature_collection, write, zone_feature,
+        lane_links, overlapping_zone_ids, to_feature_collection, write, zone_feature,
     };
     use sumo_types::additional::domain::{DetectorGate, DetectorId, E3Detector, LanePosition, LaneRef, PersonMode};
     use sumo_types::domain::{
@@ -142,7 +142,7 @@ mod tests {
 
     /// A real, single-lane (`fromLane`/`toLane` both `0`) `<connection>`
     /// from `from_edge` to `to_edge`, optionally bridged by an internal
-    /// `via` lane — [`single_successors`]'s own tests need real
+    /// `via` lane — `lane_links`'s own tests need real
     /// connections to re-derive chain adjacency from, unlike every other
     /// fixture here, which leaves `Network::connections` empty since
     /// nothing before this needed it.
@@ -587,14 +587,14 @@ mod tests {
         let lanes: HashMap<&str, &Lane> =
             network.edges.iter().flat_map(|edge| &edge.lanes).map(|lane| (lane.id.0.as_str(), lane)).collect();
         let lane_to_junction: HashMap<&str, &str> = HashMap::new();
-        let successors = single_successors(&network);
+        let links = lane_links(&network);
         let reproject = Reprojector::new(&network.location).unwrap();
         let collection = FeatureCollection {
             bbox: None,
             features: vec![
-                zone_feature(&zone("j0_0", "e0_0"), &lanes, &lane_to_junction, &successors, &reproject, MIN_DRAWN_LANE_LENGTH_METERS)
+                zone_feature(&zone("j0_0", "e0_0"), &lanes, &lane_to_junction, &links, &reproject, MIN_DRAWN_LANE_LENGTH_METERS)
                     .unwrap(),
-                zone_feature(&zone("j0_1", "e0_1"), &lanes, &lane_to_junction, &successors, &reproject, MIN_DRAWN_LANE_LENGTH_METERS)
+                zone_feature(&zone("j0_1", "e0_1"), &lanes, &lane_to_junction, &links, &reproject, MIN_DRAWN_LANE_LENGTH_METERS)
                     .unwrap(),
             ],
             foreign_members: None,
@@ -737,7 +737,7 @@ mod tests {
     }
 
     /// A straight lane of `width_m`, running from `from` to `to` in the
-    /// network's own local coordinates — [`single_successors`]'s and
+    /// network's own local coordinates — `lane_links`'s and
     /// [`chain_shape`]'s own tests need real, differently-positioned
     /// connected segments, unlike [`parallel_lane`]'s fixed north-south
     /// 20m shape.
@@ -1670,12 +1670,10 @@ mod tests {
     /// sits at 0.1017%, above this zone's own 0.089% — so no single cap
     /// both fixes every one of those and leaves this zone's own margin
     /// untouched.
-    const ZONES_CUT_BACK_PAST_THEIR_OWN_STOP_LINE: [&str; 6] = [
+    const ZONES_CUT_BACK_PAST_THEIR_OWN_STOP_LINE: [&str; 4] = [
         "683963534_straight+turn+partial_left",
         "1053359487#6_left+right",
         "-402739619#0_straight+turn+right",
-        "201419371#5_straight",
-        "46270517#0_straight",
         "-27641458#2_straight",
     ];
 

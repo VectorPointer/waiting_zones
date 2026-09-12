@@ -10,7 +10,7 @@ use geojson::{Feature, FeatureCollection, Position};
 use std::collections::HashMap;
 use sumo_types::additional::domain::E3Detector;
 use sumo_types::domain::Lane;
-use crate::geojson_output::geometry::{zone_polygon, SPIKE_WELD_EPSILON_METERS};
+use crate::geojson_output::geometry::{zone_polygon, LaneLinks, SPIKE_WELD_EPSILON_METERS};
 use crate::geojson_output::reprojection::MIN_DRAWN_LANE_LENGTH_METERS;
 
 pub const ERROR: Style = AnsiColor::Red.on_default().bold();
@@ -1072,12 +1072,12 @@ pub fn still_overlapping(polygons: &[MultiPolygon<f64>], pairs: &[(usize, usize)
 pub fn max_safe_pad(
     zone: &E3Detector,
     lanes: &HashMap<&str, &Lane>,
-    successors: &HashMap<&str, (&str, Option<&str>)>,
+    links: &LaneLinks<'_>,
     upper: f64,
     opposing: &MultiPolygon<f64>,
 ) -> Result<f64> {
     let overlaps_at = |pad: f64| -> Result<bool> {
-        Ok(overlap_area_m2(&zone_polygon(zone, lanes, successors, pad)?, opposing) > OVERLAP_AREA_THRESHOLD_M2)
+        Ok(overlap_area_m2(&zone_polygon(zone, lanes, links, pad)?, opposing) > OVERLAP_AREA_THRESHOLD_M2)
     };
     if !overlaps_at(upper)? {
         return Ok(upper);
@@ -1098,7 +1098,7 @@ pub const MAX_RESOLUTION_ROUNDS: u32 = 8;
 pub fn resolve_overlaps(
     zones: &[E3Detector],
     lanes: &HashMap<&str, &Lane>,
-    successors: &HashMap<&str, (&str, Option<&str>)>,
+    links: &LaneLinks<'_>,
     stop_points: &[Coord<f64>],
     polygons: &mut [MultiPolygon<f64>],
 ) -> Result<()> {
@@ -1149,9 +1149,9 @@ pub fn resolve_overlaps(
                 if current <= 0.0 {
                     continue;
                 }
-                let best = max_safe_pad(&zones[shrink], lanes, successors, current, &polygons[opposing])?;
+                let best = max_safe_pad(&zones[shrink], lanes, links, current, &polygons[opposing])?;
                 if best < current {
-                    polygons[shrink] = zone_polygon(&zones[shrink], lanes, successors, best)?;
+                    polygons[shrink] = zone_polygon(&zones[shrink], lanes, links, best)?;
                     pad_meters.insert(shrink, best);
                     progressed = true;
                 }

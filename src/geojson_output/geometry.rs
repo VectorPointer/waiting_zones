@@ -318,7 +318,16 @@ pub fn zone_modes(zone: &E3Detector, lanes: &HashMap<&str, &Lane>) -> Vec<&'stat
     }
 }
 
-pub fn single_successors(network: &Network) -> HashMap<&str, (&str, Option<&str>)> {
+/// The lane-to-lane links `zone_polygon` and `chain_shape` need: each
+/// lane's single successor and the via bridging that hop, so a chain is
+/// drawn forward, from an ancestor into the control lane. Bundled into a
+/// named type so neither function's own signature drifts a parameter with
+/// every future link it needs.
+pub struct LaneLinks<'a> {
+    pub successors: HashMap<&'a str, (&'a str, Option<&'a str>)>,
+}
+
+pub fn lane_links(network: &Network) -> LaneLinks<'_> {
     let internal_edges: HashSet<&EdgeId> = network
         .edges
         .iter()
@@ -346,13 +355,15 @@ pub fn single_successors(network: &Network) -> HashMap<&str, (&str, Option<&str>
         successors_by_from.entry(from_lane).or_default().push((to_lane, via));
     }
 
-    successors_by_from
+    let successors = successors_by_from
         .into_iter()
         .filter_map(|(from, successors)| {
             let distinct: HashSet<&str> = successors.iter().map(|&(lane, _)| lane).collect();
             (distinct.len() == 1).then(|| (from, successors[0]))
         })
-        .collect()
+        .collect();
+
+    LaneLinks { successors }
 }
 
 pub fn chain_shape<'a>(
@@ -454,7 +465,7 @@ fn fill_small_concavities(polygon: MultiPolygon<f64>) -> MultiPolygon<f64> {
 pub fn zone_polygon(
     zone: &E3Detector,
     lanes: &HashMap<&str, &Lane>,
-    successors: &HashMap<&str, (&str, Option<&str>)>,
+    links: &LaneLinks<'_>,
     pad_meters: f64,
 ) -> Result<MultiPolygon<f64>> {
     let resolve = |lane_ref: &sumo_types::additional::domain::LaneRef| {
@@ -466,7 +477,6 @@ pub fn zone_polygon(
         })
     };
     let target_length = Length::new::<meter>(pad_meters);
-    let entry_span = |entry: Length, exit: Length| padded_entry(entry, exit, target_length);
 
     let mut exit_position_by_lane: HashMap<&str, Length> = HashMap::with_capacity(zone.exits.len());
     for exit in &zone.exits {
@@ -494,7 +504,7 @@ pub fn zone_polygon(
             pedestrian_core_lanes.push(lane);
         } else if let Some(&exit_distance) = exit_position_by_lane.get(entry.lane.0.as_str()) {
             let entry_distance = distance_from_start(entry.position, lane.length);
-            core_gates.push((lane, entry_span(entry_distance, exit_distance), exit_distance));
+            core_gates.push((lane, padded_entry(entry_distance, exit_distance, target_length), exit_distance));
         } else if !entry.lane.0.starts_with(':') {
             // `zone_generator::extended_entry_lanes` adds every hop's own
             // bridging `via` as a *separate* flat entry too (real
@@ -526,7 +536,7 @@ pub fn zone_polygon(
         core_gates.iter().enumerate().map(|(i, &(lane, _, _))| (lane.id.0.as_str(), i)).collect();
     let mut core_predecessor_count: HashMap<&str, usize> = HashMap::new();
     for &lane in &ancestor_lanes {
-        if let Some(&(successor, _)) = successors.get(lane)
+        if let Some(&(successor, _)) = links.successors.get(lane)
             && core_gate_index_by_lane.contains_key(successor)
         {
             *core_predecessor_count.entry(successor).or_insert(0) += 1;
@@ -560,7 +570,7 @@ pub fn zone_polygon(
     // rather than merely redundant.
     let mut in_degree: HashMap<&str, usize> = HashMap::new();
     for &lane in &ancestor_lanes {
-        if let Some(&(successor, _)) = successors.get(lane)
+        if let Some(&(successor, _)) = links.successors.get(lane)
             && ancestor_lanes.contains(successor)
         {
             *in_degree.entry(successor).or_insert(0) += 1;
@@ -570,7 +580,7 @@ pub fn zone_polygon(
         ancestor_lanes.iter().filter(|lane| in_degree.get(*lane).copied().unwrap_or(0) != 1);
     for &start in segment_starts {
         let Some((chain_lanes, shape, terminal_successor)) =
-            chain_shape(start, &ancestor_lanes, &in_degree, successors, lanes)
+            chain_shape(start, &ancestor_lanes, &in_degree, &links.successors, lanes)
         else {
             continue;
         };
@@ -594,13 +604,20 @@ pub fn zone_polygon(
         if let Some(&gate_idx) = core_gate_index_by_lane.get(terminal_successor)
             && absorbed_core_gates.contains(&gate_idx)
         {
-            let (core_lane, _core_entry, core_exit_distance) = core_gates[gate_idx];
-            let chain_length = shape_length(&shape);
+            let (core_lane, _core_entry, _core_exit_distance) = core_gates[gate_idx];
             let mut combined_points = shape.0.clone();
             combined_points.extend(core_lane.shape.0.iter().copied());
             let combined_shape = Shape(combined_points);
-            let total_exit = chain_length + core_exit_distance;
-            let entry_distance = entry_span(Length::new::<meter>(0.0), total_exit);
+            // The exit is the *combined path's* own end, measured on it
+            // directly rather than summed from `chain_length` + the core
+            // gate's lane-distance: a hop between two real lanes can thread
+            // more than one internal lane, and `chain_shape` only bridges
+            // the connection's own `via` (the first one). Summing would
+            // then fall short by exactly the remaining internal length —
+            // confirmed on real Barcelona data, `734604335#0_straight` was
+            // cut 5.41m short of its own stop line that way.
+            let total_exit = shape_length(&combined_shape);
+            let entry_distance = padded_entry(Length::new::<meter>(0.0), total_exit, target_length);
             let half_width = core_lane.width / 2.0;
             polygon =
                 polygon.union(&buffer_shape(&combined_shape, entry_distance, total_exit, half_width, LineCap::Butt));
@@ -608,7 +625,7 @@ pub fn zone_polygon(
         }
 
         let total_length = shape_length(&shape);
-        let entry_distance = entry_span(Length::new::<meter>(0.0), total_length);
+        let entry_distance = padded_entry(Length::new::<meter>(0.0), total_length, target_length);
         let half_width = chain_lanes[0].width / 2.0;
         // Keep the connecting end flush with the chain's real endpoint.
         // Extending it with a square cap creates a narrow wedge when this

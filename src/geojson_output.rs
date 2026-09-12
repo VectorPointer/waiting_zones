@@ -13,7 +13,7 @@ pub(crate) use overlaps::distance_to_polygon;
 #[cfg(test)]
 pub(crate) use feature::zone_feature;
 #[cfg(test)]
-pub(crate) use geometry::single_successors;
+pub(crate) use geometry::lane_links;
 #[cfg(test)]
 pub(crate) use overlaps::{
     feature_rings, find_near_touch, relax_needle_vertices_everywhere, weld_near_touch_and_split,

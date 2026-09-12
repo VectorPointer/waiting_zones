@@ -6,7 +6,7 @@ use geojson::{Feature, FeatureCollection, Geometry, JsonObject, Position};
 use std::{collections::HashMap, path::Path};
 use sumo_types::additional::domain::E3Detector;
 use sumo_types::domain::{Lane, Network, Point};
-use crate::geojson_output::geometry::{centroid, despike, single_successors, zone_modes, zone_polygon};
+use crate::geojson_output::geometry::{centroid, despike, lane_links, zone_modes, zone_polygon};
 use crate::geojson_output::overlaps::{
     distance_to_polygon, drop_grazing_vertices_everywhere, drop_interior_rings, drop_slivers,
     keep_part_near, relax_needle_vertices_everywhere, resolve_overlaps, split_self_intersections,
@@ -164,11 +164,11 @@ pub fn zone_feature(
     zone: &E3Detector,
     lanes: &HashMap<&str, &Lane>,
     lane_to_junction: &HashMap<&str, &str>,
-    successors: &HashMap<&str, (&str, Option<&str>)>,
+    links: &crate::geojson_output::geometry::LaneLinks<'_>,
     reproject: &Reprojector,
     pad_meters: f64,
 ) -> Result<Feature> {
-    build_feature(zone, lanes, lane_to_junction, &zone_polygon(zone, lanes, successors, pad_meters)?, reproject)
+    build_feature(zone, lanes, lane_to_junction, &zone_polygon(zone, lanes, links, pad_meters)?, reproject)
 }
 
 pub fn to_feature_collection(network: &Network, zones: &[E3Detector]) -> Result<FeatureCollection> {
@@ -195,11 +195,11 @@ pub fn to_feature_collection(network: &Network, zones: &[E3Detector]) -> Result<
         .iter()
         .flat_map(|junction| junction.incoming_lanes.iter().map(move |lane| (lane.0.as_str(), junction.id.0.as_str())))
         .collect();
-    let successors = single_successors(network);
+    let links = lane_links(network);
 
     let mut polygons = zones
         .iter()
-        .map(|zone| zone_polygon(zone, &lanes, &successors, MIN_DRAWN_LANE_LENGTH_METERS))
+        .map(|zone| zone_polygon(zone, &lanes, &links, MIN_DRAWN_LANE_LENGTH_METERS))
         .collect::<Result<Vec<_>>>()?;
     // `resolve_overlaps`'s own reference point per zone — see
     // `keep_part_near`'s own docs for what it's for.
@@ -215,7 +215,7 @@ pub fn to_feature_collection(network: &Network, zones: &[E3Detector]) -> Result<
         .collect::<Result<Vec<_>>>()?;
 
 
-    resolve_overlaps(zones, &lanes, &successors, &stop_points, &mut polygons)?;
+    resolve_overlaps(zones, &lanes, &links, &stop_points, &mut polygons)?;
     // `resolve_overlaps`'s own `difference` cuts leave the same kind of
     // spike/near-duplicate seam `zone_polygon`'s own `union` does (see
     // `despike`'s own docs) — confirmed on real Barcelona data

@@ -411,6 +411,17 @@ pub fn generate(
         .copied()
         .collect();
 
+    // Every traffic-light junction's own id — `extended_entry_lanes` stops
+    // before a predecessor lane whose edge *leaves* one (see that
+    // function's own docs): beyond another signal's node, the ground
+    // belongs to that signal's own zones, not this one's.
+    let traffic_light_junction_ids: HashSet<&JunctionId> = network
+        .junctions
+        .iter()
+        .filter(|junction| is_traffic_light(junction.kind))
+        .map(|junction| &junction.id)
+        .collect();
+
     let graph = ConnectivityGraph {
         lane_ids_by_edge_and_index: &lane_ids_by_edge_and_index,
         connections_by_from_lane: &connections_by_from_lane,
@@ -419,6 +430,7 @@ pub fn generate(
         via_lane_between: &via_lane_between,
         lanes: &lanes,
         edge_start_junction_by_lane: &edge_start_junction_by_lane,
+        traffic_light_junctions: &traffic_light_junction_ids,
         complex_intersection_junctions: &complex_intersection_junctions,
         edge_by_lane: &edge_by_lane,
         stop_at_complex_intersections,
@@ -461,11 +473,15 @@ struct ConnectivityGraph<'a> {
     /// backward, the same source [`full_lane_boundaries`] already reads
     /// lengths from for every other lane.
     lanes: &'a HashMap<&'a LaneId, LaneInfo>,
-    /// The junction a given lane's own edge starts at — only consulted when
-    /// `stop_at_complex_intersections` is set (see
-    /// [`extended_entry_lanes`]'s own docs on the stopping condition it
-    /// adds).
+    /// The junction a given lane's own edge starts at — consulted for the
+    /// traffic-light stop below, and for
+    /// `stop_at_complex_intersections`'s own stopping condition.
     edge_start_junction_by_lane: &'a HashMap<&'a LaneId, &'a JunctionId>,
+    /// Every traffic-light junction's own id — [`extended_entry_lanes`]
+    /// refuses to walk into a predecessor whose own edge starts at one of
+    /// these, since that lane is ground leaving another signal's node (see
+    /// that function's own docs).
+    traffic_light_junctions: &'a HashSet<&'a JunctionId>,
     /// Every junction that's part of some `joinTLS`-merged traffic light
     /// program spanning more than one junction (see [`generate`]'s own docs
     /// on how this is computed) — only consulted when
@@ -621,6 +637,13 @@ fn successor_lane_count(lane_id: &LaneId, graph: &ConnectivityGraph<'_>) -> usiz
 ///   already has its own waiting zone, and extending through it would draw
 ///   a rectangle right on top of that zone's own rather than next to it
 ///   (`signal_controlled_lanes`, checked via `graph`).
+/// - A predecessor whose own edge starts at a traffic-light junction
+///   (`graph.traffic_light_junctions`): that lane is the ground leaving
+///   another signal's node, not this zone's own approach. Without this,
+///   `204105881#6_straight` reached through the priority junction
+///   `279319178` into the 0.2m stub `204105881#5` and up to the previous
+///   light `5588597265` — past the stop line the zone exists to detect,
+///   into a junction another signal owns.
 /// - (only when `graph.stop_at_complex_intersections` is set) `lane_id`
 ///   itself already sits at a junction that's part of a `joinTLS`-merged
 ///   program spanning more than one junction
@@ -698,9 +721,22 @@ fn extended_entry_lanes<'a>(
     let mut extended = Vec::new();
     for &predecessor in predecessors {
         let already_has_its_own_zone = graph.signal_controlled_lanes.contains(predecessor);
+        // A predecessor whose own edge *leaves* a traffic light is ground
+        // on the far side of another signal's node, not this zone's own
+        // approach: confirmed on real Barcelona data, `204105881#6_straight`
+        // walked back through the priority junction `279319178` into the
+        // 0.2m stub `204105881#5`, which starts at the *previous*
+        // traffic light `5588597265`, and stopped only because that light's
+        // own approach lane is signal-controlled. Stopping here instead
+        // keeps a zone on its own side of a signal.
+        let leaves_another_traffic_light = graph
+            .edge_start_junction_by_lane
+            .get(predecessor)
+            .is_some_and(|junction| graph.traffic_light_junctions.contains(junction));
         let predecessor_length = graph.lanes.get(predecessor).map(|info| info.length);
         let Some(predecessor_length) = predecessor_length else { continue };
         if !already_has_its_own_zone
+            && !leaves_another_traffic_light
             && successor_lane_count(predecessor, graph) == 1
             && predecessor_length < remaining_budget
         {
@@ -2207,6 +2243,7 @@ mod tests {
             (&lane_b, LaneInfo { length: Length::new::<meter>(10.0), pedestrian_only: false }),
         ]);
         let edge_start_junction_by_lane: HashMap<&LaneId, &JunctionId> = HashMap::new();
+        let traffic_light_junctions: HashSet<&JunctionId> = HashSet::new();
         let complex_intersection_junctions: HashSet<&JunctionId> = HashSet::new();
         let edge_by_lane: HashMap<&LaneId, &EdgeId> = HashMap::new();
         let graph = ConnectivityGraph {
@@ -2217,6 +2254,7 @@ mod tests {
             via_lane_between: &via_lane_between,
             lanes: &lanes,
             edge_start_junction_by_lane: &edge_start_junction_by_lane,
+            traffic_light_junctions: &traffic_light_junctions,
             complex_intersection_junctions: &complex_intersection_junctions,
             edge_by_lane: &edge_by_lane,
             stop_at_complex_intersections: false,
@@ -2275,6 +2313,7 @@ mod tests {
             (&lane_c, LaneInfo { length: segment_length, pedestrian_only: false }),
         ]);
         let edge_start_junction_by_lane: HashMap<&LaneId, &JunctionId> = HashMap::new();
+        let traffic_light_junctions: HashSet<&JunctionId> = HashSet::new();
         let complex_intersection_junctions: HashSet<&JunctionId> = HashSet::new();
         let edge_by_lane: HashMap<&LaneId, &EdgeId> = HashMap::new();
         let graph = ConnectivityGraph {
@@ -2285,6 +2324,7 @@ mod tests {
             via_lane_between: &via_lane_between,
             lanes: &lanes,
             edge_start_junction_by_lane: &edge_start_junction_by_lane,
+            traffic_light_junctions: &traffic_light_junctions,
             complex_intersection_junctions: &complex_intersection_junctions,
             edge_by_lane: &edge_by_lane,
             stop_at_complex_intersections: false,
@@ -2345,6 +2385,7 @@ mod tests {
         // ground, so this only ever changes what happens *at* `b`.
         let edge_start_junction_by_lane: HashMap<&LaneId, &JunctionId> =
             HashMap::from([(&lane_b, &junction)]);
+        let traffic_light_junctions: HashSet<&JunctionId> = HashSet::new();
         let complex_intersection_junctions: HashSet<&JunctionId> = HashSet::from([&junction]);
         let edge_by_lane: HashMap<&LaneId, &EdgeId> = HashMap::new();
 
@@ -2358,6 +2399,7 @@ mod tests {
             via_lane_between: &via_lane_between,
             lanes: &lanes,
             edge_start_junction_by_lane: &edge_start_junction_by_lane,
+            traffic_light_junctions: &traffic_light_junctions,
             complex_intersection_junctions: &complex_intersection_junctions,
             edge_by_lane: &edge_by_lane,
             stop_at_complex_intersections: false,
