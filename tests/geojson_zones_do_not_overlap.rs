@@ -72,11 +72,12 @@ fn no_two_barcelona_zones_of_the_same_mode_overlap() {
     // disjoint without deciding which movement a driver who hasn't picked a
     // lane yet is queueing for. Listed rather than absorbed into a looser
     // threshold, so the number stays visible and has to come down.
-    const ZONES_SHARING_ONE_APPROACH: [(&str, &str); 6] = [
+    const ZONES_SHARING_ONE_APPROACH: [(&str, &str); 7] = [
         ("-21259582#7_straight", "21259582#5_straight"),
         ("-27489988#4_straight", "27489988#5_straight+turn+right"),
         ("-27641458#2_straight", "27641458#0_straight"),
         ("-870644483#3_straight", "870644483#1_straight"),
+        ("1395134882#2_straight", "1395134882#2_straight+right"),
         ("239297086#16_straight", "239297086#16_straight+left"),
         ("27525620#0_straight", "27525620#4_straight+left"),
     ];

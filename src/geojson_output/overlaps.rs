@@ -10,7 +10,7 @@ use geojson::{Feature, FeatureCollection, Position};
 use std::collections::HashMap;
 use sumo_types::additional::domain::E3Detector;
 use sumo_types::domain::Lane;
-use crate::geojson_output::geometry::zone_polygon;
+use crate::geojson_output::geometry::{zone_polygon, SPIKE_WELD_EPSILON_METERS};
 use crate::geojson_output::reprojection::MIN_DRAWN_LANE_LENGTH_METERS;
 
 pub const ERROR: Style = AnsiColor::Red.on_default().bold();
@@ -381,6 +381,101 @@ fn drop_needle_vertices(ring: &LineString<f64>) -> Option<LineString<f64>> {
     Some(LineString::new(coords))
 }
 
+/// Moves every convex needle vertex to the area-preserving position that
+/// opens its interior angle as wide as possible, instead of deleting it —
+/// the counterpart to [`drop_needle_vertices`] for a spike whose own
+/// triangle encloses real ground.
+///
+/// A needle's own triangle is long and thin: its tip `b` sits far from the
+/// chord `a`->`c` joining its neighbours, so `a` and `c` lie in nearly the
+/// same direction from `b` and the interior angle there collapses toward
+/// `0°`. Deleting `b` gives up whatever ground that triangle encloses, which
+/// is exactly what makes [`drop_needle_vertices`] need its budget and why
+/// that budget can leave a long thin spike in place. Moving `b` does not
+/// have to give anything up: the set of points preserving the triangle's
+/// signed area is the line parallel to `a`->`c` through `b`, and along it
+/// the interior angle at `b` is widest when `b` sits symmetrically over the
+/// chord's own midpoint. So the tip is relocated there — the zone's exact
+/// area is kept, and the spike becomes a shallow, ordinary corner. A tip
+/// already at (or within a floating-point hair of) that spot has nothing to
+/// gain and is left alone.
+///
+/// Only convex needles (a small interior angle — a spike of material) are
+/// touched. A reflex one (near `360°`, a slit cut *into* the material) is
+/// left to [`drop_needle_vertices`]: symmising a slit would push ground
+/// outward into whatever the slit was separating this zone from, which is a
+/// worse defect than the one it would be cleaning up.
+///
+/// Area preservation makes this safe to run without
+/// [`MAX_CLEANUP_AREA_DRIFT_M2`]'s own guard: the shoelace contribution of
+/// `a`,`b`,`c` and of `a`,`b'`,`c` are identical by construction, so the
+/// ring's area is unchanged however many tips move. A move *can* still
+/// leave the ring crossing itself (the tip lands somewhere new), which is
+/// why the caller runs [`split_self_intersections`] afterwards — the same
+/// reason [`drop_needle_vertices`]'s own removals do.
+fn relax_needle_vertices(ring: &LineString<f64>) -> Option<LineString<f64>> {
+    let mut coords: Vec<Coord<f64>> = ring.coords().copied().collect();
+    if coords.first() == coords.last() {
+        coords.pop();
+    }
+
+    // Each move is judged against the ring's *current* neighbours, so a
+    // fixed-point walk is what actually converges; bounded by the ring's own
+    // length so a pathological pair of tips can't ping-pong forever.
+    for _ in 0..coords.len() {
+        let n = coords.len();
+        if n < 3 {
+            return None;
+        }
+        let twice_area: f64 =
+            (0..n).map(|i| coords[i].x * coords[(i + 1) % n].y - coords[(i + 1) % n].x * coords[i].y).sum();
+        let counterclockwise = twice_area > 0.0;
+
+        let mut relaxed = None;
+        for i in 0..n {
+            let (a, b, c) = (coords[(i + n - 1) % n], coords[i], coords[(i + 1) % n]);
+            // Convex needle only (`angle < MIN`) -- see this function's own docs.
+            if interior_angle_degrees(a, b, c, counterclockwise) >= MIN_INTERIOR_ANGLE_DEGREES {
+                continue;
+            }
+            let (dx, dy) = (c.x - a.x, c.y - a.y);
+            let chord = dx.hypot(dy);
+            if chord < SPIKE_WELD_EPSILON_METERS {
+                continue; // neighbours already coincide; removal is the only real move
+            }
+            let signed_height = (dx * (b.y - a.y) - dy * (b.x - a.x)) / chord;
+            let (nx, ny) = (-dy / chord, dx / chord);
+            let moved = Coord {
+                x: (a.x + c.x) / 2.0 + nx * signed_height,
+                y: (a.y + c.y) / 2.0 + ny * signed_height,
+            };
+            if (moved.x - b.x).hypot(moved.y - b.y) > 1e-9 {
+                relaxed = Some((i, moved));
+                break;
+            }
+        }
+
+        match relaxed {
+            Some((i, moved)) => coords[i] = moved,
+            None => break,
+        }
+    }
+
+    if coords.len() < 3 {
+        return None;
+    }
+    coords.push(coords[0]);
+    Some(LineString::new(coords))
+}
+
+/// [`relax_needle_vertices`], applied to every ring of `part`.
+fn relax_needles_in(part: GeoPolygon<f64>) -> GeoPolygon<f64> {
+    let Some(exterior) = relax_needle_vertices(part.exterior()) else { return part };
+    let interiors: Vec<LineString<f64>> =
+        part.interiors().iter().filter_map(relax_needle_vertices).collect();
+    GeoPolygon::new(exterior, interiors)
+}
+
 /// The unsigned area enclosed by an open (first point not repeated)
 /// coordinate sequence — the shoelace formula. What
 /// [`drop_negligible_vertices`] measures a ring's own *starting* area
@@ -686,6 +781,16 @@ pub fn drop_grazing_vertices_everywhere(polygon: MultiPolygon<f64>) -> MultiPoly
     )
 }
 
+/// [`relax_needles_in`], applied to every part of `polygon` — a standalone
+/// pass (rather than folded into [`drop_grazing_vertices_everywhere`])
+/// because it is *not* safe to run unconditionally: relocating a tip can
+/// move the ground a zone's own published stop line sits on out from under
+/// it. The caller keeps the original whenever that happens — see
+/// `feature::to_feature_collection`'s own final pass.
+pub fn relax_needle_vertices_everywhere(polygon: MultiPolygon<f64>) -> MultiPolygon<f64> {
+    MultiPolygon::new(polygon.0.into_iter().map(relax_needles_in).collect())
+}
+
 /// Fallback for [`split_self_intersection`], for the shape of defect that
 /// one can't see at all — see [`find_near_touch`]'s own docs. Welds the
 /// touch into a genuine, bit-identical shared point (reusing the near
@@ -902,15 +1007,27 @@ pub fn drop_slivers(polygon: MultiPolygon<f64>) -> MultiPolygon<f64> {
 /// in the road. A size filter could only ever paper over the *small* end
 /// of that range.
 ///
-/// Applied once, inside [`crate::geojson_output::geometry::zone_polygon`]
-/// itself (every one of that function's own callers — `resolve_overlaps`,
-/// `feature::build_feature`, this crate's own tests — sees a hole-free
-/// result this way), rather than staying a last-step-only filter in
-/// `build_feature`: `resolve_overlaps`'s own overlap/padding decisions
-/// read a polygon's `unsigned_area()`, which already silently subtracts
-/// any interior ring's own area — leaving a spurious hole in place until
-/// the very last step would have those decisions reasoning about ground
-/// this zone doesn't actually claim to give up.
+/// Applied first inside [`crate::geojson_output::geometry::zone_polygon`]
+/// itself, rather than staying a last-step-only filter in `build_feature`:
+/// `resolve_overlaps`'s own overlap/padding decisions read a polygon's
+/// `unsigned_area()`, which already silently subtracts any interior ring's
+/// own area — leaving a spurious hole in place until the very last step
+/// would have those decisions reasoning about ground this zone doesn't
+/// actually claim to give up.
+///
+/// Also applied to every part [`resolve_overlaps`] itself cuts, because
+/// `difference` is a *third* way to produce one: when a neighbour's
+/// contested ground sits wholly inside this zone rather than touching its
+/// boundary, subtracting it leaves an annulus, and the hole is just as
+/// illegitimate as the two union-shaped ones above. Waiting until the final
+/// pass to drop it was not enough, and was itself the bug: the holed part
+/// then fed back into the next round's `difference`/`intersection`, where
+/// `i_overlay`'s own `debug_assert` on a hole edge aborts the whole run
+/// (confirmed on real Eixample data, `478725549#1_straight`), and a zone
+/// that survived to the end carried a hole `build_feature`'s
+/// "exactly one ring" contract would reject anyway. `feature`'s final pass
+/// applies it once more as a belt-and-braces guarantee that what reaches
+/// `build_feature` is unconditionally simply connected.
 pub fn drop_interior_rings(polygon: MultiPolygon<f64>) -> MultiPolygon<f64> {
     MultiPolygon::new(polygon.0.into_iter().map(|part| GeoPolygon::new(part.exterior().clone(), Vec::new())).collect())
 }
@@ -980,7 +1097,19 @@ pub fn resolve_overlaps(
     // network, never repeated (see [`still_overlapping`]'s own docs for why
     // that's sound: both fixes below only ever shrink a polygon, so a pair
     // that isn't here yet can never become one later).
-    let candidates = overlapping_pairs(polygons);
+    // Only same-mode pairs. A vehicle zone and a pedestrian zone may
+    // overlap freely: they are served to different clients, in different
+    // files (`feature::write` splits them), so a client never sees both at
+    // once and there is no ambiguity to resolve — while cutting one against
+    // the other can only maim a zone for no benefit. This matters in
+    // particular because a pedestrian's rectangular waiting area sits right
+    // where a vehicle lane's own stop-line buffer reaches, so cross-mode
+    // pairs are the common case, not a rare one.
+    let same_mode = |i: usize, j: usize| {
+        zones[i].detect_persons.is_empty() == zones[j].detect_persons.is_empty()
+    };
+    let candidates: Vec<(usize, usize)> =
+        overlapping_pairs(polygons).into_iter().filter(|&(i, j)| same_mode(i, j)).collect();
     if candidates.is_empty() {
         return Ok(());
     }
@@ -1108,8 +1237,10 @@ pub fn resolve_overlaps(
                 // instead of one pinched ring it has no reason to touch
                 // (`polygon.0.len() <= 1` there never fires on a single
                 // self-crossing ring).
-                let cleaned =
-                    keep_part_near(drop_slivers(split_self_intersections(cut)), stop_points[zone]);
+                let cleaned = drop_interior_rings(keep_part_near(
+                    drop_slivers(split_self_intersections(cut)),
+                    stop_points[zone],
+                ));
                 new_parts.extend(cleaned.0);
             }
             polygons[zone] = MultiPolygon::new(new_parts);

@@ -8,8 +8,8 @@ use sumo_types::additional::domain::E3Detector;
 use sumo_types::domain::{Lane, Network, Point};
 use crate::geojson_output::geometry::{centroid, despike, single_successors, zone_modes, zone_polygon};
 use crate::geojson_output::overlaps::{
-    distance_to_polygon, drop_grazing_vertices_everywhere, drop_slivers, keep_part_near,
-    resolve_overlaps, split_self_intersections,
+    distance_to_polygon, drop_grazing_vertices_everywhere, drop_interior_rings, drop_slivers,
+    keep_part_near, relax_needle_vertices_everywhere, resolve_overlaps, split_self_intersections,
 };
 use crate::geojson_output::reprojection::{distance_from_start, point_and_tangent_at, Reprojector, MIN_DRAWN_LANE_LENGTH_METERS};
 
@@ -17,6 +17,16 @@ use crate::geojson_output::reprojection::{distance_from_start, point_and_tangent
 /// see that module's own docs on why (`cargo`/`rustc` convention, stripped
 /// automatically when stderr isn't a terminal).
 const WARNING: Style = AnsiColor::Yellow.on_default().bold();
+
+/// How far a zone's own published stop line may sit outside its finished
+/// polygon before the final needle-relaxation pass must leave the shape
+/// alone, in metres. The same value `tests`' own
+/// `STOP_LINE_TOLERANCE_METERS` treats as the real limit (a car stopped at
+/// the line is inside the zone at under a metre even with a few metres of
+/// GPS error), restated here because the production pass — not the test —
+/// is what has to make the decision. Relaxation is cosmetic; coverage of
+/// the line the zone exists to detect is not, so this is the tie-breaker.
+const MAX_PUBLISHED_STOP_LINE_DRIFT_METERS: f64 = 1.0;
 
 /// Where each of `zone`'s own exit gates puts its stop line — one point
 /// per controlled lane, in network coordinates.
@@ -193,6 +203,13 @@ pub fn to_feature_collection(network: &Network, zones: &[E3Detector]) -> Result<
         .iter()
         .map(|zone| stop_line_point(zone, &lanes).map(|p| Coord { x: p.x, y: p.y }))
         .collect::<Result<Vec<_>>>()?;
+    // Every zone's own stop-line candidates, kept for the final
+    // needle-relaxation coverage guard — see the loop's own comment.
+    let stop_line_candidates: Vec<Vec<Point>> = zones
+        .iter()
+        .map(|zone| stop_line_points(zone, &lanes))
+        .collect::<Result<Vec<_>>>()?;
+
 
     resolve_overlaps(zones, &lanes, &successors, &stop_points, &mut polygons)?;
     // `resolve_overlaps`'s own `difference` cuts leave the same kind of
@@ -280,29 +297,70 @@ pub fn to_feature_collection(network: &Network, zones: &[E3Detector]) -> Result<
     // reasoning the despike pass above is placed here rather than inside
     // `resolve_overlaps`' own loop.
     // A zone's ring has to be simple in the lon/lat a client actually
-    // consumes, whatever kind of zone it is. The despike pass above is
-    // deliberately vehicle-only (it repositions vertices, which measurably
-    // sharpens a walkingarea's own tightly-spaced real corners), but
-    // neither step here moves a vertex anywhere: one *drops* a vertex whose
-    // own contribution is sub-square-millimetre, the other cuts a ring at a
-    // point it already revisits. Both are therefore safe to run for a
-    // pedestrian zone too — and needed there, since nothing else did:
-    // `5588593504_w0_straight_ped`'s own outline crosses itself by a real
-    // 13.5mm, well past anything `drop_grazing_vertices_everywhere`'s own
-    // margin is meant to see, and `netconvert` drew it that way.
-    for (polygon, &stop_point) in polygons.iter_mut().zip(&stop_points) {
+    // consumes, whatever kind of zone it is. Most of what runs here never
+    // repositions a vertex — `drop_grazing_vertices_everywhere` *drops* one
+    // whose own contribution is sub-square-millimetre and
+    // `split_self_intersections` cuts a ring at a point it already revisits
+    // — so both are safe for a pedestrian zone too, and needed there, since
+    // nothing else did: `5588593504_w0_straight_ped`'s own outline crosses
+    // itself by a real 13.5mm, well past anything
+    // `drop_grazing_vertices_everywhere`'s own margin is meant to see, and
+    // `netconvert` drew it that way.
+    //
+    // `relax_needle_vertices_everywhere` is the one pass that *does* move a
+    // vertex, and it is held to a stricter standard for it — see the loop's
+    // own comment on why its result is only ever accepted when it keeps the
+    // zone's own published stop line covered.
+    for (index, (polygon, &stop_point)) in polygons.iter_mut().zip(&stop_points).enumerate() {
         let taken = std::mem::replace(polygon, MultiPolygon::new(Vec::new()));
-        let cleaned = drop_slivers(split_self_intersections(drop_grazing_vertices_everywhere(taken)));
-        // `drop_slivers` unconditionally, not only inside this branch: a
-        // zone with exactly one surviving part never used to be checked
-        // against `MIN_KEPT_PART_AREA_M2` at all, since the sliver filter
-        // only ran here when there was more than one part to choose
-        // between. Confirmed on real Eixample data, 15 zones whose own
-        // sole remaining part had collapsed to a near-zero-area triangle
+
+        // `drop_slivers` unconditionally, not only inside the "more than one
+        // part" branch: a zone with exactly one surviving part never used to
+        // be checked against `MIN_KEPT_PART_AREA_M2` at all, since the
+        // sliver filter only ran here when there was more than one part to
+        // choose between. Confirmed on real Eixample data, 15 zones whose
+        // own sole remaining part had collapsed to a near-zero-area triangle
         // (as small as 0.000061m²) shipped anyway — `keep_part_near`'s own
         // "more than one part" check never even looked at whether the one
         // part it *did* have was worth keeping.
-        *polygon = if cleaned.0.len() > 1 { keep_part_near(cleaned, stop_point) } else { cleaned };
+        let finish = |polygon: MultiPolygon<f64>| {
+            let cleaned = drop_interior_rings(drop_slivers(split_self_intersections(
+                drop_grazing_vertices_everywhere(polygon),
+            )));
+            if cleaned.0.len() > 1 { keep_part_near(cleaned, stop_point) } else { cleaned }
+        };
+
+        let cleaned = finish(taken);
+        // Smooth each remaining spike by moving its tip rather than deleting
+        // it (see `relax_needle_vertices_everywhere`'s own docs), then keep
+        // the result only when it leaves the *published* stop line's own
+        // coverage exactly as the cleaned shape had it. A spike's tip is
+        // sometimes precisely the ground a walkingarea's centroid stop line
+        // sits on; a zone that stops covering the line it exists to detect
+        // is a worse defect than any cosmetic spike, so coverage wins. Both
+        // sides are fully finished (including `keep_part_near`) before the
+        // comparison, because it is the final polygon that has to cover the
+        // line, and relaxing can change which part survives.
+        let relaxed = finish(relax_needle_vertices_everywhere(cleaned.clone()));
+        // How far the zone's own *published* stop line sits outside its
+        // polygon — `0.0` for the overwhelming majority, and a small,
+        // already-known debt only where `resolve_overlaps` had to cut the
+        // zone back past its own line (see
+        // `tests::ZONES_CUT_BACK_PAST_THEIR_OWN_STOP_LINE`).
+        let stop_line_drift = |polygon: &MultiPolygon<f64>| {
+            let stop = published_stop_line(&stop_line_candidates[index], polygon);
+            distance_to_polygon(Coord { x: stop.x, y: stop.y }, polygon)
+        };
+        let cleaned_drift = stop_line_drift(&cleaned);
+        let relaxed_drift = stop_line_drift(&relaxed);
+        // Cosmetic win only when it doesn't cost stop-line coverage: the
+        // relaxed shape is used only if the cleaned one already covered its
+        // line (never *fixing* a known cut-back zone, which would just make
+        // that tracked debt lie) and relaxing does not move the line
+        // further out. Anything else keeps the cleaned shape untouched.
+        let use_relaxed = cleaned_drift <= MAX_PUBLISHED_STOP_LINE_DRIFT_METERS
+            && relaxed_drift <= cleaned_drift;
+        *polygon = if use_relaxed { relaxed } else { cleaned };
     }
 
     let features = zones

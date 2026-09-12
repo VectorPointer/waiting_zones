@@ -6,7 +6,7 @@ mod tests {
     use std::collections::HashMap;
     use crate::geojson_output::{
         find_near_touch, weld_near_touch_and_split, MIN_DRAWN_LANE_LENGTH_METERS,
-        distance_to_polygon, Reprojector, feature_rings,
+        distance_to_polygon, relax_needle_vertices_everywhere, Reprojector, feature_rings,
         overlapping_zone_ids, single_successors, to_feature_collection, write, zone_feature,
     };
     use sumo_types::additional::domain::{DetectorGate, DetectorId, E3Detector, LanePosition, LaneRef, PersonMode};
@@ -1427,6 +1427,56 @@ mod tests {
         );
     }
 
+    /// The needle counterpart to `drop_needle_vertices`'s own removal: a
+    /// spike whose triangle encloses real ground can be *moved* to a
+    /// shallow, ordinary corner instead of given up, and the ring's area has
+    /// to come out unchanged.
+    ///
+    /// The shape below is a 4x4 square with a long, thin spike: from the top
+    /// edge near `(0.2, 4)` it runs far out to the right and comes back to
+    /// `(0, 4)`, so the tip's own interior angle is under
+    /// `MIN_INTERIOR_ANGLE_DEGREES` — but the triangle it makes encloses
+    /// real area, which is exactly the case removal cannot safely take.
+    #[test]
+    fn relaxing_a_needle_moves_its_tip_to_open_the_angle_without_losing_area() {
+        let ring = vec![
+            (0.0, 0.0),
+            (4.0, 0.0),
+            (4.0, 4.0),
+            (0.2, 4.0),
+            (5.0, 4.05),
+            (0.0, 4.0),
+            (0.0, 0.0),
+        ];
+        let polygon =
+            MultiPolygon::new(vec![GeoPolygon::new(LineString::from(ring.clone()), Vec::new())]);
+        let before_area = polygon.unsigned_area();
+        let before_min = interior_angles_degrees(&ring[..ring.len() - 1])
+            .into_iter()
+            .fold(f64::INFINITY, f64::min);
+        assert!(
+            before_min < crate::geojson_output::overlaps::MIN_INTERIOR_ANGLE_DEGREES,
+            "the fixture has to actually carry a needle to be testing one, got {before_min}°"
+        );
+
+        let relaxed = relax_needle_vertices_everywhere(polygon);
+        let relaxed_ring: Vec<(f64, f64)> =
+            relaxed.0[0].exterior().0.iter().map(|c| (c.x, c.y)).collect();
+        let after_min = interior_angles_degrees(&relaxed_ring[..relaxed_ring.len() - 1])
+            .into_iter()
+            .fold(f64::INFINITY, f64::min);
+
+        assert!(
+            (relaxed.unsigned_area() - before_area).abs() < 1e-9,
+            "moving a tip must not change the ground the zone claims: {before_area} -> {}",
+            relaxed.unsigned_area()
+        );
+        assert!(
+            after_min > before_min,
+            "the spike's own interior angle should have opened up — {before_min}° -> {after_min}°"
+        );
+    }
+
     /// Metres per degree of longitude and of latitude at Barcelona's own
     /// latitude — the two very different numbers that make a raw lon/lat
     /// ring the wrong place to measure an *angle*.
@@ -1620,13 +1670,12 @@ mod tests {
     /// sits at 0.1017%, above this zone's own 0.089% — so no single cap
     /// both fixes every one of those and leaves this zone's own margin
     /// untouched.
-    const ZONES_CUT_BACK_PAST_THEIR_OWN_STOP_LINE: [&str; 7] = [
+    const ZONES_CUT_BACK_PAST_THEIR_OWN_STOP_LINE: [&str; 6] = [
         "683963534_straight+turn+partial_left",
         "1053359487#6_left+right",
         "-402739619#0_straight+turn+right",
         "201419371#5_straight",
         "46270517#0_straight",
-        "5631458674_w1_straight_ped",
         "-27641458#2_straight",
     ];
 
@@ -1694,6 +1743,64 @@ mod tests {
              stop line — delete them from that list so it keeps describing reality: {:?}",
             unexpectedly_fine.len(),
             unexpectedly_fine
+        );
+    }
+
+    /// An L-shaped, four-metre walkingarea corner — the shape `netconvert`
+    /// actually draws around a street corner — becomes the smallest
+    /// rectangle containing it, not the L-shaped outline (or its convex
+    /// hull) the walkingarea's own `shape` would otherwise render as.
+    #[test]
+    fn a_walkingarea_corner_is_squared_off_into_a_rectangle() {
+        let corner = Lane {
+            width: Length::new::<meter>(4.0),
+            shape: Shape(vec![
+                Point { x: 0.0, y: 0.0, z: 0.0 },
+                Point { x: 4.0, y: 0.0, z: 0.0 },
+                Point { x: 4.0, y: 1.0, z: 0.0 },
+                Point { x: 1.0, y: 1.0, z: 0.0 },
+                Point { x: 1.0, y: 4.0, z: 0.0 },
+                Point { x: 0.0, y: 4.0, z: 0.0 },
+            ]),
+            ..straight_lane("e0_0", 4.0)
+        };
+
+        let polygon = crate::geojson_output::geometry::pedestrian_lane_polygon(&corner);
+        assert_eq!(polygon.0.len(), 1, "one walkingarea yields one part");
+        assert_eq!(
+            polygon.0[0].exterior().0.len() - 1,
+            4,
+            "a corner has to come out as a four-corner rectangle: {:?}",
+            polygon.0[0].exterior()
+        );
+        assert!(
+            (polygon.unsigned_area() - 16.0).abs() < 0.01,
+            "the L's own 4x4 bounding rectangle is 16m2, got {}",
+            polygon.unsigned_area()
+        );
+    }
+
+    /// A degenerate, near-collinear walkingarea shape (real `netconvert`
+    /// emits these: the path out and straight back) still yields a real
+    /// rectangle with the lane's own width as its short side, rather than a
+    /// zero-area sliver.
+    #[test]
+    fn a_collinear_walkingarea_still_gets_the_lanes_own_width() {
+        let flat = Lane {
+            width: Length::new::<meter>(4.0),
+            shape: Shape(vec![
+                Point { x: 0.0, y: 0.0, z: 0.0 },
+                Point { x: 10.0, y: 0.0, z: 0.0 },
+                Point { x: 20.0, y: 0.0, z: 0.0 },
+            ]),
+            ..straight_lane("e0_0", 4.0)
+        };
+
+        let polygon = crate::geojson_output::geometry::pedestrian_lane_polygon(&flat);
+        assert!(
+            (polygon.unsigned_area() - 80.0).abs() < 0.01,
+            "a 20m-long, 4m-wide collinear lane should be an 80m2 rectangle, got {}",
+            polygon.unsigned_area()
         );
     }
 
@@ -1803,35 +1910,54 @@ mod tests {
         panic!("zone {id:?} not found in either collection");
     }
 
-    /// Regression test for the two real fixtures
-    /// `overlaps::NEGLIGIBLE_VERTEX_AREA_M2`'s own docs cite as the reason
-    /// pedestrian zones never got a blanket Douglas-Peucker pass: a 5cm
-    /// tolerance once sharpened a real corner on each of these, because
-    /// DP's global, chord-based test doesn't distinguish "noise" from "a
-    /// gentle bend over a long run" any more reliably than a naive local
-    /// check does — see `overlaps::drop_negligible_vertices`'s own docs
-    /// for the mechanism. Both zones have very few vertices (6-7) and
-    /// every one is a real corner (the smallest accounts for 0.044m² and
-    /// 0.221m² respectively — 44x and 221x
-    /// [`overlaps::NEGLIGIBLE_VERTEX_AREA_M2`]'s own cap), so this simply
-    /// asserts neither shape moved a single vertex.
+    /// Every pedestrian waiting area is a rectangle (four distinct
+    /// corners), not the L-shaped, curved wedge `netconvert`'s walkingarea
+    /// `shape` traces — nor a triangle from taking that wedge's convex
+    /// hull. `geometry::pedestrian_lane_polygon` squares the corner off;
+    /// overlap resolution can still trim an edge shared with a neighbouring
+    /// zone, but it must not leave the four-corner shape entirely.
+    ///
+    /// The two ids this checked before the rectangle change are kept as
+    /// named cases: they were the real fixtures that first exposed how
+    /// badly a raw walkingarea outline reads as a polygon.
     #[test]
-    fn known_sensitive_pedestrian_fixtures_keep_every_one_of_their_own_corners() {
-        let cases = [
-            ("5588597076_w0_straight_ped", 7),
-            ("6119951203_w0_straight_ped", 6),
-        ];
-        for (id, expected_vertex_count) in cases {
+    fn real_pedestrian_zones_are_rectangles() {
+        let net_file = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("data/barcelona/barcelona.net.xml");
+        let network = sumo_types::read_network(&net_file).expect("reading Barcelona network");
+        let (pedestrian, _): (Vec<E3Detector>, Vec<E3Detector>) =
+            crate::zone_generator::generate(&network, None, false)
+                .into_iter()
+                .partition(|zone| !zone.detect_persons.is_empty());
+        let collection = to_feature_collection(&network, &pedestrian).expect("building collection");
+
+        let mut four_corner = 0;
+        let mut examined = 0;
+        for feature in &collection.features {
+            let rings = feature_rings(feature);
+            if rings.len() != 1 {
+                continue;
+            }
+            examined += 1;
+            if rings[0].len() - 1 == 4 {
+                four_corner += 1;
+            }
+        }
+        assert!(
+            four_corner * 10 >= examined * 8,
+            "expected the large majority of {examined} pedestrian zones to be plain rectangles, \
+             got only {four_corner}"
+        );
+
+        for id in ["5588597076_w0_straight_ped", "6119951203_w0_straight_ped"] {
             let feature = find_barcelona_zone(id);
             let rings = feature_rings(&feature);
             assert_eq!(rings.len(), 1, "{id}: expected a single ring, no holes");
             assert_eq!(
                 rings[0].len() - 1,
-                expected_vertex_count,
-                "{id}: vertex count changed -- this zone's own corners are all real (see this \
-                 test's own docs on the 44x-221x safety margin), so any cleanup pass removing \
-                 one is exactly the regression that made pedestrian zones skip Douglas-Peucker \
-                 entirely: {:?}",
+                4,
+                "{id} should now be squared off into a rectangle, not the walkingarea's own \
+                 many-corner outline: {:?}",
                 rings[0]
             );
         }

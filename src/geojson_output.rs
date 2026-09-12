@@ -15,6 +15,8 @@ pub(crate) use feature::zone_feature;
 #[cfg(test)]
 pub(crate) use geometry::single_successors;
 #[cfg(test)]
-pub(crate) use overlaps::{feature_rings, find_near_touch, weld_near_touch_and_split};
+pub(crate) use overlaps::{
+    feature_rings, find_near_touch, relax_needle_vertices_everywhere, weld_near_touch_and_split,
+};
 #[cfg(test)]
 pub(crate) use reprojection::{MIN_DRAWN_LANE_LENGTH_METERS, Reprojector};

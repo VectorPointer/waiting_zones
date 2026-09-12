@@ -158,65 +158,120 @@ pub fn merged_core_polygon(lane_gates: &[(&Lane, Length, Length)]) -> MultiPolyg
         .unwrap_or_else(|| MultiPolygon::new(Vec::new()))
 }
 
-/// Below this share of a walkingarea's own `length * width`, the area its
-/// `shape` encloses is too small to be the footprint that shape is
-/// supposed to outline — see [`pedestrian_lane_polygon`] for what's done
-/// about it.
+/// The smallest rectangle (any orientation) that contains every one of
+/// `coords`, widened — never narrowed — so neither side falls below
+/// `min_side` metres. `None` for fewer than three distinct points.
 ///
-/// Real Barcelona data puts the median walkingarea at 1.06 (an outline
-/// enclosing very nearly what its own reported length and width predict,
-/// which is what a correct one looks like) with the 5th percentile still
-/// at 0.17, and then a separate population of 190 lanes — 2.3% of all
-/// 8282 — sitting at a flat, unambiguous **zero**. This is set low enough
-/// to name only that second population: a walkingarea with a merely
-/// unusual footprint keeps being read exactly as before, and nothing
-/// here second-guesses `netconvert` about a shape it drew coherently.
-const MIN_PLAUSIBLE_OUTLINE_AREA_RATIO: f64 = 0.05;
-
-/// The ground a walkingarea covers, read from the closed outline its
-/// `shape` is meant to be.
+/// This is the shape a pedestrian waiting area is rendered as. A
+/// walkingarea's own `shape` traces the path `netconvert` laid around a
+/// street corner: it is frequently L-shaped, curved, or even doubles back
+/// on itself, so treating it directly as a polygon (or taking its convex
+/// hull) yields a wedge or a thin sliver that no client can geofence
+/// against a real GPS fix. The corner a pedestrian actually waits on is
+/// bounded by that same path, so the *rectangle it sits inside* is the
+/// smallest honest stand-in: it never reaches past ground the walkingarea
+/// itself occupies, and it squares the corner off the way the map reads.
 ///
-/// "Meant to be" is load-bearing: `netconvert` also emits walkingareas
-/// whose `shape` traces a path out and straight back rather than around a
-/// region, enclosing (near-)zero area despite a perfectly ordinary
-/// `length` and `width` — 190 of Barcelona's own 8282, confirmed against
-/// the network directly. Read as an outline, such a lane yields no zone at
-/// all: a pedestrian zone that silently doesn't exist for a crossing
-/// people are demonstrably using, which is exactly the upstream-defect
-/// class this crate has no way to fix at the source and every reason not
-/// to propagate. For those, the convex hull of the lane's own shape points
-/// stands in — the smallest region containing every point `netconvert`
-/// placed for this walkingarea, so it's bounded by that lane's own
-/// footprint by construction and can't reach ground the lane doesn't
-/// occupy (unlike [`fill_small_concavities`]'s own former whole-zone hull,
-/// which could and did — see its docs).
-pub fn pedestrian_lane_polygon(lane: &Lane) -> MultiPolygon<f64> {
-    let mut coords: Vec<Coord<f64>> = lane.shape.0.iter().map(|p| Coord { x: p.x, y: p.y }).collect();
+/// Minimum-area, not axis-aligned: a crossing is rarely parallel to the
+/// projected axes, and an axis-aligned box would grow to cover the whole
+/// diagonal and spill across the street. Rotating calipers over the convex
+/// hull (`min_side` is applied last, only to keep a near-collinear shape
+/// from collapsing to zero width) finds the orientation that hugs the
+/// corner instead.
+fn min_area_rectangle(coords: &[Coord<f64>], min_side: f64) -> Option<MultiPolygon<f64>> {
     if coords.len() < 3 {
-        return MultiPolygon::new(Vec::new());
+        return None;
     }
-    if coords.first() != coords.last() {
-        coords.push(coords[0]);
+    let hull = GeoPolygon::new(LineString::new(coords.to_vec()), Vec::new()).convex_hull();
+    let hull_coords: Vec<Coord<f64>> = hull.exterior().coords().copied().collect();
+    // `convex_hull` closes its ring (first == last); the edge loop below
+    // wants the distinct vertices only.
+    let points = &hull_coords[..hull_coords.len().saturating_sub(1)];
+    // A degenerate, collinear shape's hull is a single segment (two
+    // points); the edge loop below still finds its direction, and the
+    // widening pass gives it the lane's own width.
+    if points.len() < 2 {
+        return None;
     }
-    let raw = MultiPolygon::new(vec![GeoPolygon::new(LineString::new(coords), Vec::new())]);
 
-    let nominal_area = lane.length.get::<meter>() * lane.width.get::<meter>();
-    if raw.unsigned_area() < nominal_area * MIN_PLAUSIBLE_OUTLINE_AREA_RATIO {
-        return MultiPolygon::new(vec![raw.convex_hull()]);
+    let mut best: Option<(f64, Coord<f64>, f64, f64)> = None;
+    for i in 0..points.len() {
+        let a = points[i];
+        let b = points[(i + 1) % points.len()];
+        let (dx, dy) = (b.x - a.x, b.y - a.y);
+        let len = dx.hypot(dy);
+        if len <= f64::EPSILON {
+            continue;
+        }
+        let (ux, uy) = (dx / len, dy / len);
+        let (mut min_u, mut max_u, mut min_v, mut max_v) =
+            (f64::INFINITY, f64::NEG_INFINITY, f64::INFINITY, f64::NEG_INFINITY);
+        for p in points {
+            let u = p.x * ux + p.y * uy;
+            let v = p.x * -uy + p.y * ux;
+            min_u = min_u.min(u);
+            max_u = max_u.max(u);
+            min_v = min_v.min(v);
+            max_v = max_v.max(v);
+        }
+        let area = (max_u - min_u) * (max_v - min_v);
+        if best.is_none_or(|(best_area, _, _, _)| area < best_area) {
+            best = Some((area, a, ux, uy));
+        }
     }
-    // Real Barcelona walkingarea outlines aren't always simple polygons on
-    // their own — confirmed on real data, some self-touch or self-cross
-    // exactly like the hand-built shapes this crate used to have to guard
-    // against elsewhere. A self-union routes this through `geo::BooleanOps`'s
-    // own exact machinery, which `i_overlay` (the crate behind it)
-    // documents as accepting self-intersecting input directly, so whatever
-    // netconvert's own output may already have wrong comes back out clean
-    // — unlike the same trick tried earlier on already-processed output of
-    // this crate's own (see `snap_coords`'s own docs on why that specific
-    // case made things worse instead), this is the *first* thing done to
-    // raw, external input, not a repair layered on top of several other
-    // transforms already in play.
-    raw.union(&raw)
+
+    let (_, a, ux, uy) = best?;
+    // `a` is a hull vertex on the winning edge, so every other point's own
+    // projection is relative to it — recompute the bounds in that frame so
+    // the rectangle can be placed back in world coordinates.
+    let (mut min_u, mut max_u, mut min_v, mut max_v) =
+        (f64::INFINITY, f64::NEG_INFINITY, f64::INFINITY, f64::NEG_INFINITY);
+    for p in points {
+        let (rx, ry) = (p.x - a.x, p.y - a.y);
+        let u = rx * ux + ry * uy;
+        let v = rx * -uy + ry * ux;
+        min_u = min_u.min(u);
+        max_u = max_u.max(u);
+        min_v = min_v.min(v);
+        max_v = max_v.max(v);
+    }
+    // Square off the two sides of the corner to at least `min_side`,
+    // centred on the shape so a degenerate, near-straight walkingarea
+    // still yields a real rectangle rather than a zero-width line.
+    let mut half_u = (max_u - min_u) / 2.0;
+    let mut half_v = (max_v - min_v) / 2.0;
+    let centre_u = (min_u + max_u) / 2.0;
+    let centre_v = (min_v + max_v) / 2.0;
+    if half_u <= half_v {
+        half_u = half_u.max(min_side / 2.0);
+    } else {
+        half_v = half_v.max(min_side / 2.0);
+    }
+    let corner = |du: f64, dv: f64| {
+        let u = centre_u + du;
+        let v = centre_v + dv;
+        Coord {
+            x: a.x + u * ux + v * -uy,
+            y: a.y + u * uy + v * ux,
+        }
+    };
+    let mut ring = vec![
+        corner(-half_u, -half_v),
+        corner(half_u, -half_v),
+        corner(half_u, half_v),
+        corner(-half_u, half_v),
+    ];
+    ring.push(ring[0]);
+    Some(MultiPolygon::new(vec![GeoPolygon::new(LineString::new(ring), Vec::new())]))
+}
+
+/// The ground a walkingarea covers, squared off into the smallest
+/// rectangle that contains every point `netconvert` drew for it — see
+/// [`min_area_rectangle`]'s own docs for why a walkingarea's `shape` is
+/// not itself a usable footprint.
+pub fn pedestrian_lane_polygon(lane: &Lane) -> MultiPolygon<f64> {
+    let coords: Vec<Coord<f64>> = lane.shape.0.iter().map(|p| Coord { x: p.x, y: p.y }).collect();
+    min_area_rectangle(&coords, lane.width.get::<meter>()).unwrap_or_else(|| MultiPolygon::new(Vec::new()))
 }
 
 pub fn merged_pedestrian_polygon(lanes: &[&Lane]) -> MultiPolygon<f64> {

@@ -98,10 +98,16 @@ ignores `pos` for detection.
 ### Pedestrian waiting zones
 
 `zone_generator::pedestrian_zones` generates one zone per walkingarea
-leading into a signalized crossing (`detectPersons="walk"` on the same
-`e3Detector` machinery `vehicle_zones` uses — see that function's module
-docs for why nothing pedestrian-specific was needed beyond the lane filter
-and two field values). This was implemented once already, then removed:
+leading into a signalized crossing *and* one for each crossing's far-bank
+walkingarea, so a road crossing gets a waiting area on both sides rather
+than only the side `netconvert` gives a `tl` to (`detectPersons="walk"` on
+the same `e3Detector` machinery `vehicle_zones` uses — see that function's
+module docs for why nothing pedestrian-specific was needed beyond the lane
+filter and two field values). `geojson_output` renders each as the
+smallest rectangle containing the walkingarea's own `shape`
+(`geometry::min_area_rectangle`) rather than the L-shaped, curved outline
+`netconvert` draws, so a client geofencing against it sees a clean, square
+corner. This was implemented once already, then removed:
 SUMO 1.26.0 has a reproducible crash in `MSE3Collector::detectorUpdate`
 (confirmed with a gdb backtrace) when an `e3Detector` with
 `detectPersons="walk"` is combined with real pedestrian traffic, filed as

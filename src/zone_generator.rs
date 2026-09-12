@@ -116,6 +116,16 @@
 //! [`pedestrian_zones`] itself. The zone's lane is the walkingarea
 //! *before* the crossing, not the crossing itself: a pedestrian on the
 //! crossing is actively walking across, not waiting for it.
+//!
+//! A crossing of a road physically has a waiting area on each bank, but
+//! `netconvert` only marks the connection out of the *near* walkingarea
+//! with a `tl` — the far walkingarea never appears in `incLanes` and, on
+//! its own, would produce no zone at all, leaving half a crossing's
+//! waiting areas undetected. [`pedestrian_zones`] therefore also emits a
+//! zone for each crossing's far bank, identified by that walkingarea's own
+//! edge. Foot-zone geometry is squared off into a rectangle rather than
+//! read from the walkingarea's own (frequently L-shaped or curved) `shape`
+//! — see `geojson_output::geometry::min_area_rectangle`.
 
 use anstream::eprintln;
 use anstyle::{AnsiColor, Style};
@@ -1105,11 +1115,18 @@ fn merged_movement_id(from_edges: &[EdgeId], directions: &[ConnectionDirection])
 }
 
 /// The pedestrian waiting zones approaching `junction`'s signalized
-/// crossings, one per distinct movement — the walkingarea(s) leading into a
-/// given crossing, mirroring how [`vehicle_zones`] groups the lanes leading
-/// into a given turn. See the module docs for why this needs nothing
-/// pedestrian-specific beyond the lane filter and the two fields
-/// [`zone_from_group`] takes.
+/// crossings — the walkingarea(s) leading into a given crossing, mirroring
+/// how [`vehicle_zones`] groups the lanes leading into a given turn, plus
+/// each crossing's own far-bank walkingarea, so a crossing of a road gets a
+/// waiting zone on *both* sides rather than only the signalized one. See
+/// the module docs for why this needs nothing pedestrian-specific beyond
+/// the lane filter and the two fields [`zone_from_group`] takes.
+///
+/// The near-side zone keeps the movement identity it always had (its own
+/// walkingarea as the source edge); the far-side zone takes the far
+/// walkingarea's own edge, so the two banks are two distinct ids and
+/// neither can silently reuse the other's. The rendering side squares each
+/// one off into a rectangle (`geojson_output::geometry`).
 ///
 /// `detectPersons="walk"` (below) is kept for what it's still good for —
 /// marking a zone as pedestrian (`Zone::is_pedestrian` in `territory`, this
@@ -1152,7 +1169,46 @@ fn pedestrian_zones(
         .iter()
         .filter(|lane_id| lanes.get(lane_id).is_some_and(|info| info.pedestrian_only));
 
-    group_lanes(junction, lane_ids, graph.connections_by_from_lane, programs)
+    let mut groups: HashMap<MovementKey, Vec<LaneId>> =
+        group_lanes(junction, lane_ids, graph.connections_by_from_lane, programs)
+            .into_iter()
+            .collect();
+
+    // Every signalized crossing a group's own lanes lead into also has a
+    // walkingarea on its *far* bank, where pedestrians wait to cross back.
+    // `netconvert` only puts a `tl` on the connection out of the near
+    // walkingarea, so the far one never appears in `incoming_lanes` and,
+    // without this, every crossing would get a zone on one side only. Fold
+    // those in as their own movement — their own edge, so they keep their
+    // own id — reusing the crossing's own direction(s).
+    let mut far_groups: HashMap<MovementKey, Vec<LaneId>> = HashMap::new();
+    for ((_, directions), lanes_in_group) in &groups {
+        for far_lane in crossing_far_side_lanes(lanes_in_group, lanes, graph) {
+            let Some(&far_edge) = graph.edge_by_lane.get(far_lane) else {
+                continue;
+            };
+            far_groups
+                .entry((far_edge.clone(), directions.clone()))
+                .or_default()
+                .push(far_lane.clone());
+        }
+    }
+    for (key, far_lanes) in far_groups {
+        let lanes_in_group = groups.entry(key).or_default();
+        for far_lane in far_lanes {
+            if !lanes_in_group.contains(&far_lane) {
+                lanes_in_group.push(far_lane);
+            }
+        }
+    }
+    let mut groups: Vec<(MovementKey, Vec<LaneId>)> = groups.into_iter().collect();
+    groups.sort_by(|(a, _), (b, _)| a.cmp(b));
+    for (_, lanes_in_group) in &mut groups {
+        lanes_in_group.sort();
+        lanes_in_group.dedup();
+    }
+
+    groups
         .into_iter()
         .filter_map(|((from_edge, directions), lane_ids)| {
             zone_from_group(
@@ -1166,6 +1222,44 @@ fn pedestrian_zones(
             )
         })
         .collect()
+}
+
+/// The walkingarea on the far side of every signalized crossing one of
+/// `lane_ids` (near-side walkingareas) leads into — the destination of the
+/// crossing edge that same connection names. A crossing edge's own
+/// outgoing connections only ever target walkingareas (checked against the
+/// whole real Barcelona network: all 2178 crossing edges, no exceptions),
+/// and the far one may be shared by several near-side lanes, so callers
+/// deduplicate.
+fn crossing_far_side_lanes<'a>(
+    lane_ids: &[LaneId],
+    lanes: &HashMap<&LaneId, LaneInfo>,
+    graph: &ConnectivityGraph<'a>,
+) -> Vec<&'a LaneId> {
+    let mut far = Vec::new();
+    for lane_id in lane_ids {
+        for connection in graph.connections_by_from_lane.get(lane_id).into_iter().flatten() {
+            if connection.traffic_light.is_none() || connection.link_index.is_none() {
+                continue;
+            }
+            let Some(&crossing_lane) =
+                graph.lane_ids_by_edge_and_index.get(&(&connection.to_edge, connection.to_lane))
+            else {
+                continue;
+            };
+            for out in graph.connections_by_from_lane.get(crossing_lane).into_iter().flatten() {
+                let Some(&far_lane) =
+                    graph.lane_ids_by_edge_and_index.get(&(&out.to_edge, out.to_lane))
+                else {
+                    continue;
+                };
+                if lanes.get(far_lane).is_some_and(|info| info.pedestrian_only) {
+                    far.push(far_lane);
+                }
+            }
+        }
+    }
+    far
 }
 
 /// A waiting zone's id: the source edge and its turn direction(s), joined
