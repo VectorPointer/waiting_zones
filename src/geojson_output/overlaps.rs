@@ -22,10 +22,20 @@ pub const ERROR: Style = AnsiColor::Red.on_default().bold();
 /// part" (`feature_multipolygon` among them) don't need their own shape
 /// change now that there is only ever one part.
 pub fn feature_rings(feature: &Feature) -> Vec<&[Position]> {
-    let Some(geojson::GeometryValue::Polygon { coordinates }) = feature.geometry.as_ref().map(|g| &g.value) else {
-        return Vec::new();
-    };
-    coordinates.first().map(Vec::as_slice).into_iter().collect()
+    match feature.geometry.as_ref().map(|g| &g.value) {
+        // A vehicle zone (or a pedestrian zone with a single bank) is one
+        // exterior ring.
+        Some(geojson::GeometryValue::Polygon { coordinates }) => {
+            coordinates.first().map(Vec::as_slice).into_iter().collect()
+        }
+        // A pedestrian zone spans both banks of its crossing, one exterior
+        // ring per bank.
+        Some(geojson::GeometryValue::MultiPolygon { coordinates }) => coordinates
+            .iter()
+            .filter_map(|polygon| polygon.first().map(Vec::as_slice))
+            .collect(),
+        _ => Vec::new(),
+    }
 }
 
 pub fn feature_multipolygon(feature: &Feature) -> MultiPolygon<f64> {
@@ -1097,19 +1107,22 @@ pub fn resolve_overlaps(
     // network, never repeated (see [`still_overlapping`]'s own docs for why
     // that's sound: both fixes below only ever shrink a polygon, so a pair
     // that isn't here yet can never become one later).
-    // Only same-mode pairs. A vehicle zone and a pedestrian zone may
-    // overlap freely: they are served to different clients, in different
-    // files (`feature::write` splits them), so a client never sees both at
-    // once and there is no ambiguity to resolve — while cutting one against
-    // the other can only maim a zone for no benefit. This matters in
-    // particular because a pedestrian's rectangular waiting area sits right
-    // where a vehicle lane's own stop-line buffer reaches, so cross-mode
-    // pairs are the common case, not a rare one.
-    let same_mode = |i: usize, j: usize| {
-        zones[i].detect_persons.is_empty() == zones[j].detect_persons.is_empty()
+    // Only vehicle-vehicle pairs are resolved. A vehicle zone against a
+    // pedestrian one is not resolved because they ship to different clients
+    // in different files (`feature::write` splits them) and a pedestrian's
+    // own waiting area deliberately sits where a vehicle lane's stop-line
+    // buffer reaches. A pedestrian against a pedestrian one is not resolved
+    // either: two crossings meeting at one corner each span both banks, so
+    // they *share* that corner, and subtracting the shared ground from both
+    // (what this function does) would leave neither covering it — taking
+    // each zone's own stop line with it. A pedestrian at the shared corner
+    // legitimately belongs to either crossing (there is no heading filter),
+    // so overlap there is correct, not a defect to cut away.
+    let both_vehicles = |i: usize, j: usize| {
+        zones[i].detect_persons.is_empty() && zones[j].detect_persons.is_empty()
     };
     let candidates: Vec<(usize, usize)> =
-        overlapping_pairs(polygons).into_iter().filter(|&(i, j)| same_mode(i, j)).collect();
+        overlapping_pairs(polygons).into_iter().filter(|&(i, j)| both_vehicles(i, j)).collect();
     if candidates.is_empty() {
         return Ok(());
     }

@@ -1910,16 +1910,17 @@ mod tests {
         panic!("zone {id:?} not found in either collection");
     }
 
-    /// Every pedestrian waiting area is a rectangle (four distinct
+    /// Every pedestrian waiting area part is a rectangle (four distinct
     /// corners), not the L-shaped, curved wedge `netconvert`'s walkingarea
     /// `shape` traces — nor a triangle from taking that wedge's convex
-    /// hull. `geometry::pedestrian_lane_polygon` squares the corner off;
+    /// hull. `geometry::pedestrian_lane_polygon` squares each corner off;
     /// overlap resolution can still trim an edge shared with a neighbouring
     /// zone, but it must not leave the four-corner shape entirely.
     ///
-    /// The two ids this checked before the rectangle change are kept as
-    /// named cases: they were the real fixtures that first exposed how
-    /// badly a raw walkingarea outline reads as a polygon.
+    /// A crossing's zone spans two banks, so it legitimately has two rings;
+    /// this checks each ring on its own. Two real zones are kept as named
+    /// cases, one a normal near-bank crossing and one whose far bank is the
+    /// only reason it has a second ring at all.
     #[test]
     fn real_pedestrian_zones_are_rectangles() {
         let net_file = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -1934,32 +1935,31 @@ mod tests {
         let mut four_corner = 0;
         let mut examined = 0;
         for feature in &collection.features {
-            let rings = feature_rings(feature);
-            if rings.len() != 1 {
-                continue;
-            }
-            examined += 1;
-            if rings[0].len() - 1 == 4 {
-                four_corner += 1;
+            for ring in feature_rings(feature) {
+                examined += 1;
+                if ring.len() - 1 == 4 {
+                    four_corner += 1;
+                }
             }
         }
         assert!(
             four_corner * 10 >= examined * 8,
-            "expected the large majority of {examined} pedestrian zones to be plain rectangles, \
-             got only {four_corner}"
+            "expected the large majority of {examined} pedestrian-zone rings to be plain \
+             rectangles, got only {four_corner}"
         );
 
-        for id in ["5588597076_w0_straight_ped", "6119951203_w0_straight_ped"] {
+        for id in ["6119951203_w0_straight_ped", "1091758397_w1_straight_ped"] {
             let feature = find_barcelona_zone(id);
             let rings = feature_rings(&feature);
-            assert_eq!(rings.len(), 1, "{id}: expected a single ring, no holes");
-            assert_eq!(
-                rings[0].len() - 1,
-                4,
-                "{id} should now be squared off into a rectangle, not the walkingarea's own \
-                 many-corner outline: {:?}",
-                rings[0]
-            );
+            assert!(!rings.is_empty(), "{id}: expected at least one ring");
+            for ring in &rings {
+                assert_eq!(
+                    ring.len() - 1,
+                    4,
+                    "{id} should now be squared off into a rectangle, not the walkingarea's own \
+                     many-corner outline: {ring:?}"
+                );
+            }
         }
     }
 

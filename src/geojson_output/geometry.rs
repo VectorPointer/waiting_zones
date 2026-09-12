@@ -486,13 +486,15 @@ pub fn zone_polygon(
     for entry in &zone.entries {
         let lane = resolve(&entry.lane)?;
 
-        if let Some(&exit_distance) = exit_position_by_lane.get(entry.lane.0.as_str()) {
-            if is_pedestrian {
-                pedestrian_core_lanes.push(lane);
-            } else {
-                let entry_distance = distance_from_start(entry.position, lane.length);
-                core_gates.push((lane, entry_span(entry_distance, exit_distance), exit_distance));
-            }
+        if is_pedestrian {
+            // Every entry of a pedestrian zone is a walkingarea — the near
+            // bank (which is also its exit) and the far bank (an entry
+            // only). Both are ground the zone covers, so both are core
+            // lanes; matching on exits would draw only the near bank.
+            pedestrian_core_lanes.push(lane);
+        } else if let Some(&exit_distance) = exit_position_by_lane.get(entry.lane.0.as_str()) {
+            let entry_distance = distance_from_start(entry.position, lane.length);
+            core_gates.push((lane, entry_span(entry_distance, exit_distance), exit_distance));
         } else if !entry.lane.0.starts_with(':') {
             // `zone_generator::extended_entry_lanes` adds every hop's own
             // bridging `via` as a *separate* flat entry too (real

@@ -97,14 +97,15 @@ ignores `pos` for detection.
 
 ### Pedestrian waiting zones
 
-`zone_generator::pedestrian_zones` generates one zone per walkingarea
-leading into a signalized crossing *and* one for each crossing's far-bank
-walkingarea, so a road crossing gets a waiting area on both sides rather
-than only the side `netconvert` gives a `tl` to (`detectPersons="walk"` on
-the same `e3Detector` machinery `vehicle_zones` uses — see that function's
-module docs for why nothing pedestrian-specific was needed beyond the lane
-filter and two field values). `geojson_output` renders each as the
-smallest rectangle containing the walkingarea's own `shape`
+`zone_generator::pedestrian_zones` generates one zone per signalized
+crossing, spanning both banks of the road: a crossing is one movement with
+one walk phase, so the zone's gates sit on the near walkingarea and the far
+one `netconvert` gives no `tl` to, while its controlled phase comes from
+the near bank (`detectPersons="walk"` on the same `e3Detector` machinery
+`vehicle_zones` uses — see that function's module docs for why nothing
+pedestrian-specific was needed beyond the lane filter and two field
+values). `geojson_output` renders each bank as the smallest rectangle
+containing the walkingarea's own `shape`
 (`geometry::min_area_rectangle`) rather than the L-shaped, curved outline
 `netconvert` draws, so a client geofencing against it sees a clean, square
 corner. This was implemented once already, then removed:

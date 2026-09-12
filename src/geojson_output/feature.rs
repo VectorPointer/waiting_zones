@@ -103,32 +103,31 @@ pub fn build_feature(
     let ring = |line: &LineString<f64>| -> Result<Vec<Position>> {
         line.coords().map(|c| reproject.to_lon_lat(Point { x: c.x, y: c.y, z: 0.0 }).map(Position::from)).collect()
     };
-    // A waiting zone is one contiguous area, and a client's own point-in-
-    // polygon check (`resolver::catalogue`) only ever needs a single
-    // exterior ring plus holes — GeoJSON's `Polygon`, not `MultiPolygon`'s
-    // multiple independent exteriors. `zone_polygon`'s own pipeline is
-    // built to always converge on exactly one part per zone (see
-    // `to_feature_collection`'s own despike/split/`keep_part_near` pass);
-    // more than one surviving here means that guarantee broke somewhere
-    // upstream, which a client silently receiving only the first part of a
-    // real zone would be a far worse failure mode than an error at
-    // generation time.
-    let [part] = polygon.0.as_slice() else {
-        anyhow::bail!(
-            "zone {:?} resolved to {} polygon part(s), expected exactly 1 — geojson_output only emits a Polygon, not a MultiPolygon",
-            zone.id,
-            polygon.0.len()
-        );
-    };
-    // `part.interiors()` is always empty here: `zone_polygon`'s own
-    // `drop_interior_rings` strips every interior ring before this
-    // function ever sees the polygon (see that function's own docs on why
-    // a waiting zone's own real ground never legitimately has a hole).
-    // Debug-only, not a silent truncation: this asserts the guarantee
-    // holds rather than quietly re-dropping a hole a future change to
-    // `zone_polygon` reintroduces.
-    debug_assert!(part.interiors().is_empty(), "zone {:?} has an interior ring `zone_polygon` should have dropped", zone.id);
-    let rings = vec![ring(part.exterior())?];
+    // A vehicle zone's own pipeline converges on exactly one part (see
+    // `to_feature_collection`'s own despike/split/`keep_part_near` pass). A
+    // pedestrian zone is deliberately two — the two banks of its crossing,
+    // with the road between them — so a zone with more than one part is
+    // emitted as a GeoJSON `MultiPolygon`, which the client's own
+    // point-in-polygon check (`resolver::catalogue`), the panel and this
+    // crate's own fixtures all already accept.
+    if polygon.0.is_empty() {
+        anyhow::bail!("zone {:?} has no polygon part to emit", zone.id);
+    }
+    // Every `part.interiors()` is always empty here: `zone_polygon`'s own
+    // `drop_interior_rings` strips every interior ring before this function
+    // ever sees the polygon (see that function's own docs on why a waiting
+    // zone's own real ground never legitimately has a hole). Debug-only,
+    // not a silent truncation: this asserts the guarantee holds rather than
+    // quietly re-dropping a hole a future change to `zone_polygon`
+    // reintroduces.
+    let polygons: Vec<Vec<Vec<Position>>> = polygon
+        .0
+        .iter()
+        .map(|part| {
+            debug_assert!(part.interiors().is_empty(), "zone {:?} has an interior ring `zone_polygon` should have dropped", zone.id);
+            ring(part.exterior()).map(|ring| vec![ring])
+        })
+        .collect::<Result<_>>()?;
 
     // The junction the zone's own controlled lane (its exit — always the
     // group's own controlled lane, never guaranteed of an entry, extended
@@ -150,7 +149,12 @@ pub fn build_feature(
     properties.insert("stop_line".to_string(), serde_json::json!(stop_line));
     properties.insert("modes".to_string(), serde_json::json!(zone_modes(zone, lanes)));
 
-    let mut feature = Feature::from(Geometry::new_polygon(rings));
+    let geometry = if polygons.len() == 1 {
+        Geometry::new_polygon(polygons.into_iter().next().expect("checked non-empty above"))
+    } else {
+        Geometry::new_multi_polygon(polygons)
+    };
+    let mut feature = Feature::from(geometry);
     feature.properties = Some(properties);
     Ok(feature)
 }
@@ -269,18 +273,22 @@ pub fn to_feature_collection(network: &Network, zones: &[E3Detector]) -> Result<
             *polygon = MultiPolygon::new(new_parts);
         }
     }
-    // A waiting zone is one contiguous area anchored at its own stop line,
-    // never several disconnected islands — whether the extra parts come
-    // from a cut against a neighbouring zone, or (`merged_core_polygon`'s
-    // own non-contiguous-lane-group case) from the zone's own shape never
-    // touching itself to begin with: either way, the zone ends where the
-    // gap is, rather than continuing on the far side of it.
-    // `keep_part_near` picks exactly the part a client walking backward
+    // A *vehicle* waiting zone is one contiguous area anchored at its own
+    // stop line, never several disconnected islands — whether the extra
+    // parts come from a cut against a neighbouring zone, or
+    // (`merged_core_polygon`'s own non-contiguous-lane-group case) from the
+    // zone's own shape never touching itself to begin with: either way, the
+    // zone ends where the gap is, rather than continuing on the far side of
+    // it. `keep_part_near` picks exactly the part a client walking backward
     // from the stop line would actually reach (the one containing it, or
-    // else the largest), applied here regardless of zone kind or of
-    // whether the extra part predates `resolve_overlaps`.
-    for (polygon, &stop_point) in polygons.iter_mut().zip(&stop_points) {
-        if polygon.0.len() > 1 {
+    // else the largest).
+    //
+    // A pedestrian zone is deliberately exempt: it spans both banks of one
+    // crossing, two genuinely disjoint rectangles with the road between
+    // them, and both are the zone (see `zone_generator::pedestrian_zones`).
+    // Collapsing to the near bank here would silently drop the far one.
+    for (index, (polygon, &stop_point)) in polygons.iter_mut().zip(&stop_points).enumerate() {
+        if polygon.0.len() > 1 && zones[index].detect_persons.is_empty() {
             *polygon = keep_part_near(std::mem::replace(polygon, MultiPolygon::new(Vec::new())), stop_point);
         }
     }
@@ -323,11 +331,16 @@ pub fn to_feature_collection(network: &Network, zones: &[E3Detector]) -> Result<
         // (as small as 0.000061m²) shipped anyway — `keep_part_near`'s own
         // "more than one part" check never even looked at whether the one
         // part it *did* have was worth keeping.
+        let is_pedestrian = !zones[index].detect_persons.is_empty();
         let finish = |polygon: MultiPolygon<f64>| {
             let cleaned = drop_interior_rings(drop_slivers(split_self_intersections(
                 drop_grazing_vertices_everywhere(polygon),
             )));
-            if cleaned.0.len() > 1 { keep_part_near(cleaned, stop_point) } else { cleaned }
+            if cleaned.0.len() > 1 && !is_pedestrian {
+                keep_part_near(cleaned, stop_point)
+            } else {
+                cleaned
+            }
         };
 
         let cleaned = finish(taken);

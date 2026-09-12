@@ -120,12 +120,16 @@
 //! A crossing of a road physically has a waiting area on each bank, but
 //! `netconvert` only marks the connection out of the *near* walkingarea
 //! with a `tl` — the far walkingarea never appears in `incLanes` and, on
-//! its own, would produce no zone at all, leaving half a crossing's
-//! waiting areas undetected. [`pedestrian_zones`] therefore also emits a
-//! zone for each crossing's far bank, identified by that walkingarea's own
-//! edge. Foot-zone geometry is squared off into a rectangle rather than
-//! read from the walkingarea's own (frequently L-shaped or curved) `shape`
-//! — see `geojson_output::geometry::min_area_rectangle`.
+//! its own, would produce no zone at all, leaving half the crossing
+//! undetected. Both banks are therefore one zone: a pedestrian crossing is
+//! symmetric (its walk phase belongs to the crossing, not to one
+//! direction), so [`pedestrian_zones`] puts a gate on each bank of the same
+//! crossing into a single `E3Detector`, identified by the near bank's own
+//! movement. That zone's own footprint is then two disjoint rectangles
+//! (one per bank), which `geojson_output` keeps as separate parts rather
+//! than collapsing to the one nearest the stop line. Each rectangle is
+//! squared off from the walkingarea's own (frequently L-shaped or curved)
+//! `shape` — see `geojson_output::geometry::min_area_rectangle`.
 
 use anstream::eprintln;
 use anstyle::{AnsiColor, Style};
@@ -518,8 +522,16 @@ struct ConnectivityGraph<'a> {
 /// erroring, which is exactly what it exists for (see
 /// `DetectorGate::friendly_position`'s own docs) and costs nothing when
 /// the two lengths already agree.
+/// `entry_lane_ids` and `exit_lane_ids` are separate because they can
+/// differ: a vehicle zone's are always the same list, but a pedestrian zone
+/// covers both banks of its crossing while only the near bank is its own
+/// controlled lane. Putting the far bank in `exits` too would make
+/// `territory::zones::derive_zones` read that lane's own `linkIndex` — the
+/// *other* crossing it is the near bank of — and attribute the wrong
+/// signal phase to this one.
 fn full_lane_boundaries(
-    lane_ids: &[LaneId],
+    entry_lane_ids: &[LaneId],
+    exit_lane_ids: &[LaneId],
     lanes: &HashMap<&LaneId, LaneInfo>,
     graph: &ConnectivityGraph<'_>,
     reach: EntryReach,
@@ -530,14 +542,20 @@ fn full_lane_boundaries(
         friendly_position: Some(true),
     };
 
-    let mut entries = Vec::with_capacity(lane_ids.len());
-    let mut exits = Vec::with_capacity(lane_ids.len());
+    let mut entries = Vec::with_capacity(entry_lane_ids.len());
+    let mut exits = Vec::with_capacity(exit_lane_ids.len());
 
-    for lane_id in lane_ids {
+    for lane_id in exit_lane_ids {
         let Some(length) = lanes.get(lane_id).map(|info| info.length) else {
             continue;
         };
         exits.push(gate(lane_id, length));
+    }
+
+    for lane_id in entry_lane_ids {
+        let Some(length) = lanes.get(lane_id).map(|info| info.length) else {
+            continue;
+        };
 
         let entry_position = match reach.max_zone_length {
             Some(max) if max < length => length - max,
@@ -880,6 +898,14 @@ fn group_lanes<'a>(
 /// recognizable piece of road.
 const DEFAULT_EXTENSION_METERS: f64 = 120.0;
 
+/// The lanes a zone's own entry and exit gates are built from. They differ
+/// only for a pedestrian zone, whose far bank is an entry but not a
+/// controlled exit — see [`full_lane_boundaries`]'s own docs.
+struct ZoneBoundaries<'a> {
+    entries: &'a [LaneId],
+    exits: &'a [LaneId],
+}
+
 /// `max_zone_length`/`extend_backward` together — bundled so
 /// [`zone_from_group`] and [`full_lane_boundaries`] each take one
 /// parameter for "how far back does an entry reach" instead of two.
@@ -896,18 +922,19 @@ struct EntryReach {
 /// Builds the `E3Detector` for one movement group, or `None` if none of its
 /// lanes are known to `lanes` (mirrors [`full_lane_boundaries`]'s own
 /// empty-entries case). Shared by [`vehicle_zones`] and
-/// [`pedestrian_zones`]; `id` and `detect_persons` are the only things that
-/// actually differ between the two.
+/// [`pedestrian_zones`]; `id`, the entry/exit split and `detect_persons`
+/// are the only things that actually differ between the two.
 fn zone_from_group(
     id: String,
-    lane_ids: &[LaneId],
+    boundaries: ZoneBoundaries<'_>,
     lanes: &HashMap<&LaneId, LaneInfo>,
     graph: &ConnectivityGraph<'_>,
     junction: &Junction,
     reach: EntryReach,
     detect_persons: Vec<PersonMode>,
 ) -> Option<E3Detector> {
-    let (entries, exits) = full_lane_boundaries(lane_ids, lanes, graph, reach);
+    let (entries, exits) =
+        full_lane_boundaries(boundaries.entries, boundaries.exits, lanes, graph, reach);
     if entries.is_empty() {
         return None;
     }
@@ -980,7 +1007,7 @@ fn vehicle_zones(
         .filter_map(|group| {
             zone_from_group(
                 merged_movement_id(&group.from_edges, &group.directions),
-                &group.lane_ids,
+                ZoneBoundaries { entries: &group.lane_ids, exits: &group.lane_ids },
                 lanes,
                 graph,
                 group.junction,
@@ -1114,19 +1141,16 @@ fn merged_movement_id(from_edges: &[EdgeId], directions: &[ConnectionDirection])
     format!("{edges}{directions_suffix}")
 }
 
-/// The pedestrian waiting zones approaching `junction`'s signalized
-/// crossings — the walkingarea(s) leading into a given crossing, mirroring
-/// how [`vehicle_zones`] groups the lanes leading into a given turn, plus
-/// each crossing's own far-bank walkingarea, so a crossing of a road gets a
-/// waiting zone on *both* sides rather than only the signalized one. See
-/// the module docs for why this needs nothing pedestrian-specific beyond
-/// the lane filter and the two fields [`zone_from_group`] takes.
-///
-/// The near-side zone keeps the movement identity it always had (its own
-/// walkingarea as the source edge); the far-side zone takes the far
-/// walkingarea's own edge, so the two banks are two distinct ids and
-/// neither can silently reuse the other's. The rendering side squares each
-/// one off into a rectangle (`geojson_output::geometry`).
+/// The pedestrian waiting zones at `junction`'s signalized crossings — one
+/// per crossing, mirroring how [`vehicle_zones`] groups the lanes leading
+/// into a given turn. A crossing is one movement spanning both banks, so a
+/// zone's gates cover the near walkingarea *and* the far one the crossing
+/// leads to (see the module docs for why `netconvert` only signals the
+/// near bank, and why the two are one movement for a pedestrian). The zone
+/// keeps the near bank's own movement identity, so a corner that is also
+/// the far bank of a neighbouring crossing still contributes its own zone.
+/// The rendering side squares each bank off into a rectangle
+/// (`geojson_output::geometry`).
 ///
 /// `detectPersons="walk"` (below) is kept for what it's still good for —
 /// marking a zone as pedestrian (`Zone::is_pedestrian` in `territory`, this
@@ -1169,51 +1193,41 @@ fn pedestrian_zones(
         .iter()
         .filter(|lane_id| lanes.get(lane_id).is_some_and(|info| info.pedestrian_only));
 
-    let mut groups: HashMap<MovementKey, Vec<LaneId>> =
-        group_lanes(junction, lane_ids, graph.connections_by_from_lane, programs)
-            .into_iter()
-            .collect();
+    let groups = group_lanes(junction, lane_ids, graph.connections_by_from_lane, programs);
 
-    // Every signalized crossing a group's own lanes lead into also has a
-    // walkingarea on its *far* bank, where pedestrians wait to cross back.
-    // `netconvert` only puts a `tl` on the connection out of the near
-    // walkingarea, so the far one never appears in `incoming_lanes` and,
-    // without this, every crossing would get a zone on one side only. Fold
-    // those in as their own movement — their own edge, so they keep their
-    // own id — reusing the crossing's own direction(s).
-    let mut far_groups: HashMap<MovementKey, Vec<LaneId>> = HashMap::new();
-    for ((_, directions), lanes_in_group) in &groups {
-        for far_lane in crossing_far_side_lanes(lanes_in_group, lanes, graph) {
-            let Some(&far_edge) = graph.edge_by_lane.get(far_lane) else {
-                continue;
-            };
-            far_groups
-                .entry((far_edge.clone(), directions.clone()))
-                .or_default()
-                .push(far_lane.clone());
-        }
-    }
-    for (key, far_lanes) in far_groups {
-        let lanes_in_group = groups.entry(key).or_default();
-        for far_lane in far_lanes {
-            if !lanes_in_group.contains(&far_lane) {
-                lanes_in_group.push(far_lane);
-            }
-        }
-    }
-    let mut groups: Vec<(MovementKey, Vec<LaneId>)> = groups.into_iter().collect();
-    groups.sort_by(|(a, _), (b, _)| a.cmp(b));
-    for (_, lanes_in_group) in &mut groups {
-        lanes_in_group.sort();
-        lanes_in_group.dedup();
-    }
-
+    // Each group is one crossing: its near-side walkingarea (the group's own
+    // lanes) plus the crossing's far-side walkingarea are one movement — a
+    // pedestrian crossing is symmetric, its walk phase belongs to the
+    // crossing, not to one direction — detected by a single `E3Detector`
+    // with an entry on each bank. `netconvert` only puts a `tl` on the
+    // connection out of the near bank, so the far one never appears in
+    // `incoming_lanes` and would otherwise drop out entirely.
+    //
+    // The far bank is an *entry* only: as an exit it would be read as a
+    // controlled lane, and `derive_zones` would pull in the phase of the
+    // crossing the far bank is itself the near side of — a different
+    // movement entirely. The zone keeps the near bank's own identity, so a
+    // corner that is the far bank of one crossing and the near bank of
+    // another still contributes its own zone.
     groups
         .into_iter()
-        .filter_map(|((from_edge, directions), lane_ids)| {
+        .filter_map(|((from_edge, directions), near_lanes)| {
+            let far_lanes: Vec<LaneId> = crossing_far_side_lanes(&near_lanes, lanes, graph)
+                .into_iter()
+                .cloned()
+                .collect();
+            let mut entry_lanes = near_lanes.clone();
+            for far_lane in far_lanes {
+                if !entry_lanes.contains(&far_lane) {
+                    entry_lanes.push(far_lane);
+                }
+            }
+            entry_lanes.sort();
+            entry_lanes.dedup();
+
             zone_from_group(
                 format!("{}_ped", movement_id(&from_edge, &directions)),
-                &lane_ids,
+                ZoneBoundaries { entries: &entry_lanes, exits: &near_lanes },
                 lanes,
                 graph,
                 junction,

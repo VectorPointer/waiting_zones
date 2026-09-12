@@ -1,16 +1,22 @@
-//! Every zone this crate emits for the real Barcelona network becomes its
-//! own GeoJSON polygon (see `geojson_output`'s own module docs: a client
-//! geofences against this output from its own GPS). Two *different* zones
-//! whose polygons overlap would mean a single GPS point can match both —
-//! exactly the "which crossing am I actually waiting at" ambiguity
-//! `geojson_output::overlapping_zone_ids`'s own docs describe, and a
-//! concrete way it can happen (one physical corner feeding two
-//! differently-signalled crossings) is documented on
-//! `zone_generator::pedestrian_zones`.
+//! Every *vehicle* zone this crate emits for the real Barcelona network
+//! becomes its own GeoJSON polygon (see `geojson_output`'s own module docs:
+//! a client geofences against this output from its own GPS). Two different
+//! vehicle zones whose polygons overlap would mean a single GPS point can
+//! match both — exactly the "which movement am I actually queueing for"
+//! ambiguity `geojson_output::overlapping_zone_ids`'s own docs describe.
 //!
-//! Checked *within each mode's own shipped file*, not across one combined
-//! collection — see the test body for why the combined form was reporting
-//! ~48 non-defects.
+//! Pedestrian zones are deliberately exempt. Two crossings meeting at one
+//! corner each span both banks, so they share that corner by construction
+//! (see `zone_generator::pedestrian_zones`); a pedestrian standing there
+//! may be waiting for either crossing and there is no heading filter to
+//! tell them apart, so the overlap is the correct model rather than a
+//! defect `resolve_overlaps` should cut away — cutting it would strip the
+//! shared corner from both and leave neither covering its own stop line.
+//!
+//! Checked *within the vehicle file*, not across one combined collection —
+//! a vehicle zone overlapping a pedestrian one is not a defect at all
+//! (different files, different clients), which is the whole reason the
+//! output is split.
 //!
 //! `geojson_output`'s own unit tests already prove
 //! `overlapping_zone_ids` itself catches a deliberately-overlapping pair
@@ -38,19 +44,10 @@ fn no_two_barcelona_zones_of_the_same_mode_overlap() {
          if it legitimately doesn't any more, this test needs a different fixture"
     );
 
-    // Per mode, exactly as `geojson_output::write` ships them. Checking one
-    // combined collection instead — what this test used to do — is checking
-    // a file this crate never writes: `resolve_overlaps` only ever sees the
-    // zones it's handed, so combining the two modes both resolves pairs no
-    // shipped file contains *and* reports the leftovers as failures. Every
-    // one of the 48 pairs it flagged was cross-mode, and a vehicle zone
-    // overlapping a pedestrian one is not a defect at all — that's the
-    // whole reason the output is split (see `write`'s own docs): a client
-    // resolving a vehicle position never fetches, holds, or point-in-
-    // polygons against the pedestrian half, so the two can never both
-    // match one query.
-    let (pedestrian, vehicle): (Vec<E3Detector>, Vec<E3Detector>) =
-        zones.into_iter().partition(|zone| !zone.detect_persons.is_empty());
+    // Vehicles only — see this file's own module docs on why pedestrian
+    // zones are exempt.
+    let vehicle: Vec<E3Detector> =
+        zones.into_iter().filter(|zone| zone.detect_persons.is_empty()).collect();
 
     // Judged at an area a client could actually be positioned inside, not
     // at `overlaps::OVERLAP_AREA_THRESHOLD_M2`'s own square millimetre.
@@ -82,31 +79,22 @@ fn no_two_barcelona_zones_of_the_same_mode_overlap() {
         ("27525620#0_straight", "27525620#4_straight+left"),
     ];
 
-    let mut unexpected = Vec::new();
-    let mut fixed = Vec::new();
-    for (mode, zones) in [("vehicle", vehicle), ("pedestrian", pedestrian)] {
-        let collection = waiting_zones::geojson_output::to_feature_collection(&network, &zones)
-            .unwrap_or_else(|error| panic!("building the {mode} GeoJSON feature collection: {error:#}"));
+    let collection = waiting_zones::geojson_output::to_feature_collection(&network, &vehicle)
+        .expect("building the vehicle GeoJSON feature collection");
+    let overlaps =
+        waiting_zones::geojson_output::overlapping_zone_ids_larger_than(&collection, MIN_MEANINGFUL_OVERLAP_M2);
+    let known: Vec<(String, String)> = ZONES_SHARING_ONE_APPROACH
+        .iter()
+        .map(|(a, b)| ((*a).to_string(), (*b).to_string()))
+        .collect();
 
-        let overlaps = waiting_zones::geojson_output::overlapping_zone_ids_larger_than(
-            &collection,
-            MIN_MEANINGFUL_OVERLAP_M2,
-        );
-        let known: Vec<(String, String)> = ZONES_SHARING_ONE_APPROACH
-            .iter()
-            .map(|(a, b)| ((*a).to_string(), (*b).to_string()))
-            .collect();
-
-        unexpected.extend(
-            overlaps.iter().filter(|pair| !known.contains(pair)).map(|(a, b)| format!("{mode}: {a} || {b}")),
-        );
-        fixed.extend(
-            known
-                .iter()
-                .filter(|pair| mode == "vehicle" && !overlaps.contains(pair))
-                .map(|(a, b)| format!("{a} || {b}")),
-        );
-    }
+    let unexpected: Vec<String> = overlaps
+        .iter()
+        .filter(|pair| !known.contains(pair))
+        .map(|(a, b)| format!("{a} || {b}"))
+        .collect();
+    let fixed: Vec<String> =
+        known.iter().filter(|pair| !overlaps.contains(pair)).map(|(a, b)| format!("{a} || {b}")).collect();
 
     assert!(
         unexpected.is_empty(),
