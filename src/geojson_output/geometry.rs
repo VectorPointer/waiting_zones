@@ -269,31 +269,53 @@ fn min_area_rectangle(coords: &[Coord<f64>], min_side: f64) -> Option<MultiPolyg
 /// rectangle that contains every point `netconvert` drew for it — see
 /// [`min_area_rectangle`]'s own docs for why a walkingarea's `shape` is
 /// not itself a usable footprint.
-pub fn pedestrian_lane_polygon(lane: &Lane) -> MultiPolygon<f64> {
+/// `(start_reach, end_reach)` are only consulted for a crossing lane: how
+/// far its two-point centreline is extended past each end, into the
+/// sidewalk — the width of the sidewalk lane it runs into, so the stripe
+/// reaches the *back* of the sidewalk rather than stopping at a fixed
+/// square cap (see [`lane_links`]'s own `crossing_sidewalk_reach`). A
+/// walkingarea lane ignores them and keeps its squared-off outline.
+pub fn pedestrian_lane_polygon(lane: &Lane, start_reach: Length, end_reach: Length) -> MultiPolygon<f64> {
     let coords: Vec<Coord<f64>> = lane.shape.0.iter().map(|p| Coord { x: p.x, y: p.y }).collect();
     // A crossing lane's `shape` is a two-point centreline across the road
     // (every one of Barcelona's own 2178 crossings), not a walkingarea's
-    // closed outline: buffer it into the painted stripe and let it run half
-    // a lane-width into the bank at each end, so the stripe overlaps the
-    // banks' own rectangles and the union is one connected polygon instead
-    // of three pieces that only touch at a corner.
-    if coords.len() == 2 {
-        let extension = Length::new::<meter>(lane.width.get::<meter>() / 2.0);
+    // closed outline: extend it into each bank by that bank's own sidewalk
+    // depth and buffer it into the painted stripe, so the stripe overlaps
+    // the banks' rectangles and the union is one connected polygon instead
+    // of three pieces that only touch at a corner. Both ends are extended
+    // on the shape itself: `buffer_shape`'s own start/end caps can't carry
+    // an arbitrary length (a square cap extends by half the stroke width,
+    // not by a distance the caller chooses).
+    if let [first, second, ..] = lane.shape.0.as_slice()
+        && coords.len() == 2
+    {
+        let (dx, dy) = (second.x - first.x, second.y - first.y);
+        let length = dx.hypot(dy);
+        if length <= 0.0 {
+            return MultiPolygon::new(Vec::new());
+        }
+        let (ux, uy) = (dx / length, dy / length);
+        let start = start_reach.get::<meter>();
+        let end = end_reach.get::<meter>();
+        let extended = Shape(vec![
+            Point { x: first.x - ux * start, y: first.y - uy * start, z: first.z },
+            Point { x: second.x + ux * end, y: second.y + uy * end, z: second.z },
+        ]);
         return buffer_shape(
-            &lane.shape,
-            Length::new::<meter>(0.0) - extension,
-            lane.length + extension,
+            &extended,
+            Length::new::<meter>(0.0),
+            Length::new::<meter>(length + start + end),
             lane.width / 2.0,
-            LineCap::Square,
+            LineCap::Butt,
         );
     }
     min_area_rectangle(&coords, lane.width.get::<meter>()).unwrap_or_else(|| MultiPolygon::new(Vec::new()))
 }
 
-pub fn merged_pedestrian_polygon(lanes: &[&Lane]) -> MultiPolygon<f64> {
+pub fn merged_pedestrian_polygon(lanes: &[(&Lane, Length, Length)]) -> MultiPolygon<f64> {
     lanes
         .iter()
-        .map(|lane| pedestrian_lane_polygon(lane))
+        .map(|&(lane, start, end)| pedestrian_lane_polygon(lane, start, end))
         .reduce(|acc, polygon| acc.union(&polygon))
         .unwrap_or_else(|| MultiPolygon::new(Vec::new()))
 }
@@ -341,6 +363,17 @@ pub fn zone_modes(zone: &E3Detector, lanes: &HashMap<&str, &Lane>) -> Vec<&'stat
 /// every future link it needs.
 pub struct LaneLinks<'a> {
     pub successors: HashMap<&'a str, (&'a str, Option<&'a str>)>,
+    /// Crossing lane id -> how far into the sidewalk the stripe runs past
+    /// each end, as `(start, end)` in the lane's own `shape` order. Taken
+    /// from the width of the real sidewalk lane each bank's walkingarea
+    /// connects to: a crossing's own lane width is the *painted* width,
+    /// unrelated to how deep the sidewalk is, so a fixed half-width cap
+    /// stops short of the sidewalk's back (confirmed on real Barcelona
+    /// data, `5588596746_w1_straight_ped`: 4m crossing on a 3m sidewalk
+    /// lane, neither one a usable stand-in for the other's width). The two
+    /// sides are kept apart because they can differ — using the wider one
+    /// for both overruns the narrower sidewalk.
+    pub crossing_sidewalk_reach: HashMap<&'a str, (f64, f64)>,
 }
 
 pub fn lane_links(network: &Network) -> LaneLinks<'_> {
@@ -355,8 +388,22 @@ pub fn lane_links(network: &Network) -> LaneLinks<'_> {
         .iter()
         .flat_map(|edge| edge.lanes.iter().map(move |lane| ((&edge.id, lane.index), lane.id.0.as_str())))
         .collect();
+    let lane_by_id: HashMap<&str, &Lane> =
+        network.edges.iter().flat_map(|edge| &edge.lanes).map(|lane| (lane.id.0.as_str(), lane)).collect();
+    let function_by_edge: HashMap<&EdgeId, EdgeFunction> =
+        network.edges.iter().map(|edge| (&edge.id, edge.function)).collect();
+    let edge_by_lane: HashMap<&str, &EdgeId> = network
+        .edges
+        .iter()
+        .flat_map(|edge| edge.lanes.iter().map(move |lane| (lane.id.0.as_str(), &edge.id)))
+        .collect();
+    let lane_function = |lane: &str| {
+        edge_by_lane.get(lane).and_then(|edge| function_by_edge.get(*edge)).copied()
+    };
 
     let mut successors_by_from: HashMap<&str, Vec<(&str, Option<&str>)>> = HashMap::new();
+    // Width of the real sidewalk lane each walkingarea connects to.
+    let mut sidewalk_width_by_walkingarea: HashMap<&str, f64> = HashMap::new();
     for connection in &network.connections {
         if internal_edges.contains(&connection.from_edge) || internal_edges.contains(&connection.to_edge) {
             continue;
@@ -367,8 +414,39 @@ pub fn lane_links(network: &Network) -> LaneLinks<'_> {
         ) else {
             continue;
         };
+        if lane_function(from_lane) == Some(EdgeFunction::Walkingarea)
+            && lane_function(to_lane) == Some(EdgeFunction::Normal)
+            && lane_by_id.get(to_lane).is_some_and(|lane| lane.is_pedestrian_only())
+        {
+            let width = lane_by_id[to_lane].width.get::<meter>();
+            sidewalk_width_by_walkingarea
+                .entry(from_lane)
+                .and_modify(|current| *current = current.max(width))
+                .or_insert(width);
+        }
         let via = connection.via.as_ref().map(|via| via.0.as_str());
         successors_by_from.entry(from_lane).or_default().push((to_lane, via));
+    }
+
+    let mut crossing_sidewalk_reach: HashMap<&str, (f64, f64)> = HashMap::new();
+    for (walkingarea, successors) in &successors_by_from {
+        if lane_function(walkingarea) != Some(EdgeFunction::Walkingarea) {
+            continue;
+        }
+        for &(crossing, _) in successors {
+            if lane_function(crossing) != Some(EdgeFunction::Crossing) {
+                continue;
+            }
+            let Some(&start) = sidewalk_width_by_walkingarea.get(walkingarea) else { continue };
+            let Some(&end) = successors_by_from
+                .get(crossing)
+                .and_then(|crossing_successors| crossing_successors.first())
+                .and_then(|&(far_lane, _)| sidewalk_width_by_walkingarea.get(far_lane))
+            else {
+                continue;
+            };
+            crossing_sidewalk_reach.entry(crossing).or_insert((start, end));
+        }
     }
 
     let successors = successors_by_from
@@ -379,7 +457,7 @@ pub fn lane_links(network: &Network) -> LaneLinks<'_> {
         })
         .collect();
 
-    LaneLinks { successors }
+    LaneLinks { successors, crossing_sidewalk_reach }
 }
 
 pub fn chain_shape<'a>(
@@ -507,17 +585,28 @@ pub fn zone_polygon(
     let is_pedestrian = !zone.detect_persons.is_empty();
 
     let mut core_gates = Vec::with_capacity(zone.exits.len());
-    let mut pedestrian_core_lanes = Vec::with_capacity(zone.exits.len());
+    let mut pedestrian_core_lanes: Vec<(&Lane, Length, Length)> =
+        Vec::with_capacity(zone.exits.len());
     let mut ancestor_lanes: BTreeSet<&str> = BTreeSet::new();
     for entry in &zone.entries {
         let lane = resolve(&entry.lane)?;
 
         if is_pedestrian {
-            // Every entry of a pedestrian zone is a walkingarea — the near
-            // bank (which is also its exit) and the far bank (an entry
-            // only). Both are ground the zone covers, so both are core
-            // lanes; matching on exits would draw only the near bank.
-            pedestrian_core_lanes.push(lane);
+            // Every entry of a pedestrian zone is a walkingarea or a
+            // crossing lane, and both are ground the zone covers: the near
+            // bank (also its exit), the far bank and the painted stripe.
+            // Matching on exits would draw only the near bank.
+            let default_reach = lane.width.get::<meter>() / 2.0;
+            let (start, end) = links
+                .crossing_sidewalk_reach
+                .get(lane.id.0.as_str())
+                .copied()
+                .unwrap_or((default_reach, default_reach));
+            pedestrian_core_lanes.push((
+                lane,
+                Length::new::<meter>(start),
+                Length::new::<meter>(end),
+            ));
         } else if let Some(&exit_distance) = exit_position_by_lane.get(entry.lane.0.as_str()) {
             let entry_distance = distance_from_start(entry.position, lane.length);
             core_gates.push((lane, padded_entry(entry_distance, exit_distance, target_length), exit_distance));

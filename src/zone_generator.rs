@@ -133,7 +133,9 @@
 //! cross"; the moment a pedestrian moves, their waiting time drops to zero
 //! and the same tick counts them out. Each bank is squared off from the
 //! walkingarea's own (frequently L-shaped or curved) `shape`, and the
-//! crossing lane's two-point centreline is buffered into the stripe — see
+//! crossing lane's two-point centreline is buffered into the stripe, run
+//! out at each end by that end's own sidewalk-lane width so it reaches the
+//! back of the pavement — see
 //! `geojson_output::geometry::pedestrian_lane_polygon`.
 
 use anstream::eprintln;
@@ -1273,12 +1275,17 @@ fn pedestrian_zones(
             // crossing lane carries no `tl`/`linkIndex` of its own (the near
             // bank does).
             let mut entry_lanes = near_lanes.clone();
-            for (crossing_lane, far_lane) in crossing_links(&near_lanes, lanes, graph) {
-                if !entry_lanes.contains(far_lane) {
+            for near_lane in &near_lanes {
+                let (crossings, far_lane) = crossing_links(near_lane, lanes, graph);
+                if let Some(far_lane) = far_lane
+                    && !entry_lanes.contains(far_lane)
+                {
                     entry_lanes.push(far_lane.clone());
                 }
-                if !entry_lanes.contains(crossing_lane) {
-                    entry_lanes.push(crossing_lane.clone());
+                for crossing in crossings {
+                    if !entry_lanes.contains(crossing) {
+                        entry_lanes.push(crossing.clone());
+                    }
                 }
             }
 
@@ -1295,43 +1302,72 @@ fn pedestrian_zones(
         .collect()
 }
 
-/// Each signalized crossing a near-side walkingarea in `lane_ids` leads
-/// into, as `(crossing lane, far-side walkingarea)`. The crossing lane is
-/// the painted crosswalk itself, drawn as part of the zone so it spans the
-/// whole crossing (see [`pedestrian_zones`]'s own docs). A crossing edge's
-/// own outgoing connections only ever target walkingareas (checked against
-/// the whole real Barcelona network: all 2178 crossing edges, no
-/// exceptions), and either side may be shared by several near-side lanes,
-/// so callers deduplicate.
+/// The full painted crosswalk a near-side walkingarea `lane_id` leads into:
+/// every crossing lane between it and the far bank, plus that far bank.
+///
+/// A road with more than one carriageway (or a crossing netconvert split
+/// per direction) is modelled as *several* crossing lanes, each signalled
+/// on its own — e.g. Barcelona's `5588596746` has `:…_c0` over
+/// `251411998#5` and `:…_c1` over `#4`, two lanes of Avinguda d'Alfons
+/// XIII. A pedestrian walks the painted stripe across both, so the zone has
+/// to cover all of them: taking only the one the near bank's own `tl`
+/// connection names leaves the zone barely past the first lane, not
+/// reaching the sidewalk on the far side. The far bank's own crossings back
+/// to `lane_id` are the other carriageway's own lane.
+///
+/// A crossing lane's own outgoing connections only ever target walkingareas
+/// (checked against the whole real Barcelona network: all 2178 crossing
+/// edges, no exceptions), and callers deduplicate.
 fn crossing_links<'a>(
-    lane_ids: &[LaneId],
+    lane_id: &LaneId,
     lanes: &HashMap<&LaneId, LaneInfo>,
     graph: &ConnectivityGraph<'a>,
-) -> Vec<(&'a LaneId, &'a LaneId)> {
-    let mut links = Vec::new();
-    for lane_id in lane_ids {
-        for connection in graph.connections_by_from_lane.get(lane_id).into_iter().flatten() {
-            if connection.traffic_light.is_none() || connection.link_index.is_none() {
-                continue;
-            }
-            let Some(&crossing_lane) =
-                graph.lane_ids_by_edge_and_index.get(&(&connection.to_edge, connection.to_lane))
-            else {
-                continue;
-            };
-            for out in graph.connections_by_from_lane.get(crossing_lane).into_iter().flatten() {
-                let Some(&far_lane) =
-                    graph.lane_ids_by_edge_and_index.get(&(&out.to_edge, out.to_lane))
-                else {
-                    continue;
-                };
-                if lanes.get(far_lane).is_some_and(|info| info.pedestrian_only) {
-                    links.push((crossing_lane, far_lane));
-                }
+) -> (Vec<&'a LaneId>, Option<&'a LaneId>) {
+    let mut crossings = signalized_crossings(lane_id, graph);
+    let far_lane = crossings.first().and_then(|crossing| crossing_destination(crossing, lanes, graph));
+    if let Some(far_lane) = far_lane {
+        for crossing in signalized_crossings(far_lane, graph) {
+            if crossing_destination(crossing, lanes, graph) == Some(lane_id) {
+                crossings.push(crossing);
             }
         }
     }
-    links
+    crossings.sort_unstable();
+    crossings.dedup();
+    (crossings, far_lane)
+}
+
+/// Every lane a signalized connection out of `lane_id` targets — a
+/// walkingarea's own controlled crossings.
+fn signalized_crossings<'a>(lane_id: &LaneId, graph: &ConnectivityGraph<'a>) -> Vec<&'a LaneId> {
+    graph
+        .connections_by_from_lane
+        .get(lane_id)
+        .into_iter()
+        .flatten()
+        .filter(|connection| connection.traffic_light.is_some() && connection.link_index.is_some())
+        .filter_map(|connection| {
+            graph.lane_ids_by_edge_and_index.get(&(&connection.to_edge, connection.to_lane)).copied()
+        })
+        .collect()
+}
+
+/// The walkingarea a crossing lane leads to — its far bank. A crossing
+/// edge only ever targets walkingareas.
+fn crossing_destination<'a>(
+    crossing_lane: &LaneId,
+    lanes: &HashMap<&LaneId, LaneInfo>,
+    graph: &ConnectivityGraph<'a>,
+) -> Option<&'a LaneId> {
+    graph
+        .connections_by_from_lane
+        .get(crossing_lane)
+        .into_iter()
+        .flatten()
+        .filter_map(|connection| {
+            graph.lane_ids_by_edge_and_index.get(&(&connection.to_edge, connection.to_lane)).copied()
+        })
+        .find(|lane| lanes.get(lane).is_some_and(|info| info.pedestrian_only))
 }
 
 /// A waiting zone's id: the source edge and its turn direction(s), joined

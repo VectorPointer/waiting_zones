@@ -1763,7 +1763,7 @@ mod tests {
             ..straight_lane("e0_0", 4.0)
         };
 
-        let polygon = crate::geojson_output::geometry::pedestrian_lane_polygon(&corner);
+        let polygon = crate::geojson_output::geometry::pedestrian_lane_polygon(&corner, Length::new::<meter>(0.0), Length::new::<meter>(0.0));
         assert_eq!(polygon.0.len(), 1, "one walkingarea yields one part");
         assert_eq!(
             polygon.0[0].exterior().0.len() - 1,
@@ -1794,7 +1794,7 @@ mod tests {
             ..straight_lane("e0_0", 4.0)
         };
 
-        let polygon = crate::geojson_output::geometry::pedestrian_lane_polygon(&flat);
+        let polygon = crate::geojson_output::geometry::pedestrian_lane_polygon(&flat, Length::new::<meter>(0.0), Length::new::<meter>(0.0));
         assert!(
             (polygon.unsigned_area() - 80.0).abs() < 0.01,
             "a 20m-long, 4m-wide collinear lane should be an 80m2 rectangle, got {}",
@@ -1819,7 +1819,7 @@ mod tests {
             ..straight_lane(":j0_c0_0", 4.0)
         };
 
-        let polygon = crate::geojson_output::geometry::pedestrian_lane_polygon(&crossing);
+        let polygon = crate::geojson_output::geometry::pedestrian_lane_polygon(&crossing, Length::new::<meter>(2.0), Length::new::<meter>(2.0));
         assert_eq!(polygon.0.len(), 1, "the stripe is one rectangle");
         assert!(
             (polygon.unsigned_area() - 56.0).abs() < 0.01,
