@@ -1802,6 +1802,33 @@ mod tests {
         );
     }
 
+    /// A crossing lane's `shape` is a two-point centreline (every one of
+    /// Barcelona's own 2178 crossings), and its own zone has to cover the
+    /// whole painted stripe — including half a lane-width past each end, so
+    /// the stripe reaches into the banks it connects and the union is one
+    /// polygon.
+    #[test]
+    fn a_two_point_crossing_lane_is_buffered_into_the_whole_stripe() {
+        let crossing = Lane {
+            length: Length::new::<meter>(10.0),
+            width: Length::new::<meter>(4.0),
+            shape: Shape(vec![
+                Point { x: 0.0, y: 0.0, z: 0.0 },
+                Point { x: 0.0, y: 10.0, z: 0.0 },
+            ]),
+            ..straight_lane(":j0_c0_0", 4.0)
+        };
+
+        let polygon = crate::geojson_output::geometry::pedestrian_lane_polygon(&crossing);
+        assert_eq!(polygon.0.len(), 1, "the stripe is one rectangle");
+        assert!(
+            (polygon.unsigned_area() - 56.0).abs() < 0.01,
+            "a 10m crossing plus a 2m half-width at each end is a 14m-long, 4m-wide \
+             stripe (56m2), got {}",
+            polygon.unsigned_area()
+        );
+    }
+
     /// A closed rectangle polygon, corners in `(x, y)` — built directly as a
     /// [`MultiPolygon`] rather than a [`Position`] ring, since production
     /// code now carries geometry that way throughout (see the module docs)
@@ -1908,19 +1935,17 @@ mod tests {
         panic!("zone {id:?} not found in either collection");
     }
 
-    /// Every pedestrian waiting area part is a rectangle (four distinct
-    /// corners), not the L-shaped, curved wedge `netconvert`'s walkingarea
-    /// `shape` traces — nor a triangle from taking that wedge's convex
-    /// hull. `geometry::pedestrian_lane_polygon` squares each corner off;
-    /// overlap resolution can still trim an edge shared with a neighbouring
-    /// zone, but it must not leave the four-corner shape entirely.
+    /// Every pedestrian waiting zone is a **single connected polygon**
+    /// spanning the whole crossing — the near bank, the far bank and the
+    /// painted stripe between them — not a `MultiPolygon` of two bank
+    /// rectangles with the road left as a hole in the middle.
     ///
-    /// A crossing's zone spans two banks, so it legitimately has two rings;
-    /// this checks each ring on its own. Two real zones are kept as named
-    /// cases, one a normal near-bank crossing and one whose far bank is the
-    /// only reason it has a second ring at all.
+    /// This is what lets a client's own point-in-polygon answer "is this
+    /// person on the crossing?" with one zone (and a single "inside"
+    /// geofence), while `control_loop` still distinguishes waiting from
+    /// crossing by `person_waiting_time`, not by which bank they're on.
     #[test]
-    fn real_pedestrian_zones_are_rectangles() {
+    fn real_pedestrian_zones_are_one_polygon_spanning_the_crossing() {
         let net_file = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("data/barcelona/barcelona.net.xml");
         let network = sumo_types::read_network(&net_file).expect("reading Barcelona network");
@@ -1930,34 +1955,22 @@ mod tests {
                 .partition(|zone| !zone.detect_persons.is_empty());
         let collection = to_feature_collection(&network, &pedestrian).expect("building collection");
 
-        let mut four_corner = 0;
-        let mut examined = 0;
+        assert!(!collection.features.is_empty(), "Barcelona has pedestrian zones");
         for feature in &collection.features {
-            for ring in feature_rings(feature) {
-                examined += 1;
-                if ring.len() - 1 == 4 {
-                    four_corner += 1;
-                }
-            }
-        }
-        assert!(
-            four_corner * 10 >= examined * 8,
-            "expected the large majority of {examined} pedestrian-zone rings to be plain \
-             rectangles, got only {four_corner}"
-        );
-
-        for id in ["6119951203_w0_straight_ped", "1091758397_w1_straight_ped"] {
-            let feature = find_barcelona_zone(id);
-            let rings = feature_rings(&feature);
-            assert!(!rings.is_empty(), "{id}: expected at least one ring");
-            for ring in &rings {
-                assert_eq!(
-                    ring.len() - 1,
-                    4,
-                    "{id} should now be squared off into a rectangle, not the walkingarea's own \
-                     many-corner outline: {ring:?}"
-                );
-            }
+            let rings = feature_rings(feature);
+            let id = feature.property("waiting_zone_id").unwrap();
+            assert_eq!(
+                rings.len(),
+                1,
+                "{id}: a pedestrian zone has to be one polygon covering the crossing, got {} \
+                 part(s)",
+                rings.len()
+            );
+            assert!(
+                rings[0].len() >= 5,
+                "{id}: the crosswalk plus its two banks can't be a triangle: {:?}",
+                rings[0]
+            );
         }
     }
 

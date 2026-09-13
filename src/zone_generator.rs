@@ -123,13 +123,18 @@
 //! its own, would produce no zone at all, leaving half the crossing
 //! undetected. Both banks are therefore one zone: a pedestrian crossing is
 //! symmetric (its walk phase belongs to the crossing, not to one
-//! direction), so [`pedestrian_zones`] puts a gate on each bank of the same
-//! crossing into a single `E3Detector`, identified by the near bank's own
-//! movement. That zone's own footprint is then two disjoint rectangles
-//! (one per bank), which `geojson_output` keeps as separate parts rather
-//! than collapsing to the one nearest the stop line. Each rectangle is
-//! squared off from the walkingarea's own (frequently L-shaped or curved)
-//! `shape` — see `geojson_output::geometry::min_area_rectangle`.
+//! direction), so [`pedestrian_zones`] puts a gate on each bank *and on the
+//! crossing lane itself* into a single `E3Detector`, identified by the near
+//! bank's own movement. The zone's own footprint is then one connected
+//! polygon covering the whole crossing — the painted stripe plus both
+//! banks — rather than two bank rectangles with the road left as a hole.
+//! `control_loop`'s own ENTRY condition for a pedestrian is "inside the
+//! zone *and* stationary", so a zone that large still means "waiting to
+//! cross"; the moment a pedestrian moves, their waiting time drops to zero
+//! and the same tick counts them out. Each bank is squared off from the
+//! walkingarea's own (frequently L-shaped or curved) `shape`, and the
+//! crossing lane's two-point centreline is buffered into the stripe — see
+//! `geojson_output::geometry::pedestrian_lane_polygon`.
 
 use anstream::eprintln;
 use anstyle::{AnsiColor, Style};
@@ -1179,14 +1184,14 @@ fn merged_movement_id(from_edges: &[EdgeId], directions: &[ConnectionDirection])
 
 /// The pedestrian waiting zones at `junction`'s signalized crossings — one
 /// per crossing, mirroring how [`vehicle_zones`] groups the lanes leading
-/// into a given turn. A crossing is one movement spanning both banks, so a
-/// zone's gates cover the near walkingarea *and* the far one the crossing
-/// leads to (see the module docs for why `netconvert` only signals the
-/// near bank, and why the two are one movement for a pedestrian). The zone
-/// keeps the near bank's own movement identity, so a corner that is also
-/// the far bank of a neighbouring crossing still contributes its own zone.
-/// The rendering side squares each bank off into a rectangle
-/// (`geojson_output::geometry`).
+/// into a given turn. A crossing is one movement spanning the whole
+/// crosswalk, so a zone's gates cover the near walkingarea, the far one the
+/// crossing leads to, *and* the crossing lane itself (see the module docs
+/// for why `netconvert` only signals the near bank, and why all three are
+/// one movement for a pedestrian). The rendered zone is therefore one
+/// connected polygon over the whole crossing. It keeps the near bank's own
+/// movement identity, so a corner that is also the far bank of a
+/// neighbouring crossing still contributes its own zone.
 ///
 /// `detectPersons="walk"` (below) is kept for what it's still good for —
 /// marking a zone as pedestrian (`Zone::is_pedestrian` in `territory`, this
@@ -1248,18 +1253,34 @@ fn pedestrian_zones(
     groups
         .into_iter()
         .filter_map(|((from_edge, directions), near_lanes)| {
-            let far_lanes: Vec<LaneId> = crossing_far_side_lanes(&near_lanes, lanes, graph)
-                .into_iter()
-                .cloned()
-                .collect();
+            // One zone spans the whole crossing: the near bank (the group's
+            // own lanes), the far bank, *and* the crossing lane itself — the
+            // painted stripe between them. With the crossing lane among the
+            // entries the drawn zone becomes one connected polygon covering
+            // the whole crossing, rather than two bank rectangles with the
+            // road's own width left as a hole between them.
+            //
+            // `control_loop`'s own ENTRY condition for a pedestrian is
+            // "inside the zone *and* stationary" (`person_waiting_time > 0`),
+            // so a zone as large as the crossing still means exactly
+            // "waiting to cross", not "walking across": the moment a
+            // pedestrian moves, their waiting time drops to zero and the
+            // same tick counts them out again. Covering the whole crossing
+            // is what lets a single zone hold both ends.
+            //
+            // The crossing lane is an entry only, never an exit: an exit is
+            // what `derive_zones` reads the controlling phase from, and the
+            // crossing lane carries no `tl`/`linkIndex` of its own (the near
+            // bank does).
             let mut entry_lanes = near_lanes.clone();
-            for far_lane in far_lanes {
-                if !entry_lanes.contains(&far_lane) {
-                    entry_lanes.push(far_lane);
+            for (crossing_lane, far_lane) in crossing_links(&near_lanes, lanes, graph) {
+                if !entry_lanes.contains(far_lane) {
+                    entry_lanes.push(far_lane.clone());
+                }
+                if !entry_lanes.contains(crossing_lane) {
+                    entry_lanes.push(crossing_lane.clone());
                 }
             }
-            entry_lanes.sort();
-            entry_lanes.dedup();
 
             zone_from_group(
                 format!("{}_ped", movement_id(&from_edge, &directions)),
@@ -1274,19 +1295,20 @@ fn pedestrian_zones(
         .collect()
 }
 
-/// The walkingarea on the far side of every signalized crossing one of
-/// `lane_ids` (near-side walkingareas) leads into — the destination of the
-/// crossing edge that same connection names. A crossing edge's own
-/// outgoing connections only ever target walkingareas (checked against the
-/// whole real Barcelona network: all 2178 crossing edges, no exceptions),
-/// and the far one may be shared by several near-side lanes, so callers
-/// deduplicate.
-fn crossing_far_side_lanes<'a>(
+/// Each signalized crossing a near-side walkingarea in `lane_ids` leads
+/// into, as `(crossing lane, far-side walkingarea)`. The crossing lane is
+/// the painted crosswalk itself, drawn as part of the zone so it spans the
+/// whole crossing (see [`pedestrian_zones`]'s own docs). A crossing edge's
+/// own outgoing connections only ever target walkingareas (checked against
+/// the whole real Barcelona network: all 2178 crossing edges, no
+/// exceptions), and either side may be shared by several near-side lanes,
+/// so callers deduplicate.
+fn crossing_links<'a>(
     lane_ids: &[LaneId],
     lanes: &HashMap<&LaneId, LaneInfo>,
     graph: &ConnectivityGraph<'a>,
-) -> Vec<&'a LaneId> {
-    let mut far = Vec::new();
+) -> Vec<(&'a LaneId, &'a LaneId)> {
+    let mut links = Vec::new();
     for lane_id in lane_ids {
         for connection in graph.connections_by_from_lane.get(lane_id).into_iter().flatten() {
             if connection.traffic_light.is_none() || connection.link_index.is_none() {
@@ -1304,12 +1326,12 @@ fn crossing_far_side_lanes<'a>(
                     continue;
                 };
                 if lanes.get(far_lane).is_some_and(|info| info.pedestrian_only) {
-                    far.push(far_lane);
+                    links.push((crossing_lane, far_lane));
                 }
             }
         }
     }
-    far
+    links
 }
 
 /// A waiting zone's id: the source edge and its turn direction(s), joined

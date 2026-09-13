@@ -98,17 +98,20 @@ ignores `pos` for detection.
 ### Pedestrian waiting zones
 
 `zone_generator::pedestrian_zones` generates one zone per signalized
-crossing, spanning both banks of the road: a crossing is one movement with
-one walk phase, so the zone's gates sit on the near walkingarea and the far
-one `netconvert` gives no `tl` to, while its controlled phase comes from
-the near bank (`detectPersons="walk"` on the same `e3Detector` machinery
-`vehicle_zones` uses — see that function's module docs for why nothing
-pedestrian-specific was needed beyond the lane filter and two field
-values). `geojson_output` renders each bank as the smallest rectangle
+crossing, spanning the **whole crossing**: a crossing is one movement with
+one walk phase, so the zone's gates sit on the near walkingarea, the far
+one `netconvert` gives no `tl` to, and the painted crossing lane between
+them, while its controlled phase comes from the near bank
+(`detectPersons="walk"` on the same `e3Detector` machinery `vehicle_zones`
+uses — see that function's module docs for why nothing pedestrian-specific
+was needed beyond the lane filter and two field values). `geojson_output`
+renders it as one connected polygon: each bank is the smallest rectangle
 containing the walkingarea's own `shape`
-(`geometry::min_area_rectangle`) rather than the L-shaped, curved outline
-`netconvert` draws, so a client geofencing against it sees a clean, square
-corner. This was implemented once already, then removed:
+(`geometry::min_area_rectangle`) and the crossing lane's centreline is
+buffered into the stripe, so a client geofencing against it covers the
+whole crossing. `control_loop` still tells waiting (stationary, ENTRY)
+from crossing (moving, EXIT) by `person_waiting_time`. This was
+implemented once already, then removed:
 SUMO 1.26.0 has a reproducible crash in `MSE3Collector::detectorUpdate`
 (confirmed with a gdb backtrace) when an `e3Detector` with
 `detectPersons="walk"` is combined with real pedestrian traffic, filed as

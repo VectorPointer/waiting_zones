@@ -179,7 +179,7 @@ pub fn merged_core_polygon(lane_gates: &[(&Lane, Length, Length)]) -> MultiPolyg
 /// from collapsing to zero width) finds the orientation that hugs the
 /// corner instead.
 fn min_area_rectangle(coords: &[Coord<f64>], min_side: f64) -> Option<MultiPolygon<f64>> {
-    if coords.len() < 3 {
+    if coords.len() < 2 {
         return None;
     }
     let hull = GeoPolygon::new(LineString::new(coords.to_vec()), Vec::new()).convex_hull();
@@ -271,6 +271,22 @@ fn min_area_rectangle(coords: &[Coord<f64>], min_side: f64) -> Option<MultiPolyg
 /// not itself a usable footprint.
 pub fn pedestrian_lane_polygon(lane: &Lane) -> MultiPolygon<f64> {
     let coords: Vec<Coord<f64>> = lane.shape.0.iter().map(|p| Coord { x: p.x, y: p.y }).collect();
+    // A crossing lane's `shape` is a two-point centreline across the road
+    // (every one of Barcelona's own 2178 crossings), not a walkingarea's
+    // closed outline: buffer it into the painted stripe and let it run half
+    // a lane-width into the bank at each end, so the stripe overlaps the
+    // banks' own rectangles and the union is one connected polygon instead
+    // of three pieces that only touch at a corner.
+    if coords.len() == 2 {
+        let extension = Length::new::<meter>(lane.width.get::<meter>() / 2.0);
+        return buffer_shape(
+            &lane.shape,
+            Length::new::<meter>(0.0) - extension,
+            lane.length + extension,
+            lane.width / 2.0,
+            LineCap::Square,
+        );
+    }
     min_area_rectangle(&coords, lane.width.get::<meter>()).unwrap_or_else(|| MultiPolygon::new(Vec::new()))
 }
 
