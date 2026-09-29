@@ -1,106 +1,20 @@
 [package]
 name = "waiting_zones"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
+
+# Experimental OSM-only generator: derives waiting zones straight from an
+# OpenStreetMap extract, with no SUMO network in between.
 
 [dependencies]
 anyhow = "1.0.104"
-# Style the "warning:" prefix `zone_generator` prints for a skipped
-# junction/lane, the way `cargo`/`rustc` style theirs. Free rather than a new
-# dependency: `clap`'s own colored `--help` output already pulls both of
-# these in (via `clap_builder`'s default `color` feature), so this only
-# names crates already being compiled instead of leaving them transitive.
-anstream = "1"
-anstyle = "1"
 clap = { version = "4.6.6", features = ["derive"] }
-derive_more = { version = "2.1.1", features = ["display", "from", "as_ref"] }
-# A general-purpose SUMO reader/writer with no notion of waiting zones,
-# published separately so other Leave components can depend on it too.
-#
-# Resolved from crates.io rather than `../sumo-types`: a path dependency made
-# every local edit to that crate silently land here, which is convenient while
-# co-developing and misleading afterwards — this builds against exactly what a
-# third party would get.
-#
-# `additional` + `write` on top of the default `net`: `zone_output` builds
-# `additional::Additional` values and writes them out, instead of the
-# hand-rolled `e3Detector` mirror it used to carry. `routes` isn't used.
-#
-# There is deliberately no direct `uom` entry. `uom` leaks into sumo-types'
-# public API (`Length`, `Velocity` on `domain::Lane`), and two different
-# majors of it resolve to two distinct crates whose `Length`s are unrelated
-# types — a confusing error right at the crate boundary. Every `uom` path
-# here goes through `sumo_types::uom` instead, so there is no second version
-# number to keep in sync: the constraint is structural rather than a comment
-# asking the next person to remember. Add `uom` back only if this crate ever
-# needs it for something unrelated to sumo-types.
-#
-# (`derive_more` below is *not* in that category, despite appearances: its
-# `Display`/`From`/`AsRef` derives generate impls of the std traits, so
-# nothing from it crosses the boundary. That copy is purely for this crate's
-# own types and its version is free.)
-sumo-types = { version = "0.3.0", features = ["additional", "write"] }
-# Reprojects a network's local/projected coordinates (`.net.xml`'s own CRS,
-# e.g. UTM) back to WGS84 lon/lat for the GeoJSON output — the coordinate
-# system GPS and GeoJSON both assume. Pure Rust, no `libproj` system
-# dependency. Default features off: `binaries` builds CLI tools this crate
-# never calls, and `multi-thread` only affects NAD grid loading, which this
-# crate's UTM/lonlat transforms never touch.
-proj4rs = { version = "0.1.10", default-features = false }
-# The GeoJSON `FeatureCollection`/`Feature`/`Geometry` types themselves —
-# `geojson_output` builds these directly rather than hand-writing JSON text,
-# the same reasoning `zone_output` already applies to `.add.xml` via
-# `sumo_types`. Default features off: this crate never needs `geo-types`
-# interop.
-geojson = { version = "1.0.0", default-features = false }
-# `geojson`'s own `properties`/`stop_line` values are `serde_json::Value`
-# (`geojson::JsonObject`/`JsonValue`); declared directly rather than only
-# transitively so `geojson_output` can build them with `serde_json::json!`.
-serde_json = "1.0.151"
-# `BooleanOps` (union/intersection/difference on `Polygon`/`MultiPolygon`) is
-# what `geojson_output` builds every waiting-zone polygon out of: buffering a
-# lane's shape is "union of one quad per segment", merging a multi-lane zone
-# is "union of each lane's own buffer", and resolving two zones' polygons
-# overlapping is "difference by a cutting half-plane" — all exact for
-# arbitrary (non-convex, multi-part) input by construction, which is the
-# actual property a hand-rolled Sutherland-Hodgman/triangulate/convex-hull
-# pipeline could only ever approximate case by case (see `geojson_output`'s
-# own module docs and git history for what that cost in practice). Default
-# features off: this crate never needs `geo`'s own I/O (`use-proj`),
-# `serde`, or the alternate `spade`/`earcutr` triangulation backends —
-# `BooleanOps`, `Area`, and `Centroid` are all in the base crate.
+quick-xml = "0.42"
+# Polygon union/difference/area/containment on every zone polygon.
 geo = { version = "0.33.1", default-features = false }
-# `geo`'s own `BooleanOps` is exactly `i_overlay` under the hood, but `geo`
-# doesn't expose `i_overlay`'s own stroke-offset API (`StrokeOffset`,
-# `StrokeStyle`, `LineJoin`) — `buffer_shape` needs that directly, to
-# offset a lane's own centreline into a polygon with a real join at each
-# bend, rather than approximating one via a union of straight per-segment
-# quads (see `buffer_shape`'s own docs for what that approximation cost in
-# practice on real, sharply-bent Barcelona geometry). Pinned to the *exact*
-# version `geo` 0.33.1 already resolves (checked via `cargo tree`), so
-# Cargo unifies the two into one copy rather than compiling `i_overlay`
-# twice — bumping this without also bumping `geo` would silently reintroduce
-# that duplication. Default features off: this crate never needs
-# `i_overlay`'s own `allow_multithreading`/`glam`/`serde` extras.
+# Stroke-offsets a polyline into a polygon with real joins at each bend.
+# Pinned to the exact version `geo` 0.33.1 resolves so Cargo unifies them.
 i_overlay = { version = "=4.5.2", default-features = false }
-
-# `sumo-types` 0.3.0 (adding `domain::VClass` / `Lane::permits`, used by
-# `geojson_output`'s own `zone_modes`) is on crates.io, so the temporary
-# `[patch.crates-io]` that pointed at the sibling checkout is gone and the
-# requirement above resolves the published release.
-
-[dev-dependencies]
-# Only for tests/zone_fixtures.rs, which compares a fixture's committed
-# shape against a fresh run by *area* rather than vertex by vertex (see
-# that file's own docs on why exact comparison was the wrong contract).
-# `geo` is already a regular dependency of the library itself, resolved to
-# the same version, so this costs no extra compilation — an integration
-# test just doesn't inherit the library's own dependencies.
-geo = { version = "0.33.1", default-features = false }
-# Only for tests/pedestrian_zones_detect_real_halted_pedestrians.rs: polls a
-# real running `sumo` over TraCI to check that the pedestrian zones this
-# crate generates actually see who's waiting in them. `zone_generator`/
-# `zone_output` themselves never talk to a running simulation, so this has
-# no business being a regular dependency — path, not crates.io, same
-# reasoning `control_loop`'s own Cargo.toml gives for its sibling crates.
-traci = { path = "../traci" }
+geojson = { version = "1.0.0", default-features = false }
+serde_json = "1.0.151"
+serde = { version = "1", features = ["derive"] }

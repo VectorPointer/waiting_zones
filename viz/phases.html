@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>waiting_zones — phases</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  html, body, #map { height: 100%; margin: 0; }
+  #panel { position: absolute; top: 10px; right: 10px; z-index: 1000; background: #fff; padding: 8px 10px;
+           font: 13px sans-serif; max-width: 460px; max-height: 90%; overflow: auto; box-shadow: 0 1px 4px #0004; }
+  #panel code { font-size: 12px; }
+  .phase { cursor: pointer; padding: 1px 4px; }
+  .phase.on { background: #dbeafe; font-weight: bold; }
+  .sw { display: inline-block; width: 10px; height: 10px; margin-right: 4px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel">Loading…</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// Usage: viz/data/<name>/zones.{vehicles,pedestrians}.geojson + zones.programs.json
+// (as written by `--geojson viz/data/<name>/zones.geojson`), then
+// phases.html?net=<name>&tls=<id>&phase=<green phase number, from 0>.
+const params = new URLSearchParams(location.search);
+const DATA = `data/${params.get('net') || 'barcelona'}`;
+const COLOURS = { G: '#16a34a', g: '#a3e635', y: '#f59e0b', r: '#dc2626', off: '#9ca3af' };
+const map = L.map('map', { maxZoom: 21 });
+window.map = map;
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 21, maxNativeZoom: 19 }).addTo(map);
+const panel = document.getElementById('panel');
+
+window.ready = Promise.all([
+  fetch(`${DATA}/zones.vehicles.geojson`).then(r => r.json()),
+  fetch(`${DATA}/zones.pedestrians.geojson`).then(r => r.json()),
+  fetch(`${DATA}/zones.programs.json`).then(r => r.json()),
+]).then(([vehicles, pedestrians, programs]) => {
+  const byTls = new Map(programs.map(p => [p.tls_id, p]));
+  const layers = new Map();
+  const all = L.geoJSON({ type: 'FeatureCollection', features: [...vehicles.features, ...pedestrians.features] }, {
+    style: { color: COLOURS.off, weight: 1, fillOpacity: 0.15 },
+    onEachFeature: (f, layer) => {
+      layers.set(f.properties.waiting_zone_id, layer);
+      layer.bindTooltip(f.properties.waiting_zone_id);
+      layer.on('click', () => show(f.properties.intersection_id, 0));
+    },
+  }).addTo(map);
+
+  // A zone's state in a phase: its best link state (G > g > y > r).
+  const zoneState = (program, state, zone) => {
+    const mine = program.links.filter(l => l.zone === zone).map(l => state[l.index]);
+    return ['G', 'g', 'y', 'r'].find(s => mine.includes(s)) || 'r';
+  };
+
+  function show(tls, greenPhase) {
+    const program = byTls.get(tls);
+    all.setStyle({ color: COLOURS.off, weight: 1, fillOpacity: 0.1 });
+    if (!program) { panel.textContent = `no program for ${tls}`; return; }
+    const index = 2 * greenPhase;
+    const [duration, state] = program.program.phases[index];
+    const bounds = L.latLngBounds([]);
+    for (const zone of program.zones) {
+      const layer = layers.get(zone.detector_id);
+      if (!layer) continue;
+      const s = zoneState(program, state, zone.detector_id);
+      layer.setStyle({ color: COLOURS[s], fillColor: COLOURS[s], weight: 2, fillOpacity: 0.55 });
+      layer.bringToFront();
+      bounds.extend(layer.getBounds());
+    }
+    if (params.get('fit') !== '0') map.fitBounds(bounds, { maxZoom: +(params.get('z') || 19) });
+    const phases = program.program.phases
+      .map(([d, s], i) => i % 2 === 0
+        ? `<div class="phase ${i === index ? 'on' : ''}" data-p="${i / 2}">phase ${i / 2}: ${d}s <code>${s}</code></div>`
+        : `<div style="color:#999;padding-left:12px">amber ${d}s <code>${s}</code></div>`)
+      .join('');
+    const zones = program.zones
+      .map(z => { const s = zoneState(program, state, z.detector_id);
+        return `<div><span class="sw" style="background:${COLOURS[s]}"></span>${z.detector_id} <small>(${s})</small></div>`; })
+      .join('');
+    panel.innerHTML = `<b>tls ${tls}</b> — green phase ${greenPhase} (${duration}s)<br>${phases}<hr>${zones}`;
+    panel.querySelectorAll('.phase').forEach(el => el.onclick = () => show(tls, +el.dataset.p));
+  }
+  window.show = show;
+  show(params.get('tls') || programs[0].tls_id, +(params.get('phase') || 0));
+});
+</script>
+</body>
+</html>

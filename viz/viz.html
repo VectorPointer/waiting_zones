@@ -139,6 +139,7 @@
     <button id="save-zone-fixture">Guardar esta zona</button>
     <button id="save-intersection-fixture">Guardar intersección</button>
     <button id="remove-expected-zone">Quitar de expected</button>
+    <button id="update-expected-zone">Actualizar expected</button>
     <div id="fixture-status"></div>
   </div>
 </div>
@@ -256,9 +257,13 @@ function dissolvedFeature(feature) {
 // tile, or (worse, if the two ever drifted apart) past whatever cap
 // Leaflet itself enforces for the *map*, silently clamping tighter than
 // intended.
-const MAX_USEFUL_ZOOM = 21;
+const MAX_USEFUL_ZOOM = 25;
+// How close selecting a zone zooms on its own: past this a whole zone
+// rarely fits, but zooming further by hand (down to single vertices on a
+// hand edit) goes on to `MAX_USEFUL_ZOOM`.
+const FIT_ZOOM = 21;
 
-const map = L.map("map");
+const map = L.map("map", { maxZoom: MAX_USEFUL_ZOOM, zoomSnap: 0.25, zoomDelta: 0.5, wheelPxPerZoomLevel: 120 });
 const tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   // The map itself allows zooming past 19 (useful for eyeballing lane-level
   // geometry), but OSM's own tile server stops serving new tiles at 19 —
@@ -1050,6 +1055,57 @@ function wireFixtureButtons(feature) {
   saveIntersectionButton.onclick = () => save(intersectionId, saveIntersectionButton);
 
   wireRemoveExpectedButton(feature, zoneId, statusEl);
+  wireUpdateExpectedButton(feature, zoneId, statusEl);
+}
+
+/// "Actualizar expected": the fixture this zone's expected comes from is
+/// thrown away and saved again from the current generation — the same as
+/// deleting it and pressing the button that made it, for the same
+/// junction, without having to remember which one that was. Hand edits in
+/// it are lost; the confirmation says so.
+function wireUpdateExpectedButton(feature, zoneId, statusEl) {
+  const button = document.getElementById("update-expected-zone");
+  const expected = expectedByZoneId.get(zoneId);
+  button.disabled = !expected;
+  if (!expected) return;
+
+  button.onclick = async () => {
+    const confirmed = window.confirm(
+      `¿Actualizar ${expected.fixture}? Se borra su expected (con cualquier edición a mano) ` +
+        `y se vuelve a guardar la generación actual de toda su intersección.`
+    );
+    if (!confirmed) return;
+
+    button.disabled = true;
+    statusEl.textContent = "Actualizando expected…";
+    statusEl.className = "";
+    try {
+      const response = await fetch("/api/update_expected", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fixture: expected.fixture }),
+      });
+      const result = await response.json();
+      if (!result.ok) throw new Error(result.error);
+      statusEl.textContent = `Actualizado ${result.path} con la generación actual.`;
+      statusEl.className = "ok";
+      await refreshExpectedZones();
+      if (currentFeature === feature) {
+        const hasExpected = expectedByZoneId.has(zoneId);
+        toggleExpectedCheckbox.disabled = !hasExpected;
+        showExpectedOverlay = hasExpected;
+        toggleExpectedCheckbox.checked = hasExpected;
+        expectedFixtureNameLabel.textContent = hasExpected ? ` (${expectedByZoneId.get(zoneId).fixture})` : "";
+        renderComparisonOverlays();
+        wireUpdateExpectedButton(feature, zoneId, statusEl);
+        wireRemoveExpectedButton(feature, zoneId, statusEl);
+      }
+    } catch (error) {
+      statusEl.textContent = `Error: ${error.message}`;
+      statusEl.className = "error";
+      button.disabled = false;
+    }
+  };
 }
 
 /// "Quitar de expected": for a zone whose committed `expected.geojson`
@@ -1667,7 +1723,7 @@ function selectZone(id) {
     // allows (an intersection cluster, a long approach) is unaffected
     // either way — `fitBounds` was already choosing a looser zoom for
     // those, well under either cap.
-    map.fitBounds(layer.getBounds(), { maxZoom: MAX_USEFUL_ZOOM, padding: [60, 60] });
+    map.fitBounds(layer.getBounds(), { maxZoom: FIT_ZOOM, padding: [60, 60] });
   }
   layer.openPopup();
 }

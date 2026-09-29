@@ -15,16 +15,15 @@ Each dataset lives in its own `viz/data/<name>/` directory. From the
 
 ```sh
 mkdir -p viz/data/barcelona
-cargo run --release -- data/barcelona/barcelona.net.xml \
-  -o viz/data/barcelona/zones.add.xml --geojson viz/data/barcelona/zones.geojson
-cargo run --release --example net_to_geojson -- \
-  data/barcelona/barcelona.net.xml viz/data/barcelona/net.geojson
+cargo run --release -- data/barcelona/barcelona.osm \
+  --geojson viz/data/barcelona/zones.geojson
 cd viz && python3 serve.py
 ```
 
-(`--geojson .../zones.geojson` writes `.../zones.vehicles.geojson` and
-`.../zones.pedestrians.geojson` — see `geojson_output::write`'s own docs.
-`net_to_geojson` is optional — see "Overlaying the real `.net.xml`" below.)
+(`--geojson .../zones.geojson` writes `.../zones.vehicles.geojson`,
+`.../zones.pedestrians.geojson` and `.../zones.programs.json`. The
+`.net.xml` overlay below needs the SUMO-era `net_to_geojson` example, which
+this OSM-only branch no longer has.)
 
 Then open `http://localhost:8000/viz.html?net=barcelona`, or just
 `http://localhost:8000/viz.html` (defaults to `barcelona`) and switch
@@ -160,22 +159,15 @@ instead of the map silently looking exactly like it did before you saved.
 ## Saving a zone as a test fixture
 
 The same panel's "Guardar esta zona" / "Guardar intersección" buttons save
-the selected zone's own real `.net.xml` neighbourhood, plus this crate's
-own generated output for it, straight into `tests/fixtures/<name>/` (see
-that directory's own README for what gets written and why) — no need to
-run `extract_fixture`/`write_expected_geojson` by hand. "Guardar esta
-zona" names the fixture after the one zone; "Guardar intersección" names
-it after the junction and captures every zone touching it. Both are
-disabled for a zone with no `intersection_id` (nothing to extract
-*around* — see `zone_feature::build_feature`'s own docs on when that's
-missing).
-
-This only works for a dataset `serve.py`'s own `KNOWN_DATASETS` recognizes
-(kept in sync with `viz.html`'s `DATASETS`, per the `Usage` section above)
-and only against that dataset's *own* source `.net.xml` under
-`data/<dataset>/<dataset>.net.xml` — not against whatever's currently
-loaded into `viz/data/`, which may be a fixture's own small extract rather
-than the full network (see "Visualizing a test fixture" below).
+every zone of the selected zone's junction, exactly as the viewer shows
+it (from `viz/data/<dataset>/zones.*.geojson`), into
+`tests/fixtures/<name>/expected.geojson`, with `fixture.json` naming the
+dataset and junction. `tests/zone_fixtures.rs` regenerates the dataset
+from `data/<dataset>/<dataset>.osm` and compares that junction's zones
+against it (see `tests/fixtures/README.md`). "Guardar esta zona" names the
+fixture after the one zone; "Guardar intersección" after the junction.
+Both need `serve.py` (plain `http.server` has no save endpoint), and a
+freshly regenerated `viz/data/` so what's saved is the current output.
 
 **Editing the shape first**: see "Inspecting a zone's own vertices" above
 for how to move, delete, or insert a vertex before saving — a spike, a

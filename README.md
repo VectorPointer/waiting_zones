@@ -1,158 +1,63 @@
-# Waiting Zones
+# Waiting Zones (OSM-only, experimental)
 
-Command-line tool that turns a [SUMO](https://sumo.dlr.de/) road network
-(`.net.xml`) into a `.waiting-zones.add.xml` file describing E3 detector
-zones. The output format is meant to be consumed directly by a user device,
-which has no knowledge of SUMO's XML formats.
-
-## Usage
+Generates waiting zones **and each junction's signal program** straight from
+an OpenStreetMap extract (`.osm`), with no SUMO network in between. It
+rebuilds, in its own terms, the slice of what `netconvert` derives that
+waiting zones need: lanes, signalized junctions, movements, and a cycle.
 
 ```sh
-cargo run -- path/to/network.net.xml
+cargo run --release -- data/barcelona/barcelona.osm --geojson out/barcelona.geojson
 ```
 
-By default the output is written next to the input file, replacing the
-`.net.xml` suffix with `.waiting-zones.add.xml`. Use `-o`/`--output` to
-choose a different path:
+writes:
 
-```sh
-cargo run -- path/to/network.net.xml -o path/to/output.xml
-```
+- `out/barcelona.vehicles.geojson` / `out/barcelona.pedestrians.geojson` —
+  same schema as the SUMO-based generator: `waiting_zone_id`,
+  `intersection_id` (the junction's `tls_id`), `stop_line`, `modes`;
+- `out/barcelona.programs.json` — one entry per signalized junction, shaped
+  like `engine_unit::EngineJunction` (`tls_id`, `zones[].phases`,
+  `transitions`, `program.phases` as `(seconds, state)`), plus `links` (what
+  each character of a state string controls) and `conflicts`.
 
-By default a zone's entry spans the full length of its lane. Use
-`--max-zone-length` (meters) to cap how far it extends from the stop line /
-crossing:
+## Pipeline
 
-```sh
-cargo run -- path/to/network.net.xml --max-zone-length 20
-```
+| module | what it does |
+|---|---|
+| `graph` | Roads split at junctions and signal nodes into directed edges (`{way}#{k}`, `-{way}#{k}`), with lanes per direction, `turn:lanes` arrows and lane offsets. |
+| `clusters` | Signalized junctions: lights, signalized crossings and junction nodes linked by short edges (< 30m) form one controller — a dual carriageway crossing, or lights on the arms before a junction, are one `tls_id`. A light on a one-way road just *after* a junction stops cars that already left it: it isn't that junction's. |
+| `movements` | Exits reachable from each approach through the junction; turn by angle; OSM `type=restriction`; lanes → turns (arrows when mapped, else right lane right, left lane left, the rest straight). |
+| `zones` | One vehicle zone per group of an approach's lanes serving the same turns (`{edge}_{straight+left…}`), from the stop line back along the whole approach and on through predecessors that only lead there, until a fork or a signal (`--max-zone-length` caps the whole length). Bands are cut into runs where the lane jumps sideways or turns sharply, and the zone stays out of the junctions it ends at (the other arms' carriageways). |
+| `program` | The cycle: opposite approaches paired (straight/right `G`, left `g` when it only yields to the opposite approach), a protected-left phase where the left has its own lane, remaining movements fitted greedily; crosswalks green when nothing crossing them goes straight (turns yield, `g`), a pedestrian phase otherwise; an amber after every green. |
+| `pedestrians` | One zone per signalized crossing: the crosswalk (the mapped `footway=crossing`, its pieces chained back together, or a stripe across the road) 4m wide, carried 2m onto the sidewalk at both ends, linked to its junction's phases. An unsignalized crosswalk whose stripe touches a zone is absorbed into it (one that doesn't touch stays out: a zone is one place); signalized ones side by side over the same stretch of road are one zone, otherwise each is its own. |
+| `output` | Vehicle zones carried up to the pedestrian zone in front of (or behind) each lane band and then cut by every pedestrian zone, so the two share a border and never ground; same-kind overlap splitting (vehicles along the bisector of their stop lines, pedestrian ground to whichever zone's crosswalk is nearest); holes filled; GeoJSON and `programs.json`. |
 
-Use `--geojson` to also write the zones as GeoJSON `FeatureCollection`s,
-reprojected to WGS84 lon/lat for a client that geofences from its own GPS.
-Split into 2 files by mode — `cdn.md`'s catalogue is split the same way, so a
-client resolving a vehicle position never has to fetch (or hold) the
-pedestrian half of a territory's own zones, and vice versa — the suffix is
-inserted before the given path's own extension:
+`program::violations` checks every generated program: no two conflicting
+movements both `G`, permissive only against the opposite approach,
+never two straight movements from perpendicular approaches green together
+(independent of the path geometry), no crosswalk green with a straight
+movement across it, every link green in some phase, and every green
+followed by an amber clearing it. The tests run it on synthetic junctions
+and on all of real Barcelona.
 
-```sh
-cargo run -- path/to/network.net.xml --geojson path/to/zones.geojson
-# writes path/to/zones.vehicles.geojson and path/to/zones.pedestrians.geojson
-```
+## Known limits
 
-This requires the input network to be georeferenced (`.net.xml`'s
-`location/@projParameter` other than `"!"`, which every real `netconvert`
-import produces) — there's no lon/lat to give for a synthetic, unprojected
-network, so this fails outright rather than emit coordinates that look like
-lon/lat but aren't. See `src/geojson_output.rs`'s own docs for how the
-reprojection and the per-lane geometry work.
+- OSM has no signal timings: phases, order and durations follow the rules
+  above, not the city's real program.
+- `turn:lanes` is rarely mapped, so lane → turn assignment is mostly the
+  default rule.
+- A light with nothing mapped to alternate with (one approach, no crossing)
+  gets a single, always-green phase.
+- Movement paths are approximations (lane lines plus curves through the
+  junction); crossing conflicts also use topology (a crosswalk on a
+  movement's own nodes) to be safe where the geometry misses.
+- No `.add.xml` / SUMO lane ids: `map-compile` would need to read
+  `programs.json` instead of `.net.xml` + `.add.xml`.
 
-## How it works
+## Tooling
 
-Reading and modelling the SUMO network, and writing the `.add.xml` back out,
-are **not** part of this repository: both are
-[`sumo-types`](https://crates.io/crates/sumo-types), a separate crate
-published to crates.io, resolved from there in `Cargo.toml` rather than by
-path — a standalone clone of this repository builds on its own. It turns a
-`.net.xml` into well-typed Rust structs (`Network`, `Edge`, `Lane`,
-`Junction`, `Connection`, ...) and an E3 detector zone into `.add.xml`
-(`additional::domain::E3Detector`/`DetectorGate`), and knows nothing about
-waiting zones specifically — there's no "waiting zone" type of its own to
-find in this crate either: an `E3Detector` already models exactly what one
-is, so `zone_generator` builds `sumo_types` values directly instead of
-maintaining a parallel type.
-
-Everything left here is specific to waiting zones:
-
-- `src/zone_generator.rs` — derives `E3Detector`s from a
-  `sumo_types::Network`.
-- `src/zone_output.rs` — fills in each detector's output-file path and
-  writes them out as `.waiting-zones.add.xml`.
-- `src/geojson_output.rs` — reprojects the same zones to WGS84 lon/lat and
-  writes them out as a GeoJSON `FeatureCollection`, for the client-facing
-  path rather than SUMO's own.
-- `src/processor.rs` — drives the `.net.xml` → `.waiting-zones.add.xml`
-  (and, optionally, → GeoJSON) conversion, and `src/config.rs` handles CLI
-  argument parsing.
-
-## Status
-
-The `.net.xml` reader (now in `sumo-types`) and the
-`.waiting-zones.add.xml` write pipeline in
-`src/processor.rs` are in place and tested. `src/zone_generator.rs`
-generates, per traffic-light junction, one vehicle waiting zone per
-incoming lane's **signal group** (lanes whose `tlLogic` state character is
-identical in every phase — e.g. a protected right turn gets its own zone,
-separate from the straight-ahead lanes). If a traffic-light junction has no
-matching `tlLogic` program (e.g. `JunctionKind::TrafficLightUnregulated`, or
-an incomplete `.net.xml`), it's skipped with a warning on stderr rather
-than guessing a grouping. Vehicle lanes are told apart from pedestrian ones
-using SUMO's own `allow`/vClass data (`allow="pedestrian"`), not the edge's
-`function` label — this correctly excludes sidewalk lanes and walkingareas
-that SUMO lists among a junction's `incLanes` alongside the real vehicle
-lanes. Each generated `e3Detector` also gets a `pos` (its icon position in
-editors like netedit) — always the junction's own position, so every zone
-belonging to that junction shares one icon in the editor instead of each
-rendering separately along its own lane. Purely cosmetic: SUMO itself
-ignores `pos` for detection.
-
-### Pedestrian waiting zones
-
-`zone_generator::pedestrian_zones` generates one zone per signalized
-crossing, spanning the **whole crossing**: a crossing is one movement with
-one walk phase, so the zone's gates sit on the near walkingarea, the far
-one `netconvert` gives no `tl` to, and the painted crossing lane between
-them, while its controlled phase comes from the near bank
-(`detectPersons="walk"` on the same `e3Detector` machinery `vehicle_zones`
-uses — see that function's module docs for why nothing pedestrian-specific
-was needed beyond the lane filter and two field values). `geojson_output`
-renders it as one connected polygon: each bank is the smallest rectangle
-containing the walkingarea's own `shape`
-(`geometry::min_area_rectangle`) and the crossing lane's centreline is
-buffered into the stripe, so a client geofencing against it covers the
-whole crossing. `control_loop` still tells waiting (stationary, ENTRY)
-from crossing (moving, EXIT) by `person_waiting_time`. This was
-implemented once already, then removed:
-SUMO 1.26.0 has a reproducible crash in `MSE3Collector::detectorUpdate`
-(confirmed with a gdb backtrace) when an `e3Detector` with
-`detectPersons="walk"` is combined with real pedestrian traffic, filed as
-<https://github.com/eclipse-sumo/sumo/issues/18230>.
-
-That crash is now fixed upstream — [`d283025`](https://github.com/eclipse-sumo/sumo/commit/d2830252325a016cd8963b7dd88a4af1138edd09),
-merged 2026-08-19 — and generation was reinstated once that fix could be
-verified end to end: built SUMO from `main` at that commit, ran the
-`test_4x4_ped` fixture's `pedestrian_crossing` scenario (a person crossing
-a signalized junction under real traffic) against the regenerated
-`.waiting-zones.add.xml`, and confirmed no crash and sane detector output
-(a clean pass recorded a realistic `meanTravelTime`/`meanSpeed`; a person
-whose walk ends inside the zone's area is reported via the same "arrived
-inside" path SUMO already uses for vehicles, not silently miscounted).
-
-**This needs a SUMO built from a commit at or after `d283025` — no tagged
-release contains it yet.** SUMO 1.26.0 (the latest release as of this
-writing) will still crash with a `detectPersons="walk"` zone in a
-network with real pedestrian traffic. Check `sumo --version` before relying
-on pedestrian zones against a real SUMO install; upgrade once a release
-containing the fix ships.
-
-The engine side of this — `territory::zones::derive_zones` handing these
-zones to the control loop, `control_loop::runner` polling them and scoring
-phases against real pedestrian occupancy rather than only vehicle
-occupancy — now exists too, in the `engine` repo (`territory`/
-`control_loop`). Generating the zone here is what makes that possible; it
-doesn't do it itself.
-
-## Development
-
-```sh
-cargo build
-cargo test
-cargo clippy
-```
-
-`sumo-types` is resolved from crates.io (see "How it works" above), not a
-workspace member, so its own tests aren't run by the commands above. Run
-those from its own directory if you're changing it too:
-
-```sh
-cd ../sumo-types && cargo test
-```
+- `cargo run --release --example compare -- <candidate.geojson> <reference.geojson>`
+  compares stop lines and area against another catalogue (e.g. the
+  SUMO-based one in `data/*/`).
+- `viz/phases.html?net=<name>&tls=<id>&phase=<n>` steps through a junction's
+  phases, colouring each zone by its state; generate its data with
+  `--geojson viz/data/<name>/zones.geojson` and serve `viz/`.

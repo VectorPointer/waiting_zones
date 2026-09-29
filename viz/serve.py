@@ -21,7 +21,6 @@ import http.server
 import json
 import re
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -34,10 +33,8 @@ KNOWN_DATASETS = {"barcelona", "eixample", "test_4x4_3lanes"}
 # A fixture directory name, or a `.net.xml` junction id -- neither is ever
 # meant to hold a path separator or a shell metacharacter, so this doubles
 # as the actual security boundary (not just a filesystem-safety check):
-# every value that reaches `subprocess.run` below is validated against this
-# *before* it's used to build a path or an argument, and `subprocess.run` is
-# always called with an argument list (never `shell=True`), so even a
-# validation gap here couldn't inject a second command.
+# every value is validated against this *before* it's used to build a
+# path.
 SAFE_NAME = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
 
 # The same substitution `_handle_fixture_zone_ids` and
@@ -47,8 +44,6 @@ SAFE_NAME = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
 # id as an incidental bystander (see `_handle_fixture_zone_ids`'s own
 # docs on why that distinction matters).
 SAFE_NAME_CHARS = re.compile(r"[^A-Za-z0-9_-]")
-
-CARGO_TIMEOUT_SECONDS = 180
 
 
 def _validate_geometry(geometry):
@@ -80,6 +75,40 @@ def _validate_geometry(geometry):
             if not isinstance(polygon, list) or len(polygon) != 1:
                 raise ValueError(f"edited_geometry part {i} must be a single ring (no holes)")
             check_ring(polygon[0], f"part {i} ring 0")
+
+
+def _write_fixture(dataset, junction_id, fixture_dir):
+    """Writes `fixture_dir`'s own `fixture.json` (which dataset and
+    junction it vouches for) and `expected.geojson`: every zone of that
+    junction exactly as the viewer shows it, from this dataset's own
+    `viz/data/<dataset>/zones.*.geojson`. `tests/zone_fixtures.rs` then
+    regenerates the whole dataset from its `.osm` and compares that
+    junction's zones against these.
+
+    Taken from the viewer's own files rather than a fresh run so what gets
+    saved is exactly what the person saving it was looking at -- regenerate
+    `viz/data/<dataset>/` before reviewing if the code has changed since.
+    """
+    osm = PROJECT_ROOT / "data" / dataset / f"{dataset}.osm"
+    if not osm.is_file():
+        raise ValueError(f"{osm} does not exist")
+    features = []
+    for kind in ("vehicles", "pedestrians"):
+        path = Path(__file__).resolve().parent / "data" / dataset / f"zones.{kind}.geojson"
+        collection = json.loads(path.read_text())
+        features += [
+            f for f in collection.get("features", [])
+            if str(f.get("properties", {}).get("intersection_id")) == junction_id
+        ]
+    if not features:
+        raise ValueError(f"no zone of junction {junction_id!r} in viz/data/{dataset}/")
+    fixture_dir.mkdir(parents=True, exist_ok=True)
+    (fixture_dir / "fixture.json").write_text(
+        json.dumps({"dataset": dataset, "junction_id": junction_id}, indent=2) + "\n"
+    )
+    (fixture_dir / "expected.geojson").write_text(
+        json.dumps({"type": "FeatureCollection", "features": features}, indent=2) + "\n"
+    )
 
 
 def _apply_geometry_override(expected_geojson_path, zone_id, geometry):
@@ -115,6 +144,8 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_save_fixture()
         elif self.path == "/api/remove_expected_zone":
             self._handle_remove_expected_zone()
+        elif self.path == "/api/update_expected":
+            self._handle_update_expected()
         else:
             self.send_error(404)
 
@@ -184,17 +215,6 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _run_cargo_example(self, example, args):
-        result = subprocess.run(
-            ["cargo", "run", "--release", "--example", example, "--", *args],
-            cwd=PROJECT_ROOT,
-            capture_output=True,
-            text=True,
-            timeout=CARGO_TIMEOUT_SECONDS,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(f"{example} failed:\n{result.stderr}")
-
     def _handle_remove_expected_zone(self):
         """Stops vouching for one zone's own `expected.geojson` entry,
         across every fixture that has one -- the server side of
@@ -215,7 +235,7 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
           directory is deleted outright: a fixture that existed only to
           vouch for this one now-known-wrong zone has nothing left to do
           once that vouching is withdrawn, and leaving an empty
-          `expected.geojson` plus its own `network.net.xml` behind would
+          `expected.geojson` plus its own `fixture.json` behind would
           just be dead weight nobody has a reason to clean up later.
         - Otherwise (an "interseccion" fixture with other, still-valid
           zones, or a dedicated fixture that still has something left):
@@ -269,6 +289,37 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as error:  # noqa: BLE001 -- reported to the caller, not swallowed
             self._send_json(400, {"ok": False, "error": str(error)})
 
+    def _handle_update_expected(self):
+        """Throws one fixture away and saves it again from the current
+        generation, for the same dataset and junction its own
+        `fixture.json` names -- the server side of `viz.html`'s
+        "Actualizar expected" button. Equivalent to deleting the fixture
+        and saving that junction again: hand edits and `excluded_zones.json`
+        go with the old one.
+        """
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length))
+            name = body["fixture"]
+            if not isinstance(name, str) or not SAFE_NAME.match(name):
+                raise ValueError(f"fixture {name!r} isn't a safe fixture name")
+            fixture_dir = PROJECT_ROOT / "tests" / "fixtures" / name
+            meta = json.loads((fixture_dir / "fixture.json").read_text())
+            dataset, junction_id = meta["dataset"], str(meta["junction_id"])
+            if dataset not in KNOWN_DATASETS or not SAFE_NAME.match(junction_id):
+                raise ValueError(f"{fixture_dir}/fixture.json names an unknown dataset or junction")
+            # Written beside the old one first: if saving fails, the old
+            # fixture is still there.
+            fresh = fixture_dir.with_name(f"{name}.updating")
+            if fresh.exists():
+                shutil.rmtree(fresh)
+            _write_fixture(dataset, junction_id, fresh)
+            shutil.rmtree(fixture_dir)
+            fresh.rename(fixture_dir)
+            self._send_json(200, {"ok": True, "path": f"tests/fixtures/{name}"})
+        except Exception as error:  # noqa: BLE001 -- reported to the caller, not swallowed
+            self._send_json(400, {"ok": False, "error": str(error)})
+
     def _handle_save_fixture(self):
         try:
             length = int(self.headers.get("Content-Length", 0))
@@ -289,13 +340,8 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
             if edited_geometry is not None:
                 _validate_geometry(edited_geometry)
 
-            net_xml = PROJECT_ROOT / "data" / dataset / f"{dataset}.net.xml"
-            if not net_xml.is_file():
-                raise ValueError(f"{net_xml} does not exist")
             fixture_dir = PROJECT_ROOT / "tests" / "fixtures" / name
-
-            self._run_cargo_example("extract_fixture", [str(net_xml), junction_id, str(fixture_dir)])
-            self._run_cargo_example("write_expected_geojson", [str(fixture_dir)])
+            _write_fixture(dataset, junction_id, fixture_dir)
 
             if edited_geometry is not None:
                 _apply_geometry_override(fixture_dir / "expected.geojson", edited_zone_id, edited_geometry)
@@ -307,6 +353,6 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
-    with http.server.ThreadingHTTPServer(("", port), NoCacheHandler) as httpd:
-        print(f"Serving on http://localhost:{port} (Cache-Control: no-store)")
+    with http.server.ThreadingHTTPServer(("127.0.0.1", port), NoCacheHandler) as httpd:
+        print(f"Serving on http://127.0.0.1:{port} (Cache-Control: no-store)")
         httpd.serve_forever()
