@@ -21,6 +21,12 @@ struct Cli {
     /// through roads that only lead to it, until a fork or a signal.
     #[arg(long, value_name = "METERS")]
     max_zone_length: Option<f64>,
+
+    /// Also write the split road-network files (`network.edges.json`,
+    /// `network.junctions.json`, `network.connections.json`) into this
+    /// directory, beside the zone catalogue — what the simulator reads.
+    #[arg(long, value_name = "DIR")]
+    network: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
@@ -37,6 +43,9 @@ fn main() -> Result<()> {
     let reach = Reach {
         max_length: cli.max_zone_length,
     };
+    if let Some(dir) = &cli.network {
+        waiting_zones::export_network(&cli.input, dir, reach)?;
+    }
     let summary = waiting_zones::run(&cli.input, &geojson, reach)?;
     println!(
         "{} vehicle zone(s), {} pedestrian zone(s) ({} not at a signalized junction), {} junction program(s) -> {}",

@@ -15,6 +15,7 @@ pub mod geometry;
 pub mod graph;
 pub mod movements;
 pub mod network;
+pub mod network_output;
 pub mod osm;
 pub mod output;
 pub mod pedestrians;
@@ -290,4 +291,35 @@ pub fn run(input: &Path, geojson: &Path, reach: Reach) -> Result<Summary> {
         junctions: generated.programs.len(),
         unassigned_pedestrian_zones: generated.unassigned_pedestrian_zones,
     })
+}
+
+/// Write the split network files a simulator reads (see
+/// [`network_output`]) into `out_dir`, beside the zone catalogue. Rebuilds
+/// the graph this generator already derives internally; it is a separate
+/// entry point so the zone/program run pays nothing for it.
+pub fn export_network(input: &Path, out_dir: &Path, reach: Reach) -> Result<()> {
+    let osm = osm::read(input)?;
+    let projection = Projection::centred_on(osm.nodes.values().map(|n| n.lon_lat));
+    let net = Network::build(&osm, &projection);
+    let signals = clusters::signal_nodes(&osm, &net);
+    let graph = graph::Graph::build(&net, &signals);
+    let clusters = clusters::build(&osm, &net, &graph, &signals);
+    let movements: Vec<movements::Junction> = clusters
+        .iter()
+        .map(|cluster| movements::build(&osm, &net, &graph, cluster))
+        .collect();
+    let territory = input
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("territory");
+    let source_digest = network_output::run_digest(input, reach)?;
+    network_output::write(
+        &net,
+        &graph,
+        &clusters,
+        &movements,
+        out_dir,
+        territory,
+        &source_digest,
+    )
 }
