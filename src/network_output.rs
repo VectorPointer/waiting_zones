@@ -1,20 +1,24 @@
 //! Serialise the generator's own road graph into the split files a
 //! simulator reads, with no SUMO vocabulary.
 //!
-//! Three files, each self-describing:
+//! Three data files:
 //!
 //! - `network.edges.json`: every directed edge — its lanes, geometry, speed
 //!   and the edges that follow it.
 //! - `network.junctions.json`: every junction node — its kind, its signal
-//!   (if any) and its incident edges. References `network.edges.json`.
+//!   (if any) and its incident edges.
 //! - `network.connections.json`: every movement through a signalised
-//!   junction, with the approach lanes that serve it. References both.
+//!   junction, with the approach lanes that serve it.
 //!
-//! Every file carries a `source_digest` (the run's own inputs) and, in
-//! `references`, the SHA-256 of the bytes of each file it names. A reader
-//! that loads one file and then a referenced one checks that hash first: a
-//! mixed set (one file left over from an older run) is detected instead of
-//! silently used, the same way a lockfile pins its tree.
+//! plus `network.lock.json`, which lists the SHA-256 of each data file's
+//! bytes and the run's own `source_digest`. A reader verifies the whole set
+//! against the lock before use: a file left over from an older run is
+//! detected instead of silently mixed in, the same way a lockfile pins its
+//! tree.
+//!
+//! The hashes live in the lockfile, not inside each data file: a data file
+//! carrying its dependencies' hashes would change its own bytes whenever a
+//! dependency changed (a cascade), and couldn't express a cycle at all.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -26,7 +30,7 @@ use sha2::{Digest, Sha256};
 use crate::clusters::Cluster;
 use crate::graph::Graph;
 use crate::movements::Junction as Movements;
-use crate::network::{Direction, Network};
+use crate::network::Network;
 use crate::osm::NodeId;
 
 /// Bump when a change here would make an older file wrong.
@@ -35,9 +39,7 @@ pub const FORMAT_VERSION: u32 = 1;
 pub const EDGES_FILE: &str = "network.edges.json";
 pub const JUNCTIONS_FILE: &str = "network.junctions.json";
 pub const CONNECTIONS_FILE: &str = "network.connections.json";
-
-/// Which file names a reader must co-load, and their content hashes.
-type References = BTreeMap<String, String>;
+pub const LOCK_FILE: &str = "network.lock.json";
 
 /// SHA-256 of a byte slice, hex.
 pub fn digest(bytes: &[u8]) -> String {
@@ -56,8 +58,8 @@ pub fn run_digest(osm: &Path, reach: crate::zones::Reach) -> Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
-/// Serialize `value` and write it to `out_dir/name`, returning the file's
-/// own content hash.
+/// Serialize `value`, write it to `out_dir/name`, and return its content
+/// hash.
 fn write_json<T: Serialize>(out_dir: &Path, name: &str, value: &T) -> Result<String> {
     let mut bytes = serde_json::to_vec_pretty(value).context("serializing")?;
     bytes.push(b'\n');
@@ -71,7 +73,6 @@ struct EdgeFile {
     format_version: u32,
     territory: String,
     source_digest: String,
-    references: References,
     edges: Vec<EdgeRecord>,
 }
 
@@ -108,7 +109,6 @@ struct JunctionFile {
     format_version: u32,
     territory: String,
     source_digest: String,
-    references: References,
     junctions: Vec<JunctionRecord>,
 }
 
@@ -129,7 +129,6 @@ struct ConnectionFile {
     format_version: u32,
     territory: String,
     source_digest: String,
-    references: References,
     connections: Vec<ConnectionRecord>,
 }
 
@@ -147,7 +146,17 @@ struct ConnectionRecord {
     via: Vec<String>,
 }
 
-/// Write the three network files into `out_dir`.
+/// The lockfile: one content hash per data file, plus the run digest.
+#[derive(Serialize)]
+struct LockFile {
+    format_version: u32,
+    territory: String,
+    source_digest: String,
+    /// `filename -> SHA-256 of its bytes`.
+    files: BTreeMap<String, String>,
+}
+
+/// Write the three data files and the lockfile into `out_dir`.
 pub fn write(
     net: &Network,
     graph: &Graph,
@@ -256,58 +265,64 @@ pub fn write(
                     from_edge: edge_id(movement.approach),
                     from_lane: lane,
                     to_edge: edge_id(movement.exit),
-                    direction: direction_label(movement.direction).to_string(),
+                    direction: movement.direction.label().to_string(),
                     via: movement.via.iter().map(|n| n.to_string()).collect(),
                 });
             }
         }
     }
 
-    // Edges first (the root), then the files that reference it, so each
-    // hash is available before it is embedded.
-    let edges_hash = write_json(
-        out_dir,
-        EDGES_FILE,
-        &EdgeFile {
-            format_version: FORMAT_VERSION,
-            territory: territory.to_string(),
-            source_digest: source_digest.to_string(),
-            references: References::new(),
-            edges,
-        },
-    )?;
-    let mut junction_refs = References::new();
-    junction_refs.insert(EDGES_FILE.to_string(), edges_hash.clone());
-    let junctions_hash = write_json(
-        out_dir,
-        JUNCTIONS_FILE,
-        &JunctionFile {
-            format_version: FORMAT_VERSION,
-            territory: territory.to_string(),
-            source_digest: source_digest.to_string(),
-            references: junction_refs,
-            junctions,
-        },
-    )?;
-    let mut connection_refs = References::new();
-    connection_refs.insert(EDGES_FILE.to_string(), edges_hash);
-    connection_refs.insert(JUNCTIONS_FILE.to_string(), junctions_hash);
+    let mut files = BTreeMap::new();
+    files.insert(
+        EDGES_FILE.to_string(),
+        write_json(
+            out_dir,
+            EDGES_FILE,
+            &EdgeFile {
+                format_version: FORMAT_VERSION,
+                territory: territory.to_string(),
+                source_digest: source_digest.to_string(),
+                edges,
+            },
+        )?,
+    );
+    files.insert(
+        JUNCTIONS_FILE.to_string(),
+        write_json(
+            out_dir,
+            JUNCTIONS_FILE,
+            &JunctionFile {
+                format_version: FORMAT_VERSION,
+                territory: territory.to_string(),
+                source_digest: source_digest.to_string(),
+                junctions,
+            },
+        )?,
+    );
+    files.insert(
+        CONNECTIONS_FILE.to_string(),
+        write_json(
+            out_dir,
+            CONNECTIONS_FILE,
+            &ConnectionFile {
+                format_version: FORMAT_VERSION,
+                territory: territory.to_string(),
+                source_digest: source_digest.to_string(),
+                connections,
+            },
+        )?,
+    );
+
+    // The lockfile last: it hashes the bytes just written.
     write_json(
         out_dir,
-        CONNECTIONS_FILE,
-        &ConnectionFile {
+        LOCK_FILE,
+        &LockFile {
             format_version: FORMAT_VERSION,
             territory: territory.to_string(),
             source_digest: source_digest.to_string(),
-            references: connection_refs,
-            connections,
+            files,
         },
     )?;
     Ok(())
-}
-
-/// The generator's own direction label (not the neutral API's), kept as-is
-/// so `programs.json`'s links and this file name the same movement.
-fn direction_label(direction: Direction) -> &'static str {
-    direction.label()
 }
