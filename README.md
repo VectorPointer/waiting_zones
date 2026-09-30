@@ -60,4 +60,4 @@ and on all of real Barcelona.
   SUMO-based one in `data/*/`).
 - `viz/phases.html?net=<name>&tls=<id>&phase=<n>` steps through a junction's
   phases, colouring each zone by its state; generate its data with
-  `--geojson viz/data/<name>/zones.geojson` and serve `viz/`.
+  `--geojson data/<name>/zones.geojson` and serve `viz/`.

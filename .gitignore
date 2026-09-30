@@ -1,10 +1,14 @@
 /target
 detector_output/
 
-# viz.html itself is checked in (dev tooling); the data it fetches (one
-# subdirectory per dataset -- see viz/README.md) is a regeneratable build
-# artifact.
-/viz/data/
+# viz.html itself is checked in (dev tooling); the viewer files it fetches
+# live beside each dataset's own source `.osm`, are regeneratable build
+# artifacts (see viz/README.md).
+/data/*/zones.vehicles.geojson
+/data/*/zones.pedestrians.geojson
+/data/*/zones.programs.json
+/data/*/net.geojson
+/data/fixture/
 /viz/server.log
 /viz/fixtures/
 /viz/__pycache__/

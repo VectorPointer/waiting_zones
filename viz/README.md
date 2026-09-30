@@ -10,13 +10,12 @@ the page is enough to see a fresh run, no editing needed.
 
 ## Usage
 
-Each dataset lives in its own `viz/data/<name>/` directory. From the
-`waiting_zones` crate root, for `barcelona`:
+A dataset's source `.osm` and its generated viewer files both live in
+`data/<name>/`. From the `waiting_zones` crate root, for `barcelona`:
 
 ```sh
-mkdir -p viz/data/barcelona
 cargo run --release -- data/barcelona/barcelona.osm \
-  --geojson viz/data/barcelona/zones.geojson
+  --geojson data/barcelona/zones.geojson
 cd viz && python3 serve.py
 ```
 
@@ -42,8 +41,9 @@ completely normal reload, well after regenerating the real files — see
 here, a hard reload (Ctrl+Shift+R) or private window rules out cache
 entirely.
 
-`viz/data/` is gitignored: regenerate a dataset's files with the commands
-above rather than expecting them to already be there.
+A dataset's generated viewer files (`data/<name>/zones.*.geojson`,
+`zones.programs.json`, `net.geojson`) are gitignored: regenerate them with
+the commands above rather than expecting them to already be there.
 
 ## Overlaying the real `.net.xml`
 
@@ -160,14 +160,14 @@ instead of the map silently looking exactly like it did before you saved.
 
 The same panel's "Guardar esta zona" / "Guardar intersección" buttons save
 every zone of the selected zone's junction, exactly as the viewer shows
-it (from `viz/data/<dataset>/zones.*.geojson`), into
+it (from `data/<dataset>/zones.*.geojson`), into
 `tests/fixtures/<name>/expected.geojson`, with `fixture.json` naming the
 dataset and junction. `tests/zone_fixtures.rs` regenerates the dataset
 from `data/<dataset>/<dataset>.osm` and compares that junction's zones
 against it (see `tests/fixtures/README.md`). "Guardar esta zona" names the
 fixture after the one zone; "Guardar intersección" after the junction.
 Both need `serve.py` (plain `http.server` has no save endpoint), and a
-freshly regenerated `viz/data/` so what's saved is the current output.
+freshly regenerated `data/` so what's saved is the current output.
 
 **Editing the shape first**: see "Inspecting a zone's own vertices" above
 for how to move, delete, or insert a vertex before saving — a spike, a
@@ -188,9 +188,8 @@ pipeline real data goes through, rather than trusting `expected.geojson`
 on the strength of a diff alone:
 
 ```sh
-mkdir -p viz/data/fixture
-cargo run --release -- tests/fixtures/<name>/network.net.xml \
-  -o viz/data/fixture/zones.add.xml --geojson viz/data/fixture/zones.geojson
+cargo run --release -- tests/fixtures/<name>/<name>.osm \
+  --geojson data/fixture/zones.geojson
 ```
 
 Add `"fixture"` to `viz.html`'s `DATASETS` (and `serve.py`'s

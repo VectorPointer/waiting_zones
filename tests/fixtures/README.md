@@ -14,7 +14,7 @@ area.
 ## Adding a fixture
 
 1. Regenerate the viewer's data:
-   `cargo run --release -- data/barcelona/barcelona.osm --geojson viz/data/barcelona/zones.geojson`.
+   `cargo run --release -- data/barcelona/barcelona.osm --geojson data/barcelona/zones.geojson`.
 2. Serve the viewer with `python3 viz/serve.py 8767` (plain `http.server`
    has no save endpoint) and open `http://127.0.0.1:8767/viz.html`.
 3. Pick a zone, optionally hand-edit its vertices, and press "Guardar esta

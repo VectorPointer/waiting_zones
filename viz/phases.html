@@ -19,8 +19,8 @@
 <div id="panel">Loading…</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// Usage: viz/data/<name>/zones.{vehicles,pedestrians}.geojson + zones.programs.json
-// (as written by `--geojson viz/data/<name>/zones.geojson`), then
+// Usage: data/<name>/zones.{vehicles,pedestrians}.geojson + zones.programs.json
+// (as written by `--geojson data/<name>/zones.geojson`), then
 // phases.html?net=<name>&tls=<id>&phase=<green phase number, from 0>.
 const params = new URLSearchParams(location.search);
 const DATA = `data/${params.get('net') || 'barcelona'}`;

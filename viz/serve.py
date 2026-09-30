@@ -81,27 +81,27 @@ def _write_fixture(dataset, junction_id, fixture_dir):
     """Writes `fixture_dir`'s own `fixture.json` (which dataset and
     junction it vouches for) and `expected.geojson`: every zone of that
     junction exactly as the viewer shows it, from this dataset's own
-    `viz/data/<dataset>/zones.*.geojson`. `tests/zone_fixtures.rs` then
+    `data/<dataset>/zones.*.geojson`. `tests/zone_fixtures.rs` then
     regenerates the whole dataset from its `.osm` and compares that
     junction's zones against these.
 
     Taken from the viewer's own files rather than a fresh run so what gets
     saved is exactly what the person saving it was looking at -- regenerate
-    `viz/data/<dataset>/` before reviewing if the code has changed since.
+    `data/<dataset>/` before reviewing if the code has changed since.
     """
     osm = PROJECT_ROOT / "data" / dataset / f"{dataset}.osm"
     if not osm.is_file():
         raise ValueError(f"{osm} does not exist")
     features = []
     for kind in ("vehicles", "pedestrians"):
-        path = Path(__file__).resolve().parent / "data" / dataset / f"zones.{kind}.geojson"
+        path = PROJECT_ROOT / "data" / dataset / f"zones.{kind}.geojson"
         collection = json.loads(path.read_text())
         features += [
             f for f in collection.get("features", [])
             if str(f.get("properties", {}).get("intersection_id")) == junction_id
         ]
     if not features:
-        raise ValueError(f"no zone of junction {junction_id!r} in viz/data/{dataset}/")
+        raise ValueError(f"no zone of junction {junction_id!r} in data/{dataset}/")
     fixture_dir.mkdir(parents=True, exist_ok=True)
     (fixture_dir / "fixture.json").write_text(
         json.dumps({"dataset": dataset, "junction_id": junction_id}, indent=2) + "\n"
@@ -132,6 +132,14 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
+
+    def translate_path(self, path):
+        # A dataset's viewer files live in the repo's own `data/<dataset>/`,
+        # next to its source `.osm`, not in a second copy under `viz/`. The
+        # page's own `./data/<dataset>/...` URLs land here.
+        if path == "/data" or path.startswith("/data/"):
+            return str(PROJECT_ROOT / path.lstrip("/"))
+        return super().translate_path(path)
 
     def do_GET(self):
         if self.path == "/api/fixture_zone_ids":

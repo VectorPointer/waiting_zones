@@ -158,7 +158,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 <script>
-// Every dataset with its own `viz/data/<name>/` output (see viz/README.md's
+// Every dataset with its own `data/<name>/` output (see viz/README.md's
 // own "Usage" section) — not every `data/` network: `test_4x4_ped`'s own
 // `.net.xml` is unprojected (`location/@projParameter="!"`), and
 // `geojson_output::write` refuses to build GeoJSON from one at all (no real
@@ -1296,7 +1296,7 @@ Promise.all([fetchJson(`${DATA_DIR}/zones.vehicles.geojson`), fetchJson(`${DATA_
 // appears in some committed `tests/fixtures/*/expected.geojson` (see
 // `serve.py`'s own `/api/fixture_zone_ids`) — independent of which
 // dataset this page currently has loaded, since a fixture is its own
-// tiny extract, not tied to any one dataset's own `viz/data/<name>/`
+// tiny extract, not tied to any one dataset's own `data/<name>/`
 // output. Two independent uses: `populateFixtureZoneSelect` (its own
 // keys, intersected with `layerById` so the menu only ever offers a zone
 // id this page can actually jump to right now) and the vertex panel's own
