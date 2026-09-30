@@ -50,8 +50,13 @@ and on all of real Barcelona.
 - Movement paths are approximations (lane lines plus curves through the
   junction); crossing conflicts also use topology (a crosswalk on a
   movement's own nodes) to be safe where the geometry misses.
-- No `.add.xml` / SUMO lane ids: `map-compile` would need to read
-  `programs.json` instead of `.net.xml` + `.add.xml`.
+- No `.add.xml` / SUMO lane ids: a deployment whose engine and control plane
+  want the neutral `map.json` compiles it from this generator's own output
+  with `map-compile --osm-only <zones.programs.json> <zones.vehicles.geojson>
+  <zones.pedestrians.geojson> <out/map.json> [territory]` (and
+  `integration_test/promote.sh --osm-only`). The SUMO-based `sumo`/`demand`
+  stand-ins still run off a `.net.xml`, so a closed loop on the OSM-only map
+  is not part of this path.
 
 ## Tooling
 

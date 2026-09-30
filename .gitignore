@@ -9,6 +9,11 @@ detector_output/
 /data/*/zones.programs.json
 /data/*/net.geojson
 /data/fixture/
+# The neutral compiled map, its engine units and the republished client
+# catalogue, written by `map-compile` (see integration_test/promote.sh).
+/data/*/*.map.json
+/data/*/engine-units/
+/data/*/*.published.geojson
 /viz/server.log
 /viz/fixtures/
 /viz/__pycache__/
