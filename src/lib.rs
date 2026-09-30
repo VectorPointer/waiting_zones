@@ -52,6 +52,18 @@ pub struct Generated {
     pub plans: Vec<program::Plan>,
 }
 
+/// One junction's inputs, held until every zone is final: `assemble` can
+/// drop a zone, and a junction's cycle must be built only from the zones
+/// that survive.
+struct Pending<'a> {
+    cluster: &'a clusters::Cluster,
+    junction: movements::Junction,
+    setbacks: HashMap<usize, f64>,
+    refs: Vec<ZoneRef>,
+    crossings: Vec<Crossing>,
+    program_zones: Vec<ProgramZone>,
+}
+
 pub fn generate(osm: &osm::Osm, reach: Reach) -> Generated {
     let projection = Projection::centred_on(osm.nodes.values().map(|n| n.lon_lat));
     let net = Network::build(osm, &projection);
@@ -68,8 +80,7 @@ pub fn generate(osm: &osm::Osm, reach: Reach) -> Generated {
     let mut pedestrian_owner: HashMap<String, String> = HashMap::new();
 
     let mut zones = Vec::new();
-    let mut programs = Vec::new();
-    let mut plans = Vec::new();
+    let mut pending: Vec<Pending> = Vec::new();
     for cluster in &clusters {
         let junction = movements::build(osm, &net, &graph, cluster);
         if junction.movements.is_empty() {
@@ -146,6 +157,49 @@ pub fn generate(osm: &osm::Osm, reach: Reach) -> Generated {
             });
         }
 
+        pending.push(Pending {
+            cluster,
+            junction,
+            setbacks,
+            refs,
+            crossings,
+            program_zones,
+        });
+    }
+
+    let mut unassigned_pedestrian_zones = 0;
+    for p in pedestrian_zones {
+        let intersection = match pedestrian_owner.get(&p.id) {
+            Some(tls) => tls.clone(),
+            None => {
+                unassigned_pedestrian_zones += 1;
+                p.anchor.to_string()
+            }
+        };
+        zones.push(Zone::pedestrian(p, intersection));
+    }
+
+    // The zones are final now (`assemble` may drop a groundless stub). Build
+    // each junction's cycle from only the surviving zones, so its links, its
+    // conflicts and its state strings never name a zone that isn't emitted —
+    // the zone↔cycle relation stays exact.
+    let zones = output::assemble(zones);
+    let surviving: HashSet<&str> = zones.iter().map(|z| z.id.as_str()).collect();
+    let mut programs = Vec::new();
+    let mut plans = Vec::new();
+    for Pending {
+        cluster,
+        junction,
+        setbacks,
+        mut refs,
+        mut crossings,
+        mut program_zones,
+    } in pending
+    {
+        refs.retain(|z| surviving.contains(z.id.as_str()));
+        crossings.retain(|c| surviving.contains(c.zone_id.as_str()));
+        program_zones.retain(|z| surviving.contains(z.detector_id.as_str()));
+
         let plan = program::build(
             &graph,
             &net.positions,
@@ -211,27 +265,6 @@ pub fn generate(osm: &osm::Osm, reach: Reach) -> Generated {
         plans.push(plan);
     }
 
-    let mut unassigned_pedestrian_zones = 0;
-    for p in pedestrian_zones {
-        let intersection = match pedestrian_owner.get(&p.id) {
-            Some(tls) => tls.clone(),
-            None => {
-                unassigned_pedestrian_zones += 1;
-                p.anchor.to_string()
-            }
-        };
-        zones.push(Zone::pedestrian(p, intersection));
-    }
-
-    let zones = output::assemble(zones);
-    // `assemble` drops only groundless stubs; keep the programs in step with
-    // the zones actually emitted.
-    let surviving: HashSet<&str> = zones.iter().map(|z| z.id.as_str()).collect();
-    for program in &mut programs {
-        program
-            .zones
-            .retain(|z| surviving.contains(z.detector_id.as_str()));
-    }
     Generated {
         zones,
         programs,
