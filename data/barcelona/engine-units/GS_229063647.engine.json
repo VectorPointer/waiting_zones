@@ -1,0 +1,60 @@
+{
+  "format_version": 1,
+  "territory_id": "barcelona",
+  "unit_id": "GS_229063647",
+  "map_digest": "32843fd5662c9f469590ce458ec161b3f61d3dc348a61ed8e08a74367e24fe84",
+  "junctions": [
+    {
+      "tls_id": "GS_229063647",
+      "zones": [
+        {
+          "detector_id": "1395134880#2_straight",
+          "phases": [
+            0
+          ],
+          "lanes": 2,
+          "length_meters": 4.480000019073486,
+          "edge": "1395134880#2",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "1395134880#2_straight+right",
+          "phases": [
+            0
+          ],
+          "lanes": 1,
+          "length_meters": 4.480000019073486,
+          "edge": "1395134880#2",
+          "is_pedestrian": false,
+          "situational": false
+        }
+      ],
+      "transitions": [
+        {
+          "green_phase": 0,
+          "amber_phase": 1,
+          "amber_duration_secs": 3.0
+        }
+      ],
+      "program": {
+        "program_id": "0",
+        "phases": [
+          [
+            82.0,
+            "GGGG"
+          ],
+          [
+            3.0,
+            "yyyy"
+          ],
+          [
+            5.0,
+            "rrrr"
+          ]
+        ],
+        "is_static": false
+      }
+    }
+  ]
+}

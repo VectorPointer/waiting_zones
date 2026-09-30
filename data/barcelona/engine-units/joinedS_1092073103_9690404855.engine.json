@@ -1,0 +1,90 @@
+{
+  "format_version": 1,
+  "territory_id": "barcelona",
+  "unit_id": "joinedS_1092073103_9690404855",
+  "map_digest": "32843fd5662c9f469590ce458ec161b3f61d3dc348a61ed8e08a74367e24fe84",
+  "junctions": [
+    {
+      "tls_id": "joinedS_1092073103_9690404855",
+      "zones": [
+        {
+          "detector_id": "1054414001#0_straight",
+          "phases": [
+            3
+          ],
+          "lanes": 1,
+          "length_meters": 32.66999816894531,
+          "edge": "1054414001#0",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "30112805#10_straight+left",
+          "phases": [
+            0,
+            1
+          ],
+          "lanes": 1,
+          "length_meters": 45.560001373291016,
+          "edge": "30112805#10",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "9690404855_w0_straight_ped",
+          "phases": [
+            0
+          ],
+          "lanes": 1,
+          "length_meters": 2.700000047683716,
+          "edge": ":9690404855_w0",
+          "is_pedestrian": true,
+          "situational": false
+        }
+      ],
+      "transitions": [
+        {
+          "green_phase": 0,
+          "amber_phase": 2,
+          "amber_duration_secs": 6.0
+        },
+        {
+          "green_phase": 1,
+          "amber_phase": 2,
+          "amber_duration_secs": 6.0
+        },
+        {
+          "green_phase": 3,
+          "amber_phase": 4,
+          "amber_duration_secs": 6.0
+        }
+      ],
+      "program": {
+        "program_id": "0",
+        "phases": [
+          [
+            34.0,
+            "GGrG"
+          ],
+          [
+            5.0,
+            "GGrr"
+          ],
+          [
+            6.0,
+            "yyrr"
+          ],
+          [
+            39.0,
+            "rrGr"
+          ],
+          [
+            6.0,
+            "rryr"
+          ]
+        ],
+        "is_static": false
+      }
+    }
+  ]
+}
