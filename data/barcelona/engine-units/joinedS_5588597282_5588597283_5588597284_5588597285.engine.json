@@ -1,0 +1,273 @@
+{
+  "format_version": 1,
+  "territory_id": "barcelona",
+  "unit_id": "joinedS_5588597282_5588597283_5588597284_5588597285",
+  "map_digest": "32843fd5662c9f469590ce458ec161b3f61d3dc348a61ed8e08a74367e24fe84",
+  "junctions": [
+    {
+      "tls_id": "joinedS_5588597282_5588597283_5588597284_5588597285",
+      "zones": [
+        {
+          "detector_id": "-1218864445_straight+turn+left",
+          "phases": [
+            6,
+            7
+          ],
+          "lanes": 1,
+          "length_meters": 146.2100067138672,
+          "edge": "-1218864445",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "1218864446#1_straight+turn+right",
+          "phases": [
+            0,
+            1
+          ],
+          "lanes": 1,
+          "length_meters": 4.809999942779541,
+          "edge": "1218864446#1",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "204105888#1_straight",
+          "phases": [
+            9,
+            10
+          ],
+          "lanes": 1,
+          "length_meters": 119.29000091552734,
+          "edge": "204105888#1",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "251211579#12_straight",
+          "phases": [
+            0,
+            1
+          ],
+          "lanes": 1,
+          "length_meters": 5.059999942779541,
+          "edge": "251211579#12",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "251211579#9_straight",
+          "phases": [
+            12,
+            13
+          ],
+          "lanes": 1,
+          "length_meters": 102.87999725341797,
+          "edge": "251211579#9",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "554109749#0_straight+left+right",
+          "phases": [
+            3,
+            4
+          ],
+          "lanes": 1,
+          "length_meters": 2.049999952316284,
+          "edge": "554109749#0",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "5588597282_w0_straight_ped",
+          "phases": [
+            3,
+            6,
+            9,
+            12
+          ],
+          "lanes": 1,
+          "length_meters": 2.1600000858306885,
+          "edge": ":5588597282_w0",
+          "is_pedestrian": true,
+          "situational": false
+        },
+        {
+          "detector_id": "5588597283_w1_straight_ped",
+          "phases": [
+            0,
+            6,
+            9,
+            12
+          ],
+          "lanes": 1,
+          "length_meters": 2.240000009536743,
+          "edge": ":5588597283_w1",
+          "is_pedestrian": true,
+          "situational": false
+        },
+        {
+          "detector_id": "5588597283_w3_straight_ped",
+          "phases": [
+            0,
+            6,
+            9,
+            12
+          ],
+          "lanes": 1,
+          "length_meters": 2.240000009536743,
+          "edge": ":5588597283_w3",
+          "is_pedestrian": true,
+          "situational": false
+        },
+        {
+          "detector_id": "5588597284_w0_straight_ped",
+          "phases": [
+            0,
+            3,
+            6,
+            12
+          ],
+          "lanes": 1,
+          "length_meters": 2.819999933242798,
+          "edge": ":5588597284_w0",
+          "is_pedestrian": true,
+          "situational": false
+        },
+        {
+          "detector_id": "5588597285_w1_straight_ped",
+          "phases": [
+            0,
+            3,
+            6,
+            9
+          ],
+          "lanes": 1,
+          "length_meters": 3.0899999141693115,
+          "edge": ":5588597285_w1",
+          "is_pedestrian": true,
+          "situational": false
+        }
+      ],
+      "transitions": [
+        {
+          "green_phase": 0,
+          "amber_phase": 2,
+          "amber_duration_secs": 3.0
+        },
+        {
+          "green_phase": 1,
+          "amber_phase": 2,
+          "amber_duration_secs": 3.0
+        },
+        {
+          "green_phase": 3,
+          "amber_phase": 5,
+          "amber_duration_secs": 3.0
+        },
+        {
+          "green_phase": 4,
+          "amber_phase": 5,
+          "amber_duration_secs": 3.0
+        },
+        {
+          "green_phase": 6,
+          "amber_phase": 8,
+          "amber_duration_secs": 3.0
+        },
+        {
+          "green_phase": 7,
+          "amber_phase": 8,
+          "amber_duration_secs": 3.0
+        },
+        {
+          "green_phase": 9,
+          "amber_phase": 11,
+          "amber_duration_secs": 3.0
+        },
+        {
+          "green_phase": 10,
+          "amber_phase": 11,
+          "amber_duration_secs": 3.0
+        },
+        {
+          "green_phase": 12,
+          "amber_phase": 14,
+          "amber_duration_secs": 3.0
+        },
+        {
+          "green_phase": 13,
+          "amber_phase": 14,
+          "amber_duration_secs": 3.0
+        }
+      ],
+      "program": {
+        "program_id": "0",
+        "phases": [
+          [
+            10.0,
+            "GrrrrrrgGGrrrrGGGG"
+          ],
+          [
+            5.0,
+            "GrrrrrrgGGrrrrrrrr"
+          ],
+          [
+            3.0,
+            "yrrrrrryyyrrrrrrrr"
+          ],
+          [
+            10.0,
+            "rGGGrrrrrrrrGGrrGG"
+          ],
+          [
+            5.0,
+            "rGGGrrrrrrrrrrrrrr"
+          ],
+          [
+            3.0,
+            "ryyyrrrrrrrrrrrrrr"
+          ],
+          [
+            10.0,
+            "rrrrGgGrrrrrGGGGGG"
+          ],
+          [
+            5.0,
+            "rrrrGgGrrrrrrrrrrr"
+          ],
+          [
+            3.0,
+            "rrrryyyrrrrrrrrrrr"
+          ],
+          [
+            10.0,
+            "rrrrrrrrrrGrGGGGrG"
+          ],
+          [
+            5.0,
+            "rrrrrrrrrrGrrrrrrr"
+          ],
+          [
+            3.0,
+            "rrrrrrrrrryrrrrrrr"
+          ],
+          [
+            10.0,
+            "rrrrrrrrrrrGGGGGGr"
+          ],
+          [
+            5.0,
+            "rrrrrrrrrrrGrrrrrr"
+          ],
+          [
+            3.0,
+            "rrrrrrrrrrryrrrrrr"
+          ]
+        ],
+        "is_static": false
+      }
+    }
+  ]
+}

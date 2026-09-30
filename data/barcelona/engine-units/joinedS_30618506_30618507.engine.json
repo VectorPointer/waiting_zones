@@ -1,0 +1,133 @@
+{
+  "format_version": 1,
+  "territory_id": "barcelona",
+  "unit_id": "joinedS_30618506_30618507",
+  "map_digest": "32843fd5662c9f469590ce458ec161b3f61d3dc348a61ed8e08a74367e24fe84",
+  "junctions": [
+    {
+      "tls_id": "joinedS_30618506_30618507",
+      "zones": [
+        {
+          "detector_id": "207322876#15_straight",
+          "phases": [
+            4
+          ],
+          "lanes": 1,
+          "length_meters": 0.1899999976158142,
+          "edge": "207322876#15",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "207322876#15_straight+left",
+          "phases": [
+            4
+          ],
+          "lanes": 1,
+          "length_meters": 0.1899999976158142,
+          "edge": "207322876#15",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "208485916#0_straight+right",
+          "phases": [
+            2,
+            3,
+            4
+          ],
+          "lanes": 1,
+          "length_meters": 8.949999809265137,
+          "edge": "208485916#0",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "238872795#3_straight+right",
+          "phases": [
+            2
+          ],
+          "lanes": 1,
+          "length_meters": 0.20000000298023224,
+          "edge": "238872795#3",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "251411998#8_straight",
+          "phases": [
+            0
+          ],
+          "lanes": 1,
+          "length_meters": 1.4500000476837158,
+          "edge": "251411998#8",
+          "is_pedestrian": false,
+          "situational": false
+        },
+        {
+          "detector_id": "251411998#8_left",
+          "phases": [
+            0
+          ],
+          "lanes": 1,
+          "length_meters": 1.4500000476837158,
+          "edge": "251411998#8",
+          "is_pedestrian": false,
+          "situational": false
+        }
+      ],
+      "transitions": [
+        {
+          "green_phase": 0,
+          "amber_phase": 1,
+          "amber_duration_secs": 3.0
+        },
+        {
+          "green_phase": 2,
+          "amber_phase": 5,
+          "amber_duration_secs": 3.0
+        },
+        {
+          "green_phase": 3,
+          "amber_phase": 5,
+          "amber_duration_secs": 3.0
+        },
+        {
+          "green_phase": 4,
+          "amber_phase": 5,
+          "amber_duration_secs": 3.0
+        }
+      ],
+      "program": {
+        "program_id": "0",
+        "phases": [
+          [
+            27.0,
+            "rrGGrrrrr"
+          ],
+          [
+            3.0,
+            "rryyrrrrr"
+          ],
+          [
+            27.0,
+            "GGrrGGrrr"
+          ],
+          [
+            3.0,
+            "GGrryyrrr"
+          ],
+          [
+            27.0,
+            "GGrrrrGGG"
+          ],
+          [
+            3.0,
+            "yyrrrryyy"
+          ]
+        ],
+        "is_static": false
+      }
+    }
+  ]
+}
