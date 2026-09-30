@@ -25,6 +25,9 @@ const STOP_BEFORE_CROSSWALK_METERS: f64 = 2.0;
 /// How far back from a junction a crosswalk may sit and still be the one
 /// its approach stops in front of.
 const CROSSWALK_SEARCH_METERS: f64 = 25.0;
+/// Bounds on how far before the crosswalk an approach stops.
+const MIN_SETBACK_METERS: f64 = 3.0;
+const MAX_SETBACK_METERS: f64 = 15.0;
 
 /// Every node a vehicle stops at a signal for: a traffic light, or a
 /// signalized pedestrian crossing on a road.
@@ -281,7 +284,8 @@ pub fn stop_setback(
             road.width()
         })
         .fold(0.0, f64::max);
-    (widest_other / 2.0 + STOP_BEFORE_CROSSWALK_METERS).clamp(3.0, 15.0)
+    (widest_other / 2.0 + STOP_BEFORE_CROSSWALK_METERS)
+        .clamp(MIN_SETBACK_METERS, MAX_SETBACK_METERS)
 }
 
 /// Nodes where a pedestrian crosses a road: tagged as a crossing, or on a

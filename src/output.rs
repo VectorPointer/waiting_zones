@@ -1,7 +1,8 @@
 //! Turns generated zones into the two GeoJSON `FeatureCollection`s the rest
 //! of Leave consumes (`<path>.vehicles.geojson`, `<path>.pedestrians.geojson`),
 //! with the same per-feature properties the SUMO-based generator emits:
-//! `waiting_zone_id`, `intersection_id`, `stop_line`, `modes`.
+//! `waiting_zone_id`, `intersection_id`, `stop_line`, `modes`, plus `layer`
+//! (the zone's vertical level).
 
 use std::path::{Path, PathBuf};
 
@@ -24,10 +25,20 @@ const CROSSWALK_CORE_WIDTH_METERS: f64 = 2.5;
 const CROSSWALK_REACH_METERS: f64 = 3.0;
 /// How far past a band end to look for that pedestrian zone's far side.
 const CROSSWALK_SEARCH_AHEAD_METERS: f64 = 15.0;
-/// One car's footprint, about 2m × 5m: the least a vehicle zone must hold.
-const MIN_VEHICLE_ZONE_M2: f64 = 10.0;
 /// Overlaps smaller than this are numerical noise, not shared ground.
 const OVERLAP_AREA_THRESHOLD_M2: f64 = 0.01;
+/// How far a pedestrian zone's reach is overlapped back into the band's own
+/// end, so the two meet with no hairline between them.
+const CROSSWALK_JOIN_METERS: f64 = 0.1;
+/// A ring piece smaller than this left over from a cut is noise, not ground.
+const MIN_PART_AREA_M2: f64 = 0.5;
+/// Two crossing points closer than this don't define a cut line.
+const MIN_PERIMETER_CUT_METERS: f64 = 0.5;
+/// Distances, in metres, a stop line is nudged inwards when cleaning left it
+/// just outside its own zone, tried nearest first.
+const NEAREST_INSIDE_STEPS_M: [f64; 8] = [0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0];
+/// Directions tried at each [`NEAREST_INSIDE_STEPS_M`] distance.
+const NEAREST_INSIDE_DIRECTIONS: usize = 32;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Class {
@@ -53,6 +64,10 @@ pub struct Zone {
     /// A pedestrian zone's crosswalk lines. Empty for vehicles.
     pub lines: Vec<Vec<Pt>>,
     pub intersection: String,
+    /// Vertical level (`OSM` `layer`/`bridge`/`tunnel`); a pedestrian zone is
+    /// ground (0). Two zones at different levels cross in plan but share no
+    /// ground, so their overlap is never resolved.
+    pub layer: i32,
 }
 
 impl Zone {
@@ -68,6 +83,7 @@ impl Zone {
             keep_out: zone.keep_out,
             lines: Vec::new(),
             intersection,
+            layer: zone.layer,
         }
     }
 
@@ -89,6 +105,7 @@ impl Zone {
             stop_line: zone.stop_line,
             site: zone.site,
             intersection,
+            layer: 0,
         }
     }
 
@@ -100,8 +117,11 @@ impl Zone {
     }
 }
 
-/// Brings vehicle zones up to the pedestrian zones they face, splits
-/// same-class overlaps, and drops any zone left with no ground.
+/// Brings vehicle zones up to the pedestrian zones they face and splits
+/// same-class overlaps. The only zone removed is one the cuts leave with
+/// no ground at all — a two-node stub wholly inside the junctions it ends
+/// at, with nowhere to wait. A zone that keeps real ground stays, however
+/// small: the old "smaller than a car" area cutoff is gone.
 pub fn assemble(mut zones: Vec<Zone>) -> Vec<Zone> {
     meet_crosswalks(&mut zones);
     split_overlaps(&mut zones);
@@ -121,16 +141,10 @@ pub fn assemble(mut zones: Vec<Zone>) -> Vec<Zone> {
         }
     }
     settle_residual_overlaps(&mut zones);
-    // A vehicle zone smaller than one car (the stub of a road between two
-    // junctions a few metres apart) holds no one waiting.
-    zones.retain(|z| {
-        let least = if z.class == Class::Pedestrian {
-            1.0
-        } else {
-            MIN_VEHICLE_ZONE_M2
-        };
-        z.polygon.unsigned_area() > least
-    });
+    // A zone the junction cuts and the crosswalks leave with no ground is a
+    // stub between two junctions, not a waiting zone: drop it. Only by
+    // emptiness, never by area, so a small approach with real ground stays.
+    zones.retain(|zone| !zone.polygon.0.is_empty());
     // Cleaning can take away the needle a stop line was moved next to:
     // whatever is left, the stop line is on the zone's own ground.
     for zone in &mut zones {
@@ -212,6 +226,11 @@ fn split_overlaps(zones: &mut [Zone]) {
     for i in 0..zones.len() {
         for j in i + 1..zones.len() {
             if zones[i].class != zones[j].class {
+                continue;
+            }
+            // Different levels cross in plan without meeting: a bridge over a
+            // street shares no ground, so there is nothing to split.
+            if zones[i].layer != zones[j].layer {
                 continue;
             }
             let shared = zones[i].polygon.intersection(&zones[j].polygon);
@@ -297,6 +316,7 @@ fn settle_residual_overlaps(zones: &mut [Zone]) {
                 !pedestrian(&zones[i])
             };
             if gives_way
+                && zones[i].layer == zones[j].layer
                 && zones[i]
                     .polygon
                     .intersection(&zones[j].polygon)
@@ -352,7 +372,7 @@ fn perimeter_cut(
         return None;
     };
     let along = geometry::unit([q[0] - p[0], q[1] - p[1]])?;
-    if geometry::dist(p, q) < 0.5 {
+    if geometry::dist(p, q) < MIN_PERIMETER_CUT_METERS {
         return None;
     }
     let side = |m: &MultiPolygon<f64>| {
@@ -433,7 +453,7 @@ fn meet_crosswalks(zones: &mut [Zone]) {
             if reach > 0.0 {
                 // Overlapping the band's own end a little, so the two meet
                 // with no hairline between them.
-                zone.polygon = zone.polygon.union(&across(-0.1, reach));
+                zone.polygon = zone.polygon.union(&across(-CROSSWALK_JOIN_METERS, reach));
             }
         }
         if !zone.ends.is_empty() {
@@ -457,18 +477,16 @@ fn nearest_inside(polygon: &MultiPolygon<f64>, point: Pt) -> Option<Pt> {
         geo::Closest::Intersection(p) | geo::Closest::SinglePoint(p) => [p.x(), p.y()],
         geo::Closest::Indeterminate => return None,
     };
-    [0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0]
-        .into_iter()
-        .find_map(|step| {
-            (0..32).find_map(|k| {
-                let angle = k as f64 * std::f64::consts::PI / 16.0;
-                let candidate = [
-                    on_edge[0] + angle.cos() * step,
-                    on_edge[1] + angle.sin() * step,
-                ];
-                contains(polygon, candidate).then_some(candidate)
-            })
+    NEAREST_INSIDE_STEPS_M.into_iter().find_map(|step| {
+        (0..NEAREST_INSIDE_DIRECTIONS).find_map(|k| {
+            let angle = k as f64 * std::f64::consts::PI / (NEAREST_INSIDE_DIRECTIONS as f64 / 2.0);
+            let candidate = [
+                on_edge[0] + angle.cos() * step,
+                on_edge[1] + angle.sin() * step,
+            ];
+            contains(polygon, candidate).then_some(candidate)
         })
+    })
 }
 
 /// The half-plane of points closer to `near` than to `far`.
@@ -504,7 +522,7 @@ fn keep_part_with(polygon: &MultiPolygon<f64>, stop_line: Pt, keep_all: bool) ->
     let parts: Vec<Polygon<f64>> = polygon
         .0
         .iter()
-        .filter(|p| p.unsigned_area() > 0.5)
+        .filter(|p| p.unsigned_area() > MIN_PART_AREA_M2)
         .cloned()
         .collect();
     if keep_all || parts.len() <= 1 {
@@ -577,6 +595,9 @@ fn feature(zone: &Zone, projection: &Projection) -> Feature {
         serde_json::json!(projection.to_lon_lat(zone.stop_line)),
     );
     properties.insert("modes".into(), serde_json::json!(zone.modes()));
+    // Vertical level (OSM `layer`/`bridge`/`tunnel`); ground is 0. Two zones
+    // at different levels cross in plan without sharing ground.
+    properties.insert("layer".into(), serde_json::json!(zone.layer));
     let mut feature = Feature::from(geometry);
     feature.properties = Some(properties);
     feature
@@ -602,6 +623,7 @@ mod tests {
             keep_out: MultiPolygon::new(Vec::new()),
             lines: Vec::new(),
             intersection: String::new(),
+            layer: 0,
         }
     }
 

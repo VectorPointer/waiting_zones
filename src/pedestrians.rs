@@ -22,6 +22,12 @@ pub const CROSSWALK_WIDTH_METERS: f64 = 4.0;
 /// How far past each end of the crosswalk a zone reaches onto the
 /// sidewalk: where people actually stand waiting for green.
 pub const SIDEWALK_OFFSET_METERS: f64 = 2.0;
+/// How far past the road's edge a drawn crosswalk stripe reaches, so it
+/// meets the curb rather than stopping short.
+const CROSSWALK_EDGE_MARGIN_METERS: f64 = 0.5;
+/// A crosswalk counts as overlapping a zone only over more than this share
+/// of the shorter of the two.
+const MAJORITY_OVERLAP: f64 = 0.5;
 /// An unsignalized crosswalk whose stripe shares more than this with a
 /// zone touches it.
 const MIN_SHARED_M2: f64 = 0.5;
@@ -40,6 +46,8 @@ const STRAIGHT_WITHIN_METERS: f64 = 0.5;
 /// apart than [`SIDE_BY_SIDE_METERS`] alongside each other, are one zone.
 const SIDE_BY_SIDE_DEGREES: f64 = 20.0;
 const SIDE_BY_SIDE_METERS: f64 = 5.0;
+/// A crosswalk shorter than this is a stray node, not a crossing.
+const MIN_CROSSWALK_METERS: f64 = 1.0;
 
 pub struct PedestrianZone {
     pub id: String,
@@ -267,7 +275,7 @@ pub fn generate(osm: &Osm, net: &Network) -> Vec<PedestrianZone> {
             continue;
         };
         let axis = geometry::right_of(tangent);
-        let half = net.roads[inc.road].width() / 2.0 + 0.5;
+        let half = net.roads[inc.road].width() / 2.0 + CROSSWALK_EDGE_MARGIN_METERS;
         let centre = net.positions[&node];
         let crosswalk = vec![
             [centre[0] - axis[0] * half, centre[1] - axis[1] * half],
@@ -382,7 +390,7 @@ fn side_by_side(a: &[Pt], b: &[Pt]) -> bool {
         (x.min(y), x.max(y))
     });
     let overlap = hi.min(len_a) - lo.max(0.0);
-    overlap > 0.5 * len_a.min(hi - lo)
+    overlap > MAJORITY_OVERLAP * len_a.min(hi - lo)
 }
 
 /// An unsignalized crosswalk whose own stripe overlaps a zone's ground
@@ -482,7 +490,7 @@ fn zone_around(
     mapped: bool,
 ) -> Option<PedestrianZone> {
     let length = geometry::length(&crosswalk);
-    if length < 1.0 {
+    if length < MIN_CROSSWALK_METERS {
         return None;
     }
     let lines = vec![crosswalk.clone()];

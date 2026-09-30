@@ -71,6 +71,15 @@ pub struct Road {
     /// An OSM slip road / ramp (`highway=*_link`): a branch off a street,
     /// never the street a queue carries on along.
     pub is_link: bool,
+    /// A parking aisle or lot (`service=parking_aisle`, `amenity=parking`):
+    /// not through traffic. It is kept in the graph — it still makes a node
+    /// a junction, so edge ids don't move — but a queue carries on past the
+    /// entrance it opens onto, so it never counts as a fork.
+    pub is_parking: bool,
+    /// Vertical level (`layer`, defaulting 0; a bridge is at least +1, a
+    /// tunnel at most -1). Two roads at different levels cross without
+    /// meeting — a zone on each overlaps in plan without sharing ground.
+    pub layer: i32,
     pub nodes: Vec<NodeId>,
     pub points: Vec<Pt>,
     pub forward_lanes: u32,
@@ -183,6 +192,18 @@ impl Network {
                 way: way.id,
                 mode,
                 is_link: highway.ends_with("_link"),
+                is_parking: way.tag("service") == Some("parking_aisle")
+                    || way.tag("amenity") == Some("parking"),
+                layer: {
+                    let mut layer: i32 = way.tag("layer").and_then(|v| v.parse().ok()).unwrap_or(0);
+                    if way.tag("bridge").is_some_and(|v| v != "no") {
+                        layer = layer.max(1);
+                    }
+                    if way.tag("tunnel").is_some_and(|v| v != "no") {
+                        layer = layer.min(-1);
+                    }
+                    layer
+                },
                 nodes,
                 points,
                 forward_lanes,
@@ -313,18 +334,24 @@ fn lane_arrows(value: &str, lanes: u32) -> Option<Vec<LaneArrows>> {
     Some(per_lane)
 }
 
-/// `maxspeed` in km/h; 50 (the Spanish urban limit) when untagged or not a
+/// The Spanish urban speed limit, used when `maxspeed` is untagged or not a
 /// number.
+const DEFAULT_SPEED_KMH: f64 = 50.0;
+const KMH_PER_MPH: f64 = 1.609;
+
+/// `maxspeed` in km/h; [`DEFAULT_SPEED_KMH`] when untagged or not a number.
 fn speed_kmh(maxspeed: Option<&str>) -> f64 {
-    let Some(value) = maxspeed else { return 50.0 };
+    let Some(value) = maxspeed else {
+        return DEFAULT_SPEED_KMH;
+    };
     let number: String = value
         .chars()
         .take_while(|c| c.is_ascii_digit() || *c == '.')
         .collect();
     match number.parse::<f64>() {
-        Ok(n) if value.contains("mph") => n * 1.609,
+        Ok(n) if value.contains("mph") => n * KMH_PER_MPH,
         Ok(n) => n,
-        Err(_) => 50.0,
+        Err(_) => DEFAULT_SPEED_KMH,
     }
 }
 

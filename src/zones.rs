@@ -19,6 +19,15 @@ const ARM_METERS: f64 = 30.0;
 /// A band turning back sharper than this (past what an offset line can
 /// follow) is drawn as two runs meeting square.
 const SHARP_TURN_DEGREES: f64 = 100.0;
+/// Two arms leaving a node this close in heading (degrees) are the same road.
+const SAME_ARM_DEGREES: f64 = 10.0;
+/// The shortest an approach is taken to be, so a near-zero-length edge still
+/// gets a stop line inside it.
+const MIN_APPROACH_METERS: f64 = 1.0;
+/// How far behind the stop line the published stop point sits.
+const STOP_LINE_SETBACK_METERS: f64 = 0.5;
+/// The nearest the stop point may sit to the approach's own start.
+const MIN_STOP_LINE_OFFSET_METERS: f64 = 0.1;
 
 pub struct VehicleZone {
     pub id: String,
@@ -29,6 +38,10 @@ pub struct VehicleZone {
     pub mode: Mode,
     pub polygon: MultiPolygon<f64>,
     pub stop_line: Pt,
+    /// The highest OSM level (`layer`/`bridge`/`tunnel`) the zone's own road
+    /// or any road it extends back through sits at. A zone at a different
+    /// level than a neighbour crosses it in plan but shares no ground.
+    pub layer: i32,
     pub length_meters: f64,
     /// Both flat ends of every band the zone is drawn from.
     pub ends: Vec<BandEnd>,
@@ -73,7 +86,7 @@ pub fn build(
     reach: Reach,
 ) -> Option<VehicleZone> {
     let edge = &graph.edges[approach];
-    let stop = (edge.length - setback).max(edge.length.min(1.0));
+    let stop = (edge.length - setback).max(edge.length.min(MIN_APPROACH_METERS));
     let along_approach = reach.max_length.map_or(stop, |cap| cap.min(stop));
     // The remaining length the walk may add before the approach's own start:
     // unlimited when uncapped, otherwise whatever the cap leaves over.
@@ -207,12 +220,27 @@ pub fn build(
     // sliver between their bands: the zone is the whole area, hole included.
     let polygon = geometry::without_holes(polygon);
 
+    // The highest level any road on the route sits at: a zone that climbs
+    // onto a bridge is a bridge zone, and does not share ground with a
+    // street crossing underneath it.
+    let layer = routes
+        .iter()
+        .flatten()
+        .map(|(e, _, _)| net.roads[graph.edges[*e].road].layer)
+        .max()
+        .unwrap_or(0);
+
     // The stop line: half a metre behind it, on the group's own middle
     // lane — the group's lanes needn't be contiguous, and the average of two
     // of them could land on a lane another zone owns.
     let middle = lanes[lanes.len() / 2];
     let centre_line = edge.lane_line(middle);
-    let stop_line = *geometry::sub_polyline(&centre_line, 0.0, (stop - 0.5).max(0.1)).last()?;
+    let stop_line = *geometry::sub_polyline(
+        &centre_line,
+        0.0,
+        (stop - STOP_LINE_SETBACK_METERS).max(MIN_STOP_LINE_OFFSET_METERS),
+    )
+    .last()?;
 
     Some(VehicleZone {
         id: zone_id(&edge.id, &directions),
@@ -222,6 +250,7 @@ pub fn build(
         mode: edge.mode,
         polygon,
         stop_line,
+        layer,
         length_meters,
         ends,
         keep_out,
@@ -251,11 +280,14 @@ fn extend(
 ) {
     let current = &graph.edges[edge];
     let start = current.from;
+    // A parking aisle is not part of the street: a queue carries on past the
+    // entrance it opens onto, so it never counts as a way out of the node.
+    let parking = |e: usize| net.roads[graph.edges[e].road].is_parking;
     let only_way_out = || {
         graph
             .outgoing(start)
             .iter()
-            .all(|&c| c == edge || graph.edges[c].mode != current.mode)
+            .all(|&c| c == edge || graph.edges[c].mode != current.mode || parking(c))
     };
     let predecessors: Vec<usize> = if budget <= 0.0
         || controlled.contains(&start)
@@ -278,7 +310,9 @@ fn extend(
                     .iter()
                     .copied()
                     .filter(|&c| {
-                        Some(c) != graph.edges[p].reverse && graph.edges[c].mode == current.mode
+                        Some(c) != graph.edges[p].reverse
+                            && graph.edges[c].mode == current.mode
+                            && !parking(c)
                     })
                     .collect();
                 continuations == [edge]
@@ -471,12 +505,13 @@ fn junction_ground(net: &Network, graph: &Graph, node: NodeId, edge: usize) -> J
         geometry::unit([to[0] - from[0], to[1] - from[1]])
     };
     let through = THROUGH_DEGREES.to_radians().cos();
+    let same_arm = SAME_ARM_DEGREES.to_radians().cos();
     let own = away(edge);
     let mut arms: Vec<Pt> = Vec::new();
     for &e in graph.incoming(node).iter().chain(graph.outgoing(node)) {
         if let Some(d) = away(e)
-            && own.is_none_or(|o| o[0] * d[0] + o[1] * d[1] < 0.985)
-            && arms.iter().all(|a| a[0] * d[0] + a[1] * d[1] < 0.985)
+            && own.is_none_or(|o| o[0] * d[0] + o[1] * d[1] < same_arm)
+            && arms.iter().all(|a| a[0] * d[0] + a[1] * d[1] < same_arm)
         {
             arms.push(d);
         }

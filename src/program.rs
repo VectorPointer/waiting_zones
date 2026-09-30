@@ -28,6 +28,10 @@ use crate::osm::NodeId;
 
 /// Two approaches whose headings differ by more than this face each other.
 const OPPOSITE_DEGREES: f64 = 145.0;
+/// The heading window (degrees) within which two straight movements count as
+/// crossing each other, whatever the approximate paths say.
+const MIN_PERPENDICULAR_DEGREES: f64 = 60.0;
+const MAX_PERPENDICULAR_DEGREES: f64 = 120.0;
 /// How far past the junction a movement's path is followed, so a crosswalk
 /// on the exit (set back from the junction) is seen as crossed.
 const EXIT_TAIL_METERS: f64 = 15.0;
@@ -38,6 +42,18 @@ const EXTRA_GREEN_SECS: f64 = 15.0;
 const PEDESTRIAN_GREEN_SECS: f64 = 15.0;
 pub const MIN_GREEN_SECS: f64 = 5.0;
 pub const MAX_GREEN_SECS: f64 = 60.0;
+/// An approach faster than this gets a longer amber.
+const FAST_SPEED_KMH: f64 = 50.0;
+const FAST_AMBER_SECS: f64 = 4.0;
+const AMBER_SECS: f64 = 3.0;
+/// The heading a movement is taken to have when its edge gives none.
+const DEFAULT_HEADING: Pt = [1.0, 0.0];
+/// How far back along an edge its bearing at the junction is measured.
+const BEARING_BASELINE_METERS: f64 = 10.0;
+/// Furthest the control point bridging two joined pieces may reach.
+const BEND_CONTROL_MAX_METERS: f64 = 60.0;
+/// Segments a bridged bend's bezier is drawn with.
+const BEZIER_SEGMENTS: usize = 8;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Signal {
@@ -151,15 +167,16 @@ pub fn build(
     // the approximate paths say: in a controller spanning several nodes
     // their paths can miss each other on the map while the streets still
     // cross (the same rule `violations` checks).
-    let approach_heading =
-        |m: usize| heading_at_end(&graph.edges[movements[m].approach].points).unwrap_or([1.0, 0.0]);
+    let approach_heading = |m: usize| {
+        heading_at_end(&graph.edges[movements[m].approach].points).unwrap_or(DEFAULT_HEADING)
+    };
     for i in 0..n {
         for j in 0..n {
             let angle = turn_degrees(approach_heading(i), approach_heading(j)).abs();
             if i != j
                 && movements[i].direction == Direction::Straight
                 && movements[j].direction == Direction::Straight
-                && (60.0..=120.0).contains(&angle)
+                && (MIN_PERPENDICULAR_DEGREES..=MAX_PERPENDICULAR_DEGREES).contains(&angle)
             {
                 movement_conflicts[i][j] = true;
             }
@@ -186,7 +203,7 @@ pub fn build(
         .filter(|&e| graph.edges[e].mode == Mode::Car)
         .collect();
     let order = clockwise(graph, cluster, &car_approaches);
-    let heading = |e: usize| heading_at_end(&graph.edges[e].points).unwrap_or([1.0, 0.0]);
+    let heading = |e: usize| heading_at_end(&graph.edges[e].points).unwrap_or(DEFAULT_HEADING);
     let mut candidates: Vec<(f64, usize, usize)> = Vec::new();
     for (i, &a) in order.iter().enumerate() {
         for &b in &order[i + 1..] {
@@ -407,8 +424,8 @@ pub fn build(
         .collect();
     let fast = movements
         .iter()
-        .any(|m| graph.edges[m.approach].speed_kmh > 50.0);
-    let amber_secs = if fast { 4.0 } else { 3.0 };
+        .any(|m| graph.edges[m.approach].speed_kmh > FAST_SPEED_KMH);
+    let amber_secs = if fast { FAST_AMBER_SECS } else { AMBER_SECS };
     let mut program: Vec<(f64, String)> = Vec::new();
     let mut is_green_phase = Vec::new();
     let mut transitions = Vec::new();
@@ -511,7 +528,7 @@ pub fn build(
         movement_direction: movements.iter().map(|m| m.direction).collect(),
         movement_heading: movements
             .iter()
-            .map(|m| heading_at_end(&graph.edges[m.approach].points).unwrap_or([1.0, 0.0]))
+            .map(|m| heading_at_end(&graph.edges[m.approach].points).unwrap_or(DEFAULT_HEADING))
             .collect(),
         path_points: paths.iter().map(Vec::len).collect(),
     }
@@ -533,7 +550,7 @@ pub fn violations(plan: &Plan) -> Vec<String> {
     // perpendicular approaches cross, whatever the paths say.
     let perpendicular = |i: usize, j: usize| {
         let angle = turn_degrees(plan.movement_heading[i], plan.movement_heading[j]).abs();
-        (60.0..=120.0).contains(&angle)
+        (MIN_PERPENDICULAR_DEGREES..=MAX_PERPENDICULAR_DEGREES).contains(&angle)
     };
     let turn = |m: usize| plan.movement_direction[m] != Direction::Straight;
     for (p, phase) in plan.green_phases.iter().enumerate() {
@@ -712,12 +729,18 @@ fn join(points: &mut Vec<Pt>, next: &[Pt]) {
     };
     let bend = match (heading_at_end(points), heading_at_start(next)) {
         (Some(d), Some(e)) => geometry::line_intersection(from, d, to, e)
-            .filter(|&(t, u)| t > 0.0 && u < 0.0 && t < 60.0 && -u < 60.0)
+            .filter(|&(t, u)| {
+                t > 0.0 && u < 0.0 && t < BEND_CONTROL_MAX_METERS && -u < BEND_CONTROL_MAX_METERS
+            })
             .map(|(t, _)| [from[0] + d[0] * t, from[1] + d[1] * t]),
         _ => None,
     };
     match bend {
-        Some(control) => points.extend(geometry::bezier(from, control, to, 8).into_iter().skip(1)),
+        Some(control) => points.extend(
+            geometry::bezier(from, control, to, BEZIER_SEGMENTS)
+                .into_iter()
+                .skip(1),
+        ),
         None => points.push(to),
     }
     points.extend(next.iter().skip(1).copied());
@@ -728,9 +751,13 @@ fn join(points: &mut Vec<Pt>, next: &[Pt]) {
 fn clockwise(graph: &Graph, cluster: &Cluster, edges: &[usize]) -> Vec<usize> {
     let bearing = |e: usize| {
         let edge = &graph.edges[e];
-        let p = *geometry::sub_polyline(&edge.points, (edge.length - 10.0).max(0.0), edge.length)
-            .first()
-            .unwrap_or(&edge.points[0]);
+        let p = *geometry::sub_polyline(
+            &edge.points,
+            (edge.length - BEARING_BASELINE_METERS).max(0.0),
+            edge.length,
+        )
+        .first()
+        .unwrap_or(&edge.points[0]);
         let (dx, dy) = (p[0] - cluster.centre[0], p[1] - cluster.centre[1]);
         dx.atan2(dy).rem_euclid(std::f64::consts::TAU)
     };

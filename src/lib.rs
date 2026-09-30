@@ -224,6 +224,8 @@ pub fn generate(osm: &osm::Osm, reach: Reach) -> Generated {
     }
 
     let zones = output::assemble(zones);
+    // `assemble` drops only groundless stubs; keep the programs in step with
+    // the zones actually emitted.
     let surviving: HashSet<&str> = zones.iter().map(|z| z.id.as_str()).collect();
     for program in &mut programs {
         program

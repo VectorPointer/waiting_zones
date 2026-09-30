@@ -204,9 +204,13 @@ fn real_barcelona_zones_and_programs_hold_their_invariants() {
         for b in &zones[i + 1..] {
             // Same-class zones never share ground, and no car waits on a
             // crosswalk: a vehicle zone and a pedestrian zone share only
-            // their border.
+            // their border. Two zones at different levels (a bridge over a
+            // street) cross in plan without meeting, so only equal levels
+            // are compared.
             let pedestrian = |c: Class| c == Class::Pedestrian;
-            if a.class == b.class || pedestrian(a.class) != pedestrian(b.class) {
+            if (a.class == b.class || pedestrian(a.class) != pedestrian(b.class))
+                && a.layer == b.layer
+            {
                 let shared = a.polygon.intersection(&b.polygon).unsigned_area();
                 if shared > MAX_SHARED_M2 {
                     problems.push(format!("{} and {} share {shared:.2}m²", a.id, b.id));
