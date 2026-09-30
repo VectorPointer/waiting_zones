@@ -767,13 +767,13 @@
         </detEntry>
         <detEntry lane="1054519828_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":1092073246_0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="30112805#13_1" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":1092073246_1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="93939466#7_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":1092073246_0_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="30112805#13_1" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane="1054416405_1" pos="21.600000381469727" friendlyPos="true">
         </detExit>
@@ -979,13 +979,13 @@
         </detEntry>
         <detEntry lane="117170680#4_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":697321890_1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="236208937#4_1" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":697321890_0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="117170680#3_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":697321890_1_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="236208937#4_1" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane="117170680#6_1" pos="54.4900016784668" friendlyPos="true">
         </detExit>
@@ -1579,10 +1579,6 @@
     <e3Detector id="201280647#1_straight" file="detector_output/201280647#1_straight.xml" pos="726.54,2264">
         <detEntry lane="201280647#1_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":2112374956_1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="201280647#0_1" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":2112374956_0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="55494597#1_1" pos="0" friendlyPos="true">
@@ -1590,6 +1586,10 @@
         <detEntry lane=":12745692370_0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="55494597#0_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":2112374956_1_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="201280647#0_1" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane="201280647#1_1" pos="27.68000030517578" friendlyPos="true">
         </detExit>
@@ -1677,6 +1677,14 @@
     <e3Detector id="202644208#2_straight" file="detector_output/202644208#2_straight.xml" pos="699.26,1666.56">
         <detEntry lane="202644208#2_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detEntry lane=":2112772129_1_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="202644208#1_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":5631458687_0_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="202644208#0_1" pos="0" friendlyPos="true">
+        </detEntry>
         <detEntry lane=":2112772129_0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="202049764#2_1" pos="0" friendlyPos="true">
@@ -1688,14 +1696,6 @@
         <detEntry lane=":11359254718_0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="202049764#0_1" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2112772129_1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="202644208#1_1" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5631458687_0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="202644208#0_1" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane="202644208#2_1" pos="30.5" friendlyPos="true">
         </detExit>
@@ -2049,13 +2049,13 @@
         </detEntry>
         <detEntry lane="207322869#3_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":301792933_0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="278189824_1" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":301792933_1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="207322869#2_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":301792933_0_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="278189824_1" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane="207322869#5_1" pos="0.20000000298023224" friendlyPos="true">
         </detExit>
@@ -2841,13 +2841,13 @@
     <e3Detector id="27465835#3_straight" file="detector_output/27465835#3_straight.xml" pos="1239.88,1410.7">
         <detEntry lane="27465835#3_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":12913883273_1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="27465835#2_1" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":12913883273_0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="25627391#2_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":12913883273_1_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="27465835#2_1" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="27465835#3_2" pos="0" friendlyPos="true">
         </detEntry>
@@ -3405,10 +3405,6 @@
         </detEntry>
         <detEntry lane="30149440#6_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":332237163_0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="30149439#2_1" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":332237163_1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="30149440#5_1" pos="0" friendlyPos="true">
@@ -3416,6 +3412,10 @@
         <detEntry lane=":1092073288_1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="30149440#4_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":332237163_0_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="30149439#2_1" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane="30149440#8_1" pos="0.20000000298023224" friendlyPos="true">
         </detExit>
@@ -3495,13 +3495,13 @@
         </detEntry>
         <detEntry lane="1471084065_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":759549463_0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="112004193#3_1" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":759549463_1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="519926629_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":759549463_0_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="112004193#3_1" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="395406703#0_2" pos="0" friendlyPos="true">
         </detEntry>
@@ -4271,13 +4271,13 @@
     <e3Detector id="558212802#0_straight" file="detector_output/558212802#0_straight.xml" pos="517.61,906.8">
         <detEntry lane="558212802#0_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":1011771892_0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="360065572_1" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":1011771892_7_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="87966157#4_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":1011771892_0_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="360065572_1" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="558212802#0_2" pos="0" friendlyPos="true">
         </detEntry>
@@ -4497,6 +4497,14 @@
         </detEntry>
         <detEntry lane="1459359628_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detEntry lane=":759549338_0_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="60677148_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":759549386_0_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="1459359626_1" pos="0" friendlyPos="true">
+        </detEntry>
         <detEntry lane=":759549338_3_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="1459359629#1_1" pos="0" friendlyPos="true">
@@ -4512,14 +4520,6 @@
         <detEntry lane=":5588789917_1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="112177465#9_1" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":759549338_0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="60677148_1" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":759549386_0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="1459359626_1" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="60677160#1_2" pos="0" friendlyPos="true">
         </detEntry>
@@ -5069,13 +5069,13 @@
         </detEntry>
         <detEntry lane="698130738#0_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":6551343290_0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="885217172_1" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":6551343290_4_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="239297081#11_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":6551343290_0_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="885217172_1" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="698130738#0_2" pos="0" friendlyPos="true">
         </detEntry>
@@ -5111,13 +5111,13 @@
     <e3Detector id="703229806#2_straight" file="detector_output/703229806#2_straight.xml" pos="2632.09,2500.46">
         <detEntry lane="703229806#2_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":4469880506_0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="538815853#1_1" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":4469880506_1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="703229806#1_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":4469880506_0_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="538815853#1_1" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane="703229806#2_1" pos="48.95000076293945" friendlyPos="true">
         </detExit>
@@ -5157,13 +5157,13 @@
     <e3Detector id="867627995#0_straight" file="detector_output/867627995#0_straight.xml" pos="406.24,829.9">
         <detEntry lane="867627995#0_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":1319844613_9_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="1296325633#1_1" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":1319844613_0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="1287234159_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":1319844613_9_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="1296325633#1_1" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="867627995#0_2" pos="0" friendlyPos="true">
         </detEntry>
@@ -5311,6 +5311,10 @@
         </detEntry>
         <detEntry lane="88412327#4_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detEntry lane=":590815554_0_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="88412327#3_1" pos="0" friendlyPos="true">
+        </detEntry>
         <detEntry lane=":590815554_1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="46270525#3_1" pos="0" friendlyPos="true">
@@ -5319,15 +5323,15 @@
         </detEntry>
         <detEntry lane="46270525#2_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":590815554_0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="88412327#3_1" pos="0" friendlyPos="true">
-        </detEntry>
         <detExit lane="88412327#6_1" pos="2.6600000858306885" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="88438872#1_straight" file="detector_output/88438872#1_straight.xml" pos="1810.47,3187.24">
         <detEntry lane="88438872#1_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":1275778275_1_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="88438872#0_1" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":1275778275_0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -5336,10 +5340,6 @@
         <detEntry lane=":13320057326_0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="1452441747#0_1" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":1275778275_1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="88438872#0_1" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane="88438872#1_1" pos="28.639999389648438" friendlyPos="true">
         </detExit>
@@ -5457,14 +5457,6 @@
         </detEntry>
         <detEntry lane="885342462#4_1" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":2026312122_1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="885342462#3_1" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597544_0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="885342462#2_1" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":2026312122_0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="192075205#5_1" pos="0" friendlyPos="true">
@@ -5476,6 +5468,14 @@
         <detEntry lane=":5586016710_0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="192075205#3_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":2026312122_1_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="885342462#3_1" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane=":5588597544_0_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="885342462#2_1" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane="885342462#6_1" pos="1.0199999809265137" friendlyPos="true">
         </detExit>
@@ -5511,6 +5511,10 @@
     <e3Detector id="914122768#0_left+right" file="detector_output/914122768#0_left+right.xml" pos="758.24,1786.52">
         <detEntry lane="914122768#0_1" pos="0" friendlyPos="true">
         </detEntry>
+        <detEntry lane=":2112389529_1_0" pos="0" friendlyPos="true">
+        </detEntry>
+        <detEntry lane="1424514445_1" pos="0" friendlyPos="true">
+        </detEntry>
         <detEntry lane=":2112389529_0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="201282171#1_1" pos="0" friendlyPos="true">
@@ -5518,10 +5522,6 @@
         <detEntry lane=":5631458667_0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane="201282171#0_1" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2112389529_1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane="1424514445_1" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane="914122768#0_1" pos="0.20000000298023224" friendlyPos="true">
         </detExit>
@@ -5745,8 +5745,6 @@
     <e3Detector id="10265139316_w1_straight_ped" file="detector_output/10265139316_w1_straight_ped.xml" detectPersons="walk" pos="2598.96,2503.23">
         <detEntry lane=":10265139316_w1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":10265139316_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":10265139316_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":10265139316_w1_0" pos="2.5" friendlyPos="true">
@@ -5754,8 +5752,6 @@
     </e3Detector>
     <e3Detector id="10265139316_w3_straight_ped" file="detector_output/10265139316_w3_straight_ped.xml" detectPersons="walk" pos="2598.96,2503.23">
         <detEntry lane=":10265139316_w3_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":10265139316_w2_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":10265139316_c1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -5774,22 +5770,8 @@
         <detExit lane=":1091496852_w0_0" pos="3.0799999237060547" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="1091496852_w1_straight_ped" file="detector_output/1091496852_w1_straight_ped.xml" detectPersons="walk" pos="2495.27,2444.12">
-        <detEntry lane=":1091496852_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":1091496852_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":1091496852_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":1091496852_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":1091496852_w1_0" pos="2.9100000858306885" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="1091758345_w0_straight_ped" file="detector_output/1091758345_w0_straight_ped.xml" detectPersons="walk" pos="2632.09,2500.46">
         <detEntry lane=":1091758345_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":1091758345_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":1091758345_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -5848,22 +5830,8 @@
         <detExit lane=":11362029510_w0_0" pos="2.009999990463257" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="11362029510_w1_straight_ped" file="detector_output/11362029510_w1_straight_ped.xml" detectPersons="walk" pos="794.73,1097.82">
-        <detEntry lane=":11362029510_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":11362029510_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":11362029510_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":11362029510_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":11362029510_w1_0" pos="4.309999942779541" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="11406441405_w0_straight_ped" file="detector_output/11406441405_w0_straight_ped.xml" detectPersons="walk" pos="2104.25,2191.07">
         <detEntry lane=":11406441405_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":11406441405_w2_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":11406441405_c1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -5873,8 +5841,6 @@
     <e3Detector id="11406463744_w3_straight_ped" file="detector_output/11406463744_w3_straight_ped.xml" detectPersons="walk" pos="2323.12,2348.87">
         <detEntry lane=":11406463744_w3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":11406463744_w2_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":11406463744_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":11406463744_w3_0" pos="2.5" friendlyPos="true">
@@ -5882,8 +5848,6 @@
     </e3Detector>
     <e3Detector id="13608027774_w0_straight_ped" file="detector_output/13608027774_w0_straight_ped.xml" detectPersons="walk" pos="1317.41,1674.62">
         <detEntry lane=":13608027774_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027774_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":13608027774_c1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -5902,18 +5866,6 @@
         <detExit lane=":13608027777_w0_0" pos="2.490000009536743" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="13608027777_w1_straight_ped" file="detector_output/13608027777_w1_straight_ped.xml" detectPersons="walk" pos="1254.01,1645.9">
-        <detEntry lane=":13608027777_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027777_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027777_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027777_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":13608027777_w1_0" pos="3.4700000286102295" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="13608027778_w0_straight_ped" file="detector_output/13608027778_w0_straight_ped.xml" detectPersons="walk" pos="1289.67,1668.02">
         <detEntry lane=":13608027778_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -5924,18 +5876,6 @@
         <detEntry lane=":13608027778_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":13608027778_w0_0" pos="2.930000066757202" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="13608027778_w1_straight_ped" file="detector_output/13608027778_w1_straight_ped.xml" detectPersons="walk" pos="1289.67,1668.02">
-        <detEntry lane=":13608027778_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027778_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027778_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027778_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":13608027778_w1_0" pos="3.2899999618530273" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="13608027779_w0_straight_ped" file="detector_output/13608027779_w0_straight_ped.xml" detectPersons="walk" pos="1245.97,1673.42">
@@ -5950,18 +5890,6 @@
         <detExit lane=":13608027779_w0_0" pos="2.569999933242798" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="13608027779_w1_straight_ped" file="detector_output/13608027779_w1_straight_ped.xml" detectPersons="walk" pos="1245.97,1673.42">
-        <detEntry lane=":13608027779_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027779_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027779_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027779_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":13608027779_w1_0" pos="2.9800000190734863" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="13608027780_w0_straight_ped" file="detector_output/13608027780_w0_straight_ped.xml" detectPersons="walk" pos="1150.55,1685.94">
         <detEntry lane=":13608027780_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -5974,18 +5902,6 @@
         <detExit lane=":13608027780_w0_0" pos="2.180000066757202" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="13608027780_w1_straight_ped" file="detector_output/13608027780_w1_straight_ped.xml" detectPersons="walk" pos="1150.55,1685.94">
-        <detEntry lane=":13608027780_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027780_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027780_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027780_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":13608027780_w1_0" pos="2.619999885559082" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="13608027781_w0_straight_ped" file="detector_output/13608027781_w0_straight_ped.xml" detectPersons="walk" pos="1037,1699.11">
         <detEntry lane=":13608027781_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -5996,18 +5912,6 @@
         <detEntry lane=":13608027781_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":13608027781_w0_0" pos="2.2300000190734863" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="13608027781_w1_straight_ped" file="detector_output/13608027781_w1_straight_ped.xml" detectPersons="walk" pos="1037,1699.11">
-        <detEntry lane=":13608027781_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027781_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027781_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13608027781_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":13608027781_w1_0" pos="2.8499999046325684" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="13608027782_w0_straight_ped" file="detector_output/13608027782_w0_straight_ped.xml" detectPersons="walk" pos="952.2,1710.56">
@@ -6023,25 +5927,11 @@
     <e3Detector id="13615640860_w0_straight_ped" file="detector_output/13615640860_w0_straight_ped.xml" detectPersons="walk" pos="1178.68,584.15">
         <detEntry lane=":13615640860_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":13615640860_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":13615640860_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":13615640860_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":13615640860_w0_0" pos="2" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="13615640860_w1_straight_ped" file="detector_output/13615640860_w1_straight_ped.xml" detectPersons="walk" pos="1178.68,584.15">
-        <detEntry lane=":13615640860_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13615640860_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13615640860_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":13615640860_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":13615640860_w1_0" pos="2.5" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="1828108785_w1_straight_ped" file="detector_output/1828108785_w1_straight_ped.xml" detectPersons="walk" pos="2098.79,3085.49">
@@ -6077,8 +5967,6 @@
     <e3Detector id="2112389514_w0_straight_ped" file="detector_output/2112389514_w0_straight_ped.xml" detectPersons="walk" pos="795.52,1753.04">
         <detEntry lane=":2112389514_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":2112389514_w2_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":2112389514_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":2112389514_w0_0" pos="3.3299999237060547" friendlyPos="true">
@@ -6086,8 +5974,6 @@
     </e3Detector>
     <e3Detector id="2112389514_w1_straight_ped" file="detector_output/2112389514_w1_straight_ped.xml" detectPersons="walk" pos="795.52,1753.04">
         <detEntry lane=":2112389514_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2112389514_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":2112389514_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6117,8 +6003,6 @@
     <e3Detector id="2119385411_w0_straight_ped" file="detector_output/2119385411_w0_straight_ped.xml" detectPersons="walk" pos="850.72,2326.71">
         <detEntry lane=":2119385411_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":2119385411_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":2119385411_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":2119385411_c1_0" pos="0" friendlyPos="true">
@@ -6126,22 +6010,8 @@
         <detExit lane=":2119385411_w0_0" pos="2.9000000953674316" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="2119385411_w1_straight_ped" file="detector_output/2119385411_w1_straight_ped.xml" detectPersons="walk" pos="850.72,2326.71">
-        <detEntry lane=":2119385411_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2119385411_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2119385411_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2119385411_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":2119385411_w1_0" pos="2.619999885559082" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="2119385421_w1_straight_ped" file="detector_output/2119385421_w1_straight_ped.xml" detectPersons="walk" pos="854.99,2313.93">
         <detEntry lane=":2119385421_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2119385421_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":2119385421_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6150,8 +6020,6 @@
     </e3Detector>
     <e3Detector id="2119385421_w2_straight_ped" file="detector_output/2119385421_w2_straight_ped.xml" detectPersons="walk" pos="854.99,2313.93">
         <detEntry lane=":2119385421_w2_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2119385421_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":2119385421_c1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6171,25 +6039,11 @@
     <e3Detector id="2141756674_w0_straight_ped" file="detector_output/2141756674_w0_straight_ped.xml" detectPersons="walk" pos="1455.03,1647.11">
         <detEntry lane=":2141756674_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":2141756674_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":2141756674_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":2141756674_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":2141756674_w0_0" pos="3.640000104904175" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="2141756674_w1_straight_ped" file="detector_output/2141756674_w1_straight_ped.xml" detectPersons="walk" pos="1455.03,1647.11">
-        <detEntry lane=":2141756674_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2141756674_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2141756674_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2141756674_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":2141756674_w1_0" pos="2.7300000190734863" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="2141756695_w0_straight_ped" file="detector_output/2141756695_w0_straight_ped.xml" detectPersons="walk" pos="1668.85,1789.26">
@@ -6202,18 +6056,6 @@
         <detEntry lane=":2141756695_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":2141756695_w0_0" pos="1.9500000476837158" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="2141756695_w1_straight_ped" file="detector_output/2141756695_w1_straight_ped.xml" detectPersons="walk" pos="1668.85,1789.26">
-        <detEntry lane=":2141756695_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2141756695_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2141756695_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2141756695_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":2141756695_w1_0" pos="2" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="2160215028_w0_straight_ped" file="detector_output/2160215028_w0_straight_ped.xml" detectPersons="walk" pos="655.57,756.33">
@@ -6278,22 +6120,8 @@
         <detExit lane=":279310149_w0_0" pos="2.8499999046325684" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="279310149_w1_straight_ped" file="detector_output/279310149_w1_straight_ped.xml" detectPersons="walk" pos="939.42,1696.38">
-        <detEntry lane=":279310149_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":279310149_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":279310149_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":279310149_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":279310149_w1_0" pos="2.2799999713897705" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="2805069251_w0_straight_ped" file="detector_output/2805069251_w0_straight_ped.xml" detectPersons="walk" pos="547.08,927.72">
         <detEntry lane=":2805069251_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":2805069251_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":2805069251_c1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6303,8 +6131,6 @@
     <e3Detector id="301578022_w0_straight_ped" file="detector_output/301578022_w0_straight_ped.xml" detectPersons="walk" pos="1433.64,2286.33">
         <detEntry lane=":301578022_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":301578022_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":301578022_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":301578022_c1_0" pos="0" friendlyPos="true">
@@ -6312,22 +6138,8 @@
         <detExit lane=":301578022_w0_0" pos="3.200000047683716" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="301578022_w1_straight_ped" file="detector_output/301578022_w1_straight_ped.xml" detectPersons="walk" pos="1433.64,2286.33">
-        <detEntry lane=":301578022_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":301578022_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":301578022_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":301578022_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":301578022_w1_0" pos="3.109999895095825" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="302182247_w0_straight_ped" file="detector_output/302182247_w0_straight_ped.xml" detectPersons="walk" pos="789.67,1746.45">
         <detEntry lane=":302182247_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":302182247_w3_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":302182247_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6337,8 +6149,6 @@
     <e3Detector id="302192394_w0_straight_ped" file="detector_output/302192394_w0_straight_ped.xml" detectPersons="walk" pos="866.54,1701.51">
         <detEntry lane=":302192394_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":302192394_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":302192394_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":302192394_c1_0" pos="0" friendlyPos="true">
@@ -6346,22 +6156,8 @@
         <detExit lane=":302192394_w0_0" pos="4.309999942779541" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="302192394_w1_straight_ped" file="detector_output/302192394_w1_straight_ped.xml" detectPersons="walk" pos="866.54,1701.51">
-        <detEntry lane=":302192394_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":302192394_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":302192394_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":302192394_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":302192394_w1_0" pos="4.190000057220459" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="303088951_w0_straight_ped" file="detector_output/303088951_w0_straight_ped.xml" detectPersons="walk" pos="1772.88,1617.11">
         <detEntry lane=":303088951_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":303088951_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":303088951_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6370,22 +6166,8 @@
         <detExit lane=":303088951_w0_0" pos="3.200000047683716" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="303088951_w1_straight_ped" file="detector_output/303088951_w1_straight_ped.xml" detectPersons="walk" pos="1772.88,1617.11">
-        <detEntry lane=":303088951_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":303088951_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":303088951_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":303088951_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":303088951_w1_0" pos="3.2899999618530273" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="303580405_w3_straight_ped" file="detector_output/303580405_w3_straight_ped.xml" detectPersons="walk" pos="2630.8,2511.77">
         <detEntry lane=":303580405_w3_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":303580405_w2_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":303580405_c1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6424,22 +6206,8 @@
         <detExit lane=":3859746994_w0_0" pos="3.509999990463257" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="3859746994_w1_straight_ped" file="detector_output/3859746994_w1_straight_ped.xml" detectPersons="walk" pos="1823.33,1871.87">
-        <detEntry lane=":3859746994_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":3859746994_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":3859746994_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":3859746994_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":3859746994_w1_0" pos="3.180000066757202" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="4051451478_w1_straight_ped" file="detector_output/4051451478_w1_straight_ped.xml" detectPersons="walk" pos="544.02,925.7">
         <detEntry lane=":4051451478_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":4051451478_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":4051451478_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6448,8 +6216,6 @@
     </e3Detector>
     <e3Detector id="4051451478_w3_straight_ped" file="detector_output/4051451478_w3_straight_ped.xml" detectPersons="walk" pos="544.02,925.7">
         <detEntry lane=":4051451478_w3_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":4051451478_w2_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":4051451478_c1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6466,18 +6232,6 @@
         <detEntry lane=":495439490_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":495439490_w0_0" pos="1.7699999809265137" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="495439490_w1_straight_ped" file="detector_output/495439490_w1_straight_ped.xml" detectPersons="walk" pos="250.99,2794.19">
-        <detEntry lane=":495439490_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":495439490_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":495439490_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":495439490_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":495439490_w1_0" pos="2.0199999809265137" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="539051272_w1_straight_ped" file="detector_output/539051272_w1_straight_ped.xml" detectPersons="walk" pos="617.61,1554.03">
@@ -6502,18 +6256,6 @@
         <detExit lane=":5568932091_w0_0" pos="2.130000114440918" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5568932091_w1_straight_ped" file="detector_output/5568932091_w1_straight_ped.xml" detectPersons="walk" pos="2783.69,2519.47">
-        <detEntry lane=":5568932091_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5568932091_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5568932091_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5568932091_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5568932091_w1_0" pos="2.1700000762939453" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5568932107_w1_straight_ped" file="detector_output/5568932107_w1_straight_ped.xml" detectPersons="walk" pos="2919.24,2538.36">
         <detEntry lane=":5568932107_w1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6536,22 +6278,8 @@
         <detExit lane=":5568932109_w0_0" pos="1.9800000190734863" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5568932109_w1_straight_ped" file="detector_output/5568932109_w1_straight_ped.xml" detectPersons="walk" pos="2612.65,2524.85">
-        <detEntry lane=":5568932109_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5568932109_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5568932109_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5568932109_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5568932109_w1_0" pos="2.009999990463257" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5568932110_w1_straight_ped" file="detector_output/5568932110_w1_straight_ped.xml" detectPersons="walk" pos="2604.42,2523.89">
         <detEntry lane=":5568932110_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5568932110_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5568932110_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6578,18 +6306,6 @@
         <detEntry lane=":5568932118_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5568932118_w0_0" pos="2.1700000762939453" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5568932118_w1_straight_ped" file="detector_output/5568932118_w1_straight_ped.xml" detectPersons="walk" pos="2346.16,2786.1">
-        <detEntry lane=":5568932118_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5568932118_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5568932118_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5568932118_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5568932118_w1_0" pos="2.1700000762939453" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5568932119_w1_straight_ped" file="detector_output/5568932119_w1_straight_ped.xml" detectPersons="walk" pos="2328.96,2789.56">
@@ -6624,18 +6340,6 @@
         <detExit lane=":5586016683_w0_0" pos="2.25" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5586016683_w1_straight_ped" file="detector_output/5586016683_w1_straight_ped.xml" detectPersons="walk" pos="1468.95,2845.34">
-        <detEntry lane=":5586016683_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5586016683_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5586016683_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5586016683_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5586016683_w1_0" pos="2.640000104904175" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5586016684_w0_straight_ped" file="detector_output/5586016684_w0_straight_ped.xml" detectPersons="walk" pos="1474.37,2811.43">
         <detEntry lane=":5586016684_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6646,18 +6350,6 @@
         <detEntry lane=":5586016684_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5586016684_w0_0" pos="2.75" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5586016684_w1_straight_ped" file="detector_output/5586016684_w1_straight_ped.xml" detectPersons="walk" pos="1474.37,2811.43">
-        <detEntry lane=":5586016684_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5586016684_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5586016684_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5586016684_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5586016684_w1_0" pos="2.5999999046325684" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5586016687_w1_straight_ped" file="detector_output/5586016687_w1_straight_ped.xml" detectPersons="walk" pos="1464.51,2821.87">
@@ -6682,22 +6374,8 @@
         <detExit lane=":5586016688_w0_0" pos="2.1600000858306885" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5586016688_w1_straight_ped" file="detector_output/5586016688_w1_straight_ped.xml" detectPersons="walk" pos="1462.9,2830.77">
-        <detEntry lane=":5586016688_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5586016688_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5586016688_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5586016688_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5586016688_w1_0" pos="2.1600000858306885" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5586016704_w0_straight_ped" file="detector_output/5586016704_w0_straight_ped.xml" detectPersons="walk" pos="1394.87,2800.54">
         <detEntry lane=":5586016704_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5586016704_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5586016704_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6707,25 +6385,11 @@
     <e3Detector id="5586016705_w0_straight_ped" file="detector_output/5586016705_w0_straight_ped.xml" detectPersons="walk" pos="1380.7,2806.26">
         <detEntry lane=":5586016705_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5586016705_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5586016705_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5586016705_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5586016705_w0_0" pos="2.0199999809265137" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5586016705_w1_straight_ped" file="detector_output/5586016705_w1_straight_ped.xml" detectPersons="walk" pos="1380.7,2806.26">
-        <detEntry lane=":5586016705_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5586016705_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5586016705_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5586016705_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5586016705_w1_0" pos="2.0299999713897705" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588593468_w0_straight_ped" file="detector_output/5588593468_w0_straight_ped.xml" detectPersons="walk" pos="1772.29,1996.05">
@@ -6740,18 +6404,6 @@
         <detExit lane=":5588593468_w0_0" pos="2.359999895095825" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588593468_w1_straight_ped" file="detector_output/5588593468_w1_straight_ped.xml" detectPersons="walk" pos="1772.29,1996.05">
-        <detEntry lane=":5588593468_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593468_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593468_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593468_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588593468_w1_0" pos="2.319999933242798" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588593473_w0_straight_ped" file="detector_output/5588593473_w0_straight_ped.xml" detectPersons="walk" pos="1968.16,2165.93">
         <detEntry lane=":5588593473_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6762,18 +6414,6 @@
         <detEntry lane=":5588593473_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588593473_w0_0" pos="3.869999885559082" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588593473_w1_straight_ped" file="detector_output/5588593473_w1_straight_ped.xml" detectPersons="walk" pos="1968.16,2165.93">
-        <detEntry lane=":5588593473_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593473_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593473_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593473_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588593473_w1_0" pos="3.319999933242798" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588593474_w0_straight_ped" file="detector_output/5588593474_w0_straight_ped.xml" detectPersons="walk" pos="1967.15,2182.78">
@@ -6818,18 +6458,6 @@
         <detExit lane=":5588593477_w0_0" pos="2.3299999237060547" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588593477_w1_straight_ped" file="detector_output/5588593477_w1_straight_ped.xml" detectPersons="walk" pos="2035.75,2119.37">
-        <detEntry lane=":5588593477_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593477_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593477_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593477_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588593477_w1_0" pos="2.3299999237060547" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588593478_w1_straight_ped" file="detector_output/5588593478_w1_straight_ped.xml" detectPersons="walk" pos="2023.11,2103.35">
         <detEntry lane=":5588593478_w1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6853,8 +6481,6 @@
     <e3Detector id="5588593493_w1_straight_ped" file="detector_output/5588593493_w1_straight_ped.xml" detectPersons="walk" pos="3647.44,3134.66">
         <detEntry lane=":5588593493_w1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588593493_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588593493_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588593493_w1_0" pos="3.809999942779541" friendlyPos="true">
@@ -6862,8 +6488,6 @@
     </e3Detector>
     <e3Detector id="5588593493_w2_straight_ped" file="detector_output/5588593493_w2_straight_ped.xml" detectPersons="walk" pos="3647.44,3134.66">
         <detEntry lane=":5588593493_w2_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593493_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588593493_c1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6873,8 +6497,6 @@
     <e3Detector id="5588593494_w0_straight_ped" file="detector_output/5588593494_w0_straight_ped.xml" detectPersons="walk" pos="3674.09,3131.17">
         <detEntry lane=":5588593494_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588593494_w3_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588593494_c3_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588593494_w0_0" pos="10.220000267028809" friendlyPos="true">
@@ -6883,8 +6505,6 @@
     <e3Detector id="5588593494_w2_straight_ped" file="detector_output/5588593494_w2_straight_ped.xml" detectPersons="walk" pos="3674.09,3131.17">
         <detEntry lane=":5588593494_w2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588593494_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588593494_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588593494_w2_0" pos="8.670000076293945" friendlyPos="true">
@@ -6892,8 +6512,6 @@
     </e3Detector>
     <e3Detector id="5588593494_w3_straight_ped" file="detector_output/5588593494_w3_straight_ped.xml" detectPersons="walk" pos="3674.09,3131.17">
         <detEntry lane=":5588593494_w3_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593494_w2_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588593494_c2_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -6933,8 +6551,6 @@
     <e3Detector id="5588593502_w0_straight_ped" file="detector_output/5588593502_w0_straight_ped.xml" detectPersons="walk" pos="2621.99,2499.81">
         <detEntry lane=":5588593502_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588593502_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588593502_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588593502_c1_0" pos="0" friendlyPos="true">
@@ -6942,40 +6558,14 @@
         <detExit lane=":5588593502_w0_0" pos="4.449999809265137" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588593502_w1_straight_ped" file="detector_output/5588593502_w1_straight_ped.xml" detectPersons="walk" pos="2621.99,2499.81">
-        <detEntry lane=":5588593502_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593502_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593502_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593502_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588593502_w1_0" pos="4.21999979019165" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588593504_w0_straight_ped" file="detector_output/5588593504_w0_straight_ped.xml" detectPersons="walk" pos="2596.29,2501.98">
         <detEntry lane=":5588593504_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593504_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588593504_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588593504_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588593504_w0_0" pos="2.390000104904175" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588593504_w1_straight_ped" file="detector_output/5588593504_w1_straight_ped.xml" detectPersons="walk" pos="2596.29,2501.98">
-        <detEntry lane=":5588593504_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593504_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593504_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593504_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588593504_w1_0" pos="2.180000066757202" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588593505_w1_straight_ped" file="detector_output/5588593505_w1_straight_ped.xml" detectPersons="walk" pos="2484.8,2444.72">
@@ -7001,8 +6591,6 @@
     <e3Detector id="5588593507_w1_straight_ped" file="detector_output/5588593507_w1_straight_ped.xml" detectPersons="walk" pos="2319.26,2346.2">
         <detEntry lane=":5588593507_w1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588593507_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588593507_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588593507_w1_0" pos="2.7100000381469727" friendlyPos="true">
@@ -7021,8 +6609,6 @@
     <e3Detector id="5588593509_w0_straight_ped" file="detector_output/5588593509_w0_straight_ped.xml" detectPersons="walk" pos="2083.18,2201.11">
         <detEntry lane=":5588593509_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588593509_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588593509_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588593509_w0_0" pos="2.8299999237060547" friendlyPos="true">
@@ -7030,8 +6616,6 @@
     </e3Detector>
     <e3Detector id="5588593510_w0_straight_ped" file="detector_output/5588593510_w0_straight_ped.xml" detectPersons="walk" pos="2105.4,2178.14">
         <detEntry lane=":5588593510_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593510_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588593510_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7070,18 +6654,6 @@
         <detExit lane=":5588593520_w0_0" pos="3.690000057220459" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588593520_w1_straight_ped" file="detector_output/5588593520_w1_straight_ped.xml" detectPersons="walk" pos="1467.94,2257.95">
-        <detEntry lane=":5588593520_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593520_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593520_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588593520_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588593520_w1_0" pos="3.619999885559082" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588596721_w1_straight_ped" file="detector_output/5588596721_w1_straight_ped.xml" detectPersons="walk" pos="1439.75,2238.71">
         <detEntry lane=":5588596721_w1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7112,18 +6684,6 @@
         <detEntry lane=":5588596724_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588596724_w0_0" pos="2.1500000953674316" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588596724_w1_straight_ped" file="detector_output/5588596724_w1_straight_ped.xml" detectPersons="walk" pos="1628.36,1856.85">
-        <detEntry lane=":5588596724_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596724_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596724_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596724_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588596724_w1_0" pos="2.759999990463257" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588596725_w0_straight_ped" file="detector_output/5588596725_w0_straight_ped.xml" detectPersons="walk" pos="1646.12,1871.5">
@@ -7158,18 +6718,6 @@
         <detExit lane=":5588596727_w0_0" pos="2.3299999237060547" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588596727_w1_straight_ped" file="detector_output/5588596727_w1_straight_ped.xml" detectPersons="walk" pos="1686.2,1784.82">
-        <detEntry lane=":5588596727_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596727_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596727_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596727_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588596727_w1_0" pos="2.3299999237060547" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588596728_w0_straight_ped" file="detector_output/5588596728_w0_straight_ped.xml" detectPersons="walk" pos="1677.55,1770.38">
         <detEntry lane=":5588596728_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7180,18 +6728,6 @@
         <detEntry lane=":5588596728_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588596728_w0_0" pos="1.7599999904632568" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588596728_w1_straight_ped" file="detector_output/5588596728_w1_straight_ped.xml" detectPersons="walk" pos="1677.55,1770.38">
-        <detEntry lane=":5588596728_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596728_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596728_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596728_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588596728_w1_0" pos="1.7599999904632568" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588596729_w1_straight_ped" file="detector_output/5588596729_w1_straight_ped.xml" detectPersons="walk" pos="1667.22,1774.68">
@@ -7216,18 +6752,6 @@
         <detExit lane=":5588596744_w0_0" pos="2.180000066757202" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588596744_w1_straight_ped" file="detector_output/5588596744_w1_straight_ped.xml" detectPersons="walk" pos="1007.93,1234.17">
-        <detEntry lane=":5588596744_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596744_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596744_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596744_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588596744_w1_0" pos="2.200000047683716" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588596745_w1_straight_ped" file="detector_output/5588596745_w1_straight_ped.xml" detectPersons="walk" pos="994.5,1247.73">
         <detEntry lane=":5588596745_w1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7248,18 +6772,6 @@
         <detEntry lane=":5588596746_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588596746_w0_0" pos="2.3499999046325684" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588596746_w1_straight_ped" file="detector_output/5588596746_w1_straight_ped.xml" detectPersons="walk" pos="1012.2,1247.35">
-        <detEntry lane=":5588596746_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596746_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596746_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596746_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588596746_w1_0" pos="2.319999933242798" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588596747_w1_straight_ped" file="detector_output/5588596747_w1_straight_ped.xml" detectPersons="walk" pos="996.61,1236.28">
@@ -7344,18 +6856,6 @@
         <detExit lane=":5588596845_w0_0" pos="1.9700000286102295" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588596845_w1_straight_ped" file="detector_output/5588596845_w1_straight_ped.xml" detectPersons="walk" pos="272.66,9.21">
-        <detEntry lane=":5588596845_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596845_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596845_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596845_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588596845_w1_0" pos="2.109999895095825" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588596884_w0_straight_ped" file="detector_output/5588596884_w0_straight_ped.xml" detectPersons="walk" pos="542.47,624.45">
         <detEntry lane=":5588596884_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7368,18 +6868,6 @@
         <detExit lane=":5588596884_w0_0" pos="3.240000009536743" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588596884_w1_straight_ped" file="detector_output/5588596884_w1_straight_ped.xml" detectPersons="walk" pos="542.47,624.45">
-        <detEntry lane=":5588596884_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596884_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596884_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596884_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588596884_w1_0" pos="2.7699999809265137" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588596887_w0_straight_ped" file="detector_output/5588596887_w0_straight_ped.xml" detectPersons="walk" pos="436.63,564.4">
         <detEntry lane=":5588596887_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7390,18 +6878,6 @@
         <detEntry lane=":5588596887_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588596887_w0_0" pos="1.850000023841858" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588596887_w1_straight_ped" file="detector_output/5588596887_w1_straight_ped.xml" detectPersons="walk" pos="436.63,564.4">
-        <detEntry lane=":5588596887_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596887_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596887_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596887_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588596887_w1_0" pos="2.2899999618530273" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588596890_w0_straight_ped" file="detector_output/5588596890_w0_straight_ped.xml" detectPersons="walk" pos="467.31,538.15">
@@ -7436,18 +6912,6 @@
         <detExit lane=":5588596934_w0_0" pos="2.130000114440918" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588596934_w1_straight_ped" file="detector_output/5588596934_w1_straight_ped.xml" detectPersons="walk" pos="837.23,628.08">
-        <detEntry lane=":5588596934_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596934_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596934_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596934_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588596934_w1_0" pos="2.1700000762939453" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588596935_w0_straight_ped" file="detector_output/5588596935_w0_straight_ped.xml" detectPersons="walk" pos="816.39,625.75">
         <detEntry lane=":5588596935_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7458,18 +6922,6 @@
         <detEntry lane=":5588596935_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588596935_w0_0" pos="3.140000104904175" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588596935_w1_straight_ped" file="detector_output/5588596935_w1_straight_ped.xml" detectPersons="walk" pos="816.39,625.75">
-        <detEntry lane=":5588596935_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596935_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596935_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588596935_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588596935_w1_0" pos="3.1600000858306885" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588596936_w1_straight_ped" file="detector_output/5588596936_w1_straight_ped.xml" detectPersons="walk" pos="820.3,609.85">
@@ -7495,25 +6947,11 @@
     <e3Detector id="5588597063_w0_straight_ped" file="detector_output/5588597063_w0_straight_ped.xml" detectPersons="walk" pos="1432.39,1640.9">
         <detEntry lane=":5588597063_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588597063_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588597063_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597063_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597063_w0_0" pos="2.3299999237060547" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588597063_w1_straight_ped" file="detector_output/5588597063_w1_straight_ped.xml" detectPersons="walk" pos="1432.39,1640.9">
-        <detEntry lane=":5588597063_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597063_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597063_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597063_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597063_w1_0" pos="2.809999942779541" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588597067_w0_straight_ped" file="detector_output/5588597067_w0_straight_ped.xml" detectPersons="walk" pos="1141.36,1518.49">
@@ -7538,18 +6976,6 @@
         <detExit lane=":5588597068_w0_0" pos="2.0399999618530273" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597068_w1_straight_ped" file="detector_output/5588597068_w1_straight_ped.xml" detectPersons="walk" pos="1142.4,1510.51">
-        <detEntry lane=":5588597068_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597068_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597068_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597068_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597068_w1_0" pos="2.049999952316284" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597069_w1_straight_ped" file="detector_output/5588597069_w1_straight_ped.xml" detectPersons="walk" pos="1133.52,1518.45">
         <detEntry lane=":5588597069_w1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7563,25 +6989,11 @@
     <e3Detector id="5588597071_w0_straight_ped" file="detector_output/5588597071_w0_straight_ped.xml" detectPersons="walk" pos="1051.5,1433.68">
         <detEntry lane=":5588597071_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588597071_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588597071_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597071_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597071_w0_0" pos="2.1700000762939453" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588597071_w1_straight_ped" file="detector_output/5588597071_w1_straight_ped.xml" detectPersons="walk" pos="1051.5,1433.68">
-        <detEntry lane=":5588597071_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597071_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597071_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597071_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597071_w1_0" pos="2.2300000190734863" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588597073_w0_straight_ped" file="detector_output/5588597073_w0_straight_ped.xml" detectPersons="walk" pos="986.31,1349.44">
@@ -7606,18 +7018,6 @@
         <detExit lane=":5588597074_w0_0" pos="2.2100000381469727" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597074_w1_straight_ped" file="detector_output/5588597074_w1_straight_ped.xml" detectPersons="walk" pos="978.23,1358.72">
-        <detEntry lane=":5588597074_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597074_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597074_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597074_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597074_w1_0" pos="3" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597075_w0_straight_ped" file="detector_output/5588597075_w0_straight_ped.xml" detectPersons="walk" pos="986.49,1359.27">
         <detEntry lane=":5588597075_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7640,18 +7040,6 @@
         <detExit lane=":5588597076_w0_0" pos="2.7699999809265137" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597076_w1_straight_ped" file="detector_output/5588597076_w1_straight_ped.xml" detectPersons="walk" pos="943.15,1303.01">
-        <detEntry lane=":5588597076_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597076_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597076_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597076_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597076_w1_0" pos="2.2699999809265137" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597077_w0_straight_ped" file="detector_output/5588597077_w0_straight_ped.xml" detectPersons="walk" pos="934.45,1303.67">
         <detEntry lane=":5588597077_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7662,18 +7050,6 @@
         <detEntry lane=":5588597077_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597077_w0_0" pos="2" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588597077_w1_straight_ped" file="detector_output/5588597077_w1_straight_ped.xml" detectPersons="walk" pos="934.45,1303.67">
-        <detEntry lane=":5588597077_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597077_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597077_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597077_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597077_w1_0" pos="2.440000057220459" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588597078_w1_straight_ped" file="detector_output/5588597078_w1_straight_ped.xml" detectPersons="walk" pos="931.98,1315.36">
@@ -7738,18 +7114,6 @@
         <detExit lane=":5588597263_w0_0" pos="2.880000114440918" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597263_w1_straight_ped" file="detector_output/5588597263_w1_straight_ped.xml" detectPersons="walk" pos="752.23,1122.23">
-        <detEntry lane=":5588597263_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597263_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597263_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597263_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597263_w1_0" pos="2.859999895095825" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597264_w1_straight_ped" file="detector_output/5588597264_w1_straight_ped.xml" detectPersons="walk" pos="802.52,1174.77">
         <detEntry lane=":5588597264_w1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7780,18 +7144,6 @@
         <detEntry lane=":5588597266_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597266_w0_0" pos="2.3499999046325684" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588597266_w1_straight_ped" file="detector_output/5588597266_w1_straight_ped.xml" detectPersons="walk" pos="810.86,1168.24">
-        <detEntry lane=":5588597266_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597266_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597266_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597266_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597266_w1_0" pos="1.9199999570846558" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588597267_w1_straight_ped" file="detector_output/5588597267_w1_straight_ped.xml" detectPersons="walk" pos="843.76,1140.83">
@@ -7826,22 +7178,8 @@
         <detExit lane=":5588597269_w0_0" pos="1.75" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597269_w1_straight_ped" file="detector_output/5588597269_w1_straight_ped.xml" detectPersons="walk" pos="857.05,1130.35">
-        <detEntry lane=":5588597269_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597269_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597269_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597269_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597269_w1_0" pos="1.7400000095367432" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597271_w0_straight_ped" file="detector_output/5588597271_w0_straight_ped.xml" detectPersons="walk" pos="684.96,1020.96">
         <detEntry lane=":5588597271_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597271_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597271_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7850,22 +7188,8 @@
         <detExit lane=":5588597271_w0_0" pos="3.890000104904175" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597271_w1_straight_ped" file="detector_output/5588597271_w1_straight_ped.xml" detectPersons="walk" pos="684.96,1020.96">
-        <detEntry lane=":5588597271_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597271_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597271_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597271_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597271_w1_0" pos="2.869999885559082" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597274_w0_straight_ped" file="detector_output/5588597274_w0_straight_ped.xml" detectPersons="walk" pos="676.09,1006.87">
         <detEntry lane=":5588597274_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597274_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597274_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7874,22 +7198,8 @@
         <detExit lane=":5588597274_w0_0" pos="3.119999885559082" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597274_w1_straight_ped" file="detector_output/5588597274_w1_straight_ped.xml" detectPersons="walk" pos="676.09,1006.87">
-        <detEntry lane=":5588597274_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597274_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597274_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597274_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597274_w1_0" pos="3.109999895095825" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597278_w1_straight_ped" file="detector_output/5588597278_w1_straight_ped.xml" detectPersons="walk" pos="1176.88,581.91">
         <detEntry lane=":5588597278_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597278_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597278_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7899,8 +7209,6 @@
     <e3Detector id="5588597279_w0_straight_ped" file="detector_output/5588597279_w0_straight_ped.xml" detectPersons="walk" pos="1194.73,604.12">
         <detEntry lane=":5588597279_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588597279_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588597279_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597279_w0_0" pos="2.8399999141693115" friendlyPos="true">
@@ -7908,8 +7216,6 @@
     </e3Detector>
     <e3Detector id="5588597281_w1_straight_ped" file="detector_output/5588597281_w1_straight_ped.xml" detectPersons="walk" pos="1177.92,603.8">
         <detEntry lane=":5588597281_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597281_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597281_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7919,8 +7225,6 @@
     <e3Detector id="5588597282_w0_straight_ped" file="detector_output/5588597282_w0_straight_ped.xml" detectPersons="walk" pos="1075.86,682.12">
         <detEntry lane=":5588597282_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588597282_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588597282_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597282_c1_0" pos="0" friendlyPos="true">
@@ -7928,22 +7232,8 @@
         <detExit lane=":5588597282_w0_0" pos="2.1600000858306885" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597282_w1_straight_ped" file="detector_output/5588597282_w1_straight_ped.xml" detectPersons="walk" pos="1075.86,682.12">
-        <detEntry lane=":5588597282_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597282_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597282_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597282_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597282_w1_0" pos="2.1600000858306885" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597283_w1_straight_ped" file="detector_output/5588597283_w1_straight_ped.xml" detectPersons="walk" pos="1057.73,677.27">
         <detEntry lane=":5588597283_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597283_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597283_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7953,8 +7243,6 @@
     <e3Detector id="5588597283_w3_straight_ped" file="detector_output/5588597283_w3_straight_ped.xml" detectPersons="walk" pos="1057.73,677.27">
         <detEntry lane=":5588597283_w3_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588597283_w2_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588597283_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597283_w3_0" pos="2.240000009536743" friendlyPos="true">
@@ -7962,8 +7250,6 @@
     </e3Detector>
     <e3Detector id="5588597284_w0_straight_ped" file="detector_output/5588597284_w0_straight_ped.xml" detectPersons="walk" pos="1076.6,700.24">
         <detEntry lane=":5588597284_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597284_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597284_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7973,8 +7259,6 @@
     <e3Detector id="5588597285_w1_straight_ped" file="detector_output/5588597285_w1_straight_ped.xml" detectPersons="walk" pos="1057.39,695.73">
         <detEntry lane=":5588597285_w1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588597285_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588597285_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597285_w1_0" pos="3.0899999141693115" friendlyPos="true">
@@ -7982,8 +7266,6 @@
     </e3Detector>
     <e3Detector id="5588597286_w1_straight_ped" file="detector_output/5588597286_w1_straight_ped.xml" detectPersons="walk" pos="955.38,757.71">
         <detEntry lane=":5588597286_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597286_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597286_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -7993,8 +7275,6 @@
     <e3Detector id="5588597287_w1_straight_ped" file="detector_output/5588597287_w1_straight_ped.xml" detectPersons="walk" pos="973.58,762.92">
         <detEntry lane=":5588597287_w1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588597287_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588597287_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597287_w1_0" pos="2.740000009536743" friendlyPos="true">
@@ -8003,8 +7283,6 @@
     <e3Detector id="5588597288_w1_straight_ped" file="detector_output/5588597288_w1_straight_ped.xml" detectPersons="walk" pos="974.93,779.64">
         <detEntry lane=":5588597288_w1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588597288_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588597288_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597288_w1_0" pos="2.819999933242798" friendlyPos="true">
@@ -8012,8 +7290,6 @@
     </e3Detector>
     <e3Detector id="5588597289_w1_straight_ped" file="detector_output/5588597289_w1_straight_ped.xml" detectPersons="walk" pos="956.09,776.22">
         <detEntry lane=":5588597289_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597289_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597289_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8032,18 +7308,6 @@
         <detExit lane=":5588597291_w0_0" pos="3.0999999046325684" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597291_w1_straight_ped" file="detector_output/5588597291_w1_straight_ped.xml" detectPersons="walk" pos="790.91,910.89">
-        <detEntry lane=":5588597291_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597291_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597291_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597291_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597291_w1_0" pos="3.0999999046325684" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597292_w0_straight_ped" file="detector_output/5588597292_w0_straight_ped.xml" detectPersons="walk" pos="783.2,930.02">
         <detEntry lane=":5588597292_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8054,18 +7318,6 @@
         <detEntry lane=":5588597292_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597292_w0_0" pos="2.859999895095825" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588597292_w1_straight_ped" file="detector_output/5588597292_w1_straight_ped.xml" detectPersons="walk" pos="783.2,930.02">
-        <detEntry lane=":5588597292_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597292_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597292_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597292_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597292_w1_0" pos="3.130000114440918" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588597293_w1_straight_ped" file="detector_output/5588597293_w1_straight_ped.xml" detectPersons="walk" pos="772.01,928.99">
@@ -8090,8 +7342,6 @@
     </e3Detector>
     <e3Detector id="5588597297_w1_straight_ped" file="detector_output/5588597297_w1_straight_ped.xml" detectPersons="walk" pos="517.61,906.8">
         <detEntry lane=":5588597297_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597297_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597297_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8130,18 +7380,6 @@
         <detExit lane=":5588597309_w0_0" pos="2.1600000858306885" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597309_w1_straight_ped" file="detector_output/5588597309_w1_straight_ped.xml" detectPersons="walk" pos="1004.76,1703.11">
-        <detEntry lane=":5588597309_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597309_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597309_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597309_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597309_w1_0" pos="2.1600000858306885" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597310_w0_straight_ped" file="detector_output/5588597310_w0_straight_ped.xml" detectPersons="walk" pos="1032.83,1710.79">
         <detEntry lane=":5588597310_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8174,18 +7412,6 @@
         <detExit lane=":5588597314_w0_0" pos="2.3299999237060547" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597314_w1_straight_ped" file="detector_output/5588597314_w1_straight_ped.xml" detectPersons="walk" pos="963.05,1734.28">
-        <detEntry lane=":5588597314_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597314_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597314_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597314_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597314_w1_0" pos="2.3299999237060547" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597318_w0_straight_ped" file="detector_output/5588597318_w0_straight_ped.xml" detectPersons="walk" pos="1418.05,1700.71">
         <detEntry lane=":5588597318_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8198,18 +7424,6 @@
         <detExit lane=":5588597318_w0_0" pos="2.809999942779541" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597318_w1_straight_ped" file="detector_output/5588597318_w1_straight_ped.xml" detectPersons="walk" pos="1418.05,1700.71">
-        <detEntry lane=":5588597318_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597318_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597318_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597318_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597318_w1_0" pos="3.1500000953674316" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597319_w0_straight_ped" file="detector_output/5588597319_w0_straight_ped.xml" detectPersons="walk" pos="1408.78,1693.05">
         <detEntry lane=":5588597319_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8220,18 +7434,6 @@
         <detEntry lane=":5588597319_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597319_w0_0" pos="2.109999895095825" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588597319_w1_straight_ped" file="detector_output/5588597319_w1_straight_ped.xml" detectPersons="walk" pos="1408.78,1693.05">
-        <detEntry lane=":5588597319_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597319_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597319_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597319_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597319_w1_0" pos="2.5999999046325684" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588597338_w1_straight_ped" file="detector_output/5588597338_w1_straight_ped.xml" detectPersons="walk" pos="1132.61,2019.08">
@@ -8266,18 +7468,6 @@
         <detExit lane=":5588597472_w0_0" pos="3.8499999046325684" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597472_w1_straight_ped" file="detector_output/5588597472_w1_straight_ped.xml" detectPersons="walk" pos="592.47,1522.12">
-        <detEntry lane=":5588597472_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597472_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597472_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597472_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597472_w1_0" pos="3.369999885559082" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597477_w0_straight_ped" file="detector_output/5588597477_w0_straight_ped.xml" detectPersons="walk" pos="699.26,1666.56">
         <detEntry lane=":5588597477_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8290,22 +7480,8 @@
         <detExit lane=":5588597477_w0_0" pos="2.7300000190734863" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597477_w1_straight_ped" file="detector_output/5588597477_w1_straight_ped.xml" detectPersons="walk" pos="699.26,1666.56">
-        <detEntry lane=":5588597477_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597477_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597477_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597477_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597477_w1_0" pos="2.6700000762939453" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597481_w1_straight_ped" file="detector_output/5588597481_w1_straight_ped.xml" detectPersons="walk" pos="774.95,1736.04">
         <detEntry lane=":5588597481_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597481_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597481_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8335,8 +7511,6 @@
     <e3Detector id="5588597501_w0_straight_ped" file="detector_output/5588597501_w0_straight_ped.xml" detectPersons="walk" pos="873.5,2308.24">
         <detEntry lane=":5588597501_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588597501_w2_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588597501_c2_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597501_w0_0" pos="6.989999771118164" friendlyPos="true">
@@ -8344,8 +7518,6 @@
     </e3Detector>
     <e3Detector id="5588597501_w1_straight_ped" file="detector_output/5588597501_w1_straight_ped.xml" detectPersons="walk" pos="873.5,2308.24">
         <detEntry lane=":5588597501_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597501_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597501_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8355,8 +7527,6 @@
     <e3Detector id="5588597501_w2_straight_ped" file="detector_output/5588597501_w2_straight_ped.xml" detectPersons="walk" pos="873.5,2308.24">
         <detEntry lane=":5588597501_w2_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588597501_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588597501_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597501_w2_0" pos="2.4000000953674316" friendlyPos="true">
@@ -8364,8 +7534,6 @@
     </e3Detector>
     <e3Detector id="5588597502_w0_straight_ped" file="detector_output/5588597502_w0_straight_ped.xml" detectPersons="walk" pos="880.26,2312.48">
         <detEntry lane=":5588597502_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597502_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597502_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8375,8 +7543,6 @@
     <e3Detector id="5588597505_w1_straight_ped" file="detector_output/5588597505_w1_straight_ped.xml" detectPersons="walk" pos="860.31,2346.79">
         <detEntry lane=":5588597505_w1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588597505_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588597505_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597505_w1_0" pos="3.549999952316284" friendlyPos="true">
@@ -8385,8 +7551,6 @@
     <e3Detector id="5588597513_w0_straight_ped" file="detector_output/5588597513_w0_straight_ped.xml" detectPersons="walk" pos="1118.93,2666.69">
         <detEntry lane=":5588597513_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588597513_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588597513_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597513_c1_0" pos="0" friendlyPos="true">
@@ -8394,40 +7558,14 @@
         <detExit lane=":5588597513_w0_0" pos="2.119999885559082" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597513_w1_straight_ped" file="detector_output/5588597513_w1_straight_ped.xml" detectPersons="walk" pos="1118.93,2666.69">
-        <detEntry lane=":5588597513_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597513_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597513_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597513_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597513_w1_0" pos="2.190000057220459" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597515_w0_straight_ped" file="detector_output/5588597515_w0_straight_ped.xml" detectPersons="walk" pos="1108.18,2652.6">
         <detEntry lane=":5588597515_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597515_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597515_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597515_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588597515_w0_0" pos="1.7699999809265137" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588597515_w1_straight_ped" file="detector_output/5588597515_w1_straight_ped.xml" detectPersons="walk" pos="1108.18,2652.6">
-        <detEntry lane=":5588597515_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597515_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597515_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597515_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597515_w1_0" pos="1.7699999809265137" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588597528_w1_straight_ped" file="detector_output/5588597528_w1_straight_ped.xml" detectPersons="walk" pos="1366.03,2506.22">
@@ -8443,8 +7581,6 @@
     <e3Detector id="5588597533_w0_straight_ped" file="detector_output/5588597533_w0_straight_ped.xml" detectPersons="walk" pos="1298.26,2735.22">
         <detEntry lane=":5588597533_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588597533_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588597533_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597533_c1_0" pos="0" friendlyPos="true">
@@ -8452,22 +7588,8 @@
         <detExit lane=":5588597533_w0_0" pos="1.7899999618530273" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588597533_w1_straight_ped" file="detector_output/5588597533_w1_straight_ped.xml" detectPersons="walk" pos="1298.26,2735.22">
-        <detEntry lane=":5588597533_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597533_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597533_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597533_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588597533_w1_0" pos="1.7899999618530273" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588597537_w1_straight_ped" file="detector_output/5588597537_w1_straight_ped.xml" detectPersons="walk" pos="1285.68,2740.67">
         <detEntry lane=":5588597537_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588597537_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588597537_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8487,8 +7609,6 @@
     <e3Detector id="5588789860_w1_straight_ped" file="detector_output/5588789860_w1_straight_ped.xml" detectPersons="walk" pos="1891.12,1493.41">
         <detEntry lane=":5588789860_w1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588789860_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588789860_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588789860_w1_0" pos="1.909999966621399" friendlyPos="true">
@@ -8497,8 +7617,6 @@
     <e3Detector id="5588789872_w0_straight_ped" file="detector_output/5588789872_w0_straight_ped.xml" detectPersons="walk" pos="1882.84,2525.12">
         <detEntry lane=":5588789872_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588789872_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588789872_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588789872_c1_0" pos="0" friendlyPos="true">
@@ -8506,22 +7624,8 @@
         <detExit lane=":5588789872_w0_0" pos="3.5799999237060547" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5588789872_w1_straight_ped" file="detector_output/5588789872_w1_straight_ped.xml" detectPersons="walk" pos="1882.84,2525.12">
-        <detEntry lane=":5588789872_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588789872_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588789872_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588789872_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588789872_w1_0" pos="4.889999866485596" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5588789873_w1_straight_ped" file="detector_output/5588789873_w1_straight_ped.xml" detectPersons="walk" pos="1871.93,2509.31">
         <detEntry lane=":5588789873_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588789873_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588789873_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8530,8 +7634,6 @@
     </e3Detector>
     <e3Detector id="5588789874_w1_straight_ped" file="detector_output/5588789874_w1_straight_ped.xml" detectPersons="walk" pos="1860.61,2511.11">
         <detEntry lane=":5588789874_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588789874_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588789874_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8578,18 +7680,6 @@
         <detEntry lane=":5588790771_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588790771_w0_0" pos="2.809999942779541" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5588790771_w1_straight_ped" file="detector_output/5588790771_w1_straight_ped.xml" detectPersons="walk" pos="1895.79,2712.49">
-        <detEntry lane=":5588790771_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588790771_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588790771_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588790771_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5588790771_w1_0" pos="2.990000009536743" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5588790772_w1_straight_ped" file="detector_output/5588790772_w1_straight_ped.xml" detectPersons="walk" pos="1898.45,2744.48">
@@ -8655,8 +7745,6 @@
     <e3Detector id="5588790790_w1_straight_ped" file="detector_output/5588790790_w1_straight_ped.xml" detectPersons="walk" pos="2264.78,2822.88">
         <detEntry lane=":5588790790_w1_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":5588790790_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":5588790790_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5588790790_w1_0" pos="2.5" friendlyPos="true">
@@ -8664,8 +7752,6 @@
     </e3Detector>
     <e3Detector id="5588790790_w3_straight_ped" file="detector_output/5588790790_w3_straight_ped.xml" detectPersons="walk" pos="2264.78,2822.88">
         <detEntry lane=":5588790790_w3_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5588790790_w2_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5588790790_c1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8684,18 +7770,6 @@
         <detExit lane=":5631458674_w0_0" pos="2.859999895095825" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5631458674_w1_straight_ped" file="detector_output/5631458674_w1_straight_ped.xml" detectPersons="walk" pos="1826.35,3156.64">
-        <detEntry lane=":5631458674_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5631458674_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5631458674_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5631458674_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5631458674_w1_0" pos="2.3499999046325684" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5640465396_w0_straight_ped" file="detector_output/5640465396_w0_straight_ped.xml" detectPersons="walk" pos="1868.93,2333.53">
         <detEntry lane=":5640465396_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8706,18 +7780,6 @@
         <detEntry lane=":5640465396_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":5640465396_w0_0" pos="1.75" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="5640465396_w1_straight_ped" file="detector_output/5640465396_w1_straight_ped.xml" detectPersons="walk" pos="1868.93,2333.53">
-        <detEntry lane=":5640465396_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5640465396_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5640465396_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5640465396_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5640465396_w1_0" pos="1.75" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="5640465397_w0_straight_ped" file="detector_output/5640465397_w0_straight_ped.xml" detectPersons="walk" pos="1865.77,2345.92">
@@ -8732,22 +7794,8 @@
         <detExit lane=":5640465397_w0_0" pos="2.809999942779541" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="5640465397_w1_straight_ped" file="detector_output/5640465397_w1_straight_ped.xml" detectPersons="walk" pos="1865.77,2345.92">
-        <detEntry lane=":5640465397_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5640465397_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5640465397_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5640465397_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":5640465397_w1_0" pos="2.5799999237060547" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="5664109898_w1_straight_ped" file="detector_output/5664109898_w1_straight_ped.xml" detectPersons="walk" pos="1095.7,3161.17">
         <detEntry lane=":5664109898_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":5664109898_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":5664109898_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8757,8 +7805,6 @@
     <e3Detector id="590815505_w0_straight_ped" file="detector_output/590815505_w0_straight_ped.xml" detectPersons="walk" pos="1439.52,2306.93">
         <detEntry lane=":590815505_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":590815505_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":590815505_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":590815505_c1_0" pos="0" friendlyPos="true">
@@ -8766,22 +7812,8 @@
         <detExit lane=":590815505_w0_0" pos="5.579999923706055" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="590815505_w1_straight_ped" file="detector_output/590815505_w1_straight_ped.xml" detectPersons="walk" pos="1439.52,2306.93">
-        <detEntry lane=":590815505_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":590815505_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":590815505_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":590815505_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":590815505_w1_0" pos="7.800000190734863" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="590815648_w1_straight_ped" file="detector_output/590815648_w1_straight_ped.xml" detectPersons="walk" pos="1858.82,2487.88">
         <detEntry lane=":590815648_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":590815648_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":590815648_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8810,18 +7842,6 @@
         <detExit lane=":6033236618_w0_0" pos="3.930000066757202" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="6033236618_w1_straight_ped" file="detector_output/6033236618_w1_straight_ped.xml" detectPersons="walk" pos="781.55,1099.8">
-        <detEntry lane=":6033236618_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6033236618_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6033236618_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6033236618_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":6033236618_w1_0" pos="4.070000171661377" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="6119951203_w0_straight_ped" file="detector_output/6119951203_w0_straight_ped.xml" detectPersons="walk" pos="1374.64,1668.58">
         <detEntry lane=":6119951203_w0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -8835,8 +7855,6 @@
     <e3Detector id="6141567459_w0_straight_ped" file="detector_output/6141567459_w0_straight_ped.xml" detectPersons="walk" pos="1110.01,3154.72">
         <detEntry lane=":6141567459_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":6141567459_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":6141567459_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":6141567459_c1_0" pos="0" friendlyPos="true">
@@ -8844,40 +7862,14 @@
         <detExit lane=":6141567459_w0_0" pos="2.1600000858306885" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="6141567459_w1_straight_ped" file="detector_output/6141567459_w1_straight_ped.xml" detectPersons="walk" pos="1110.01,3154.72">
-        <detEntry lane=":6141567459_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6141567459_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6141567459_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6141567459_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":6141567459_w1_0" pos="2.1600000858306885" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="6172823772_w0_straight_ped" file="detector_output/6172823772_w0_straight_ped.xml" detectPersons="walk" pos="1422.89,2288.35">
         <detEntry lane=":6172823772_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6172823772_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":6172823772_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":6172823772_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":6172823772_w0_0" pos="2.859999895095825" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="6172823772_w1_straight_ped" file="detector_output/6172823772_w1_straight_ped.xml" detectPersons="walk" pos="1422.89,2288.35">
-        <detEntry lane=":6172823772_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6172823772_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6172823772_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6172823772_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":6172823772_w1_0" pos="3.0899999141693115" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="6228277563_w0_straight_ped" file="detector_output/6228277563_w0_straight_ped.xml" detectPersons="walk" pos="2164.9,2224.3">
@@ -8963,25 +7955,11 @@
     <e3Detector id="6405154015_w0_straight_ped" file="detector_output/6405154015_w0_straight_ped.xml" detectPersons="walk" pos="2292.31,2815.31">
         <detEntry lane=":6405154015_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":6405154015_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":6405154015_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":6405154015_c1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":6405154015_w0_0" pos="2.1600000858306885" friendlyPos="true">
-        </detExit>
-    </e3Detector>
-    <e3Detector id="6405154015_w1_straight_ped" file="detector_output/6405154015_w1_straight_ped.xml" detectPersons="walk" pos="2292.31,2815.31">
-        <detEntry lane=":6405154015_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6405154015_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6405154015_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6405154015_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":6405154015_w1_0" pos="2.1600000858306885" friendlyPos="true">
         </detExit>
     </e3Detector>
     <e3Detector id="6551343292_w0_straight_ped" file="detector_output/6551343292_w0_straight_ped.xml" detectPersons="walk" pos="1617.74,2418.57">
@@ -9006,18 +7984,6 @@
         <detExit lane=":6551343294_w0_0" pos="2.75" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="6551343294_w1_straight_ped" file="detector_output/6551343294_w1_straight_ped.xml" detectPersons="walk" pos="1592.57,2394.86">
-        <detEntry lane=":6551343294_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6551343294_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6551343294_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6551343294_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":6551343294_w1_0" pos="3.450000047683716" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="6556429507_w1_straight_ped" file="detector_output/6556429507_w1_straight_ped.xml" detectPersons="walk" pos="1640.12,2450.39">
         <detEntry lane=":6556429507_w1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -9031,8 +7997,6 @@
     <e3Detector id="6556429512_w0_straight_ped" file="detector_output/6556429512_w0_straight_ped.xml" detectPersons="walk" pos="1443.71,2292.61">
         <detEntry lane=":6556429512_w0_0" pos="0" friendlyPos="true">
         </detEntry>
-        <detEntry lane=":6556429512_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
         <detEntry lane=":6556429512_c0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detExit lane=":6556429512_w0_0" pos="4.210000038146973" friendlyPos="true">
@@ -9040,8 +8004,6 @@
     </e3Detector>
     <e3Detector id="6556429525_w0_straight_ped" file="detector_output/6556429525_w0_straight_ped.xml" detectPersons="walk" pos="1446.78,2302.43">
         <detEntry lane=":6556429525_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":6556429525_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":6556429525_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -9080,18 +8042,6 @@
         <detExit lane=":9690317652_w0_0" pos="2.1500000953674316" friendlyPos="true">
         </detExit>
     </e3Detector>
-    <e3Detector id="9690317652_w1_straight_ped" file="detector_output/9690317652_w1_straight_ped.xml" detectPersons="walk" pos="3412.8,2926.37">
-        <detEntry lane=":9690317652_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":9690317652_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":9690317652_c0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":9690317652_c1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detExit lane=":9690317652_w1_0" pos="2.1500000953674316" friendlyPos="true">
-        </detExit>
-    </e3Detector>
     <e3Detector id="9690317653_w1_straight_ped" file="detector_output/9690317653_w1_straight_ped.xml" detectPersons="walk" pos="3417.42,2920.01">
         <detEntry lane=":9690317653_w1_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -9104,8 +8054,6 @@
     </e3Detector>
     <e3Detector id="9690317663_w1_straight_ped" file="detector_output/9690317663_w1_straight_ped.xml" detectPersons="walk" pos="3158.47,2710.79">
         <detEntry lane=":9690317663_w1_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":9690317663_w0_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":9690317663_c0_0" pos="0" friendlyPos="true">
         </detEntry>
@@ -9134,8 +8082,6 @@
     </e3Detector>
     <e3Detector id="9690404855_w0_straight_ped" file="detector_output/9690404855_w0_straight_ped.xml" detectPersons="walk" pos="3530.92,3021.52">
         <detEntry lane=":9690404855_w0_0" pos="0" friendlyPos="true">
-        </detEntry>
-        <detEntry lane=":9690404855_w1_0" pos="0" friendlyPos="true">
         </detEntry>
         <detEntry lane=":9690404855_c0_0" pos="0" friendlyPos="true">
         </detEntry>

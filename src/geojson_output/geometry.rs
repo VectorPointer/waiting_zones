@@ -374,6 +374,17 @@ pub struct LaneLinks<'a> {
     /// sides are kept apart because they can differ — using the wider one
     /// for both overruns the narrower sidewalk.
     pub crossing_sidewalk_reach: HashMap<&'a str, (f64, f64)>,
+    /// Crossing lane id -> its own two walkingareas, `(near, far)` in the
+    /// same `shape` order `crossing_sidewalk_reach`'s own `(start, end)`
+    /// uses — which lane a reach distance is *for*, not just how far it
+    /// reaches. `zone_polygon` needs this to tell "this zone's own near
+    /// bank" from "the far bank a `complex_intersection_junctions` zone
+    /// deliberately left out" (see `zone_generator::pedestrian_zones`'s own module
+    /// docs): the reach itself is computed once, globally, independent of
+    /// which zone ends up asking, so nothing about a `(start, end)` pair
+    /// alone says which end belongs to ground *this* zone actually
+    /// claims.
+    pub crossing_banks: HashMap<&'a str, (&'a str, &'a str)>,
 }
 
 pub fn lane_links(network: &Network) -> LaneLinks<'_> {
@@ -429,6 +440,7 @@ pub fn lane_links(network: &Network) -> LaneLinks<'_> {
     }
 
     let mut crossing_sidewalk_reach: HashMap<&str, (f64, f64)> = HashMap::new();
+    let mut crossing_banks: HashMap<&str, (&str, &str)> = HashMap::new();
     for (walkingarea, successors) in &successors_by_from {
         if lane_function(walkingarea) != Some(EdgeFunction::Walkingarea) {
             continue;
@@ -437,15 +449,16 @@ pub fn lane_links(network: &Network) -> LaneLinks<'_> {
             if lane_function(crossing) != Some(EdgeFunction::Crossing) {
                 continue;
             }
-            let Some(&start) = sidewalk_width_by_walkingarea.get(walkingarea) else { continue };
-            let Some(&end) = successors_by_from
-                .get(crossing)
-                .and_then(|crossing_successors| crossing_successors.first())
-                .and_then(|&(far_lane, _)| sidewalk_width_by_walkingarea.get(far_lane))
+            let Some(&far_lane) =
+                successors_by_from.get(crossing).and_then(|crossing_successors| crossing_successors.first())
             else {
                 continue;
             };
+            let far_lane = far_lane.0;
+            let Some(&start) = sidewalk_width_by_walkingarea.get(walkingarea) else { continue };
+            let Some(&end) = sidewalk_width_by_walkingarea.get(far_lane) else { continue };
             crossing_sidewalk_reach.entry(crossing).or_insert((start, end));
+            crossing_banks.entry(crossing).or_insert((walkingarea, far_lane));
         }
     }
 
@@ -457,7 +470,7 @@ pub fn lane_links(network: &Network) -> LaneLinks<'_> {
         })
         .collect();
 
-    LaneLinks { successors, crossing_sidewalk_reach }
+    LaneLinks { successors, crossing_sidewalk_reach, crossing_banks }
 }
 
 pub fn chain_shape<'a>(
@@ -556,6 +569,85 @@ fn fill_small_concavities(polygon: MultiPolygon<f64>) -> MultiPolygon<f64> {
     )
 }
 
+/// How much more ground a zone's own minimum-area bounding rectangle (see
+/// [`min_area_rectangle`]) is allowed to claim over its real area before
+/// [`rectangle_if_close`] gives up and leaves the zone's own shape as-is.
+/// Tighter than [`MAX_FILLED_CONCAVITY_AREA_RATIO`] on purpose: a rectangle
+/// circumscribes the hull, so it is never a closer fit, and this only
+/// exists to catch the common case it's actually meant for — a single,
+/// roughly straight approach lane, whose buffered shape is already close
+/// to a rectangle — not to wrap a real curve or a multi-lane fan in one.
+const MAX_RECTANGLE_AREA_RATIO: f64 = 1.1;
+
+/// Floor on a swapped-in rectangle's own short side, in metres — never
+/// widens a real zone's rectangle in practice (every real lane or crossing
+/// is comfortably wider than this), but keeps [`rectangle_if_close`] from
+/// ever handing `i_overlay`'s later boolean ops a needle-thin quad.
+const MIN_RECTANGLE_SIDE_METERS: f64 = 0.3;
+
+/// Floor on a zone's own real area before [`rectangle_if_close`] even
+/// attempts the swap. `drop_slivers`'s own `MIN_KEPT_PART_AREA_M2` (0.05m²)
+/// already ran by this point in the pipeline, so nothing this small should
+/// reach here at all in practice; this is a second, independent floor
+/// rather than trusting that invariant to hold forever — confirmed on real
+/// Barcelona data that a near-degenerate sliver's hull is itself a
+/// near-degenerate needle, and [`min_area_rectangle`]'s rotating calipers
+/// picks its shortest, near-zero-length edge as the rectangle's own axis,
+/// small enough that reconstructing the four corners from it loses enough
+/// precision to report a plausible-looking but wrong (tiny) area, passing
+/// [`MAX_RECTANGLE_AREA_RATIO`] on a rectangle that isn't actually a close
+/// fit. Comfortably above that noise floor and comfortably below any real
+/// zone this crate generates (the smallest real one on record is
+/// `171839324#6_straight`'s own ~440m²).
+const MIN_RECTANGLE_CANDIDATE_AREA_M2: f64 = 1.0;
+
+/// Squares a zone's own final shape off into the smallest rectangle that
+/// contains it, when that rectangle would barely claim more ground than the
+/// zone's real shape already does — a rectangle is the simplest possible
+/// footprint for the common single-lane, roughly straight waiting zone this
+/// crate mostly generates, and simpler is what a client geofencing against
+/// a real GPS fix actually wants (see [`pedestrian_lane_polygon`]'s own
+/// docs, which reach the same conclusion for a walkingarea's shape). Leaves
+/// a zone that isn't already close to one — a real curve, a merge, a
+/// multi-lane fan — untouched, rather than reaching past ground its own
+/// entries and exits don't claim.
+///
+/// Deliberately the *last* geometric step in `to_feature_collection`, on
+/// each zone's own final, already cross-zone-resolved polygon, never
+/// earlier: feeding a rectangle into `resolve_overlaps`'s own iterative
+/// `difference` cuts (see its own per-round loop) instead crashed
+/// `i_overlay`'s solver on real Barcelona data after several rounds of
+/// clipping a coarse, straight-edged rectangle against a neighbour's
+/// finely-diced buffered curve — the same class of round-to-round drift
+/// `resolve_overlaps`'s own docs already warn a mid-loop `despike` causes,
+/// just triggered by this crate's own new shape instead. Run once here
+/// instead, on the finished polygon no further round will ever re-examine,
+/// there is nothing left for a one-shot swap to destabilize — and since a
+/// bounding rectangle always contains every point of the shape it replaces,
+/// it can never stop covering a stop line the original shape already
+/// covered.
+pub fn rectangle_if_close(polygon: MultiPolygon<f64>) -> MultiPolygon<f64> {
+    MultiPolygon::new(
+        polygon
+            .0
+            .into_iter()
+            .map(|part| {
+                let part_area = part.unsigned_area();
+                if part_area < MIN_RECTANGLE_CANDIDATE_AREA_M2 {
+                    return part;
+                }
+                let coords: Vec<Coord<f64>> = part.exterior().coords().copied().collect();
+                match min_area_rectangle(&coords, MIN_RECTANGLE_SIDE_METERS).and_then(|r| r.0.into_iter().next()) {
+                    Some(rectangle_part) if rectangle_part.unsigned_area() <= part_area * MAX_RECTANGLE_AREA_RATIO => {
+                        rectangle_part
+                    }
+                    _ => part,
+                }
+            })
+            .collect(),
+    )
+}
+
 pub fn zone_polygon(
     zone: &E3Detector,
     lanes: &HashMap<&str, &Lane>,
@@ -584,6 +676,14 @@ pub fn zone_polygon(
     // entry/exit distance and stroke-buffered like every other lane's.
     let is_pedestrian = !zone.detect_persons.is_empty();
 
+    // Every walkingarea this zone's own entries actually name — used
+    // below to tell a crossing's own *included* bank from one
+    // `zone_generator::pedestrian_zones` deliberately left out (a complex
+    // junction's own far bank). Built once, outside the loop, since every
+    // entry needs the full set, not just the ones seen so far.
+    let entry_lane_ids: HashSet<&str> =
+        if is_pedestrian { zone.entries.iter().map(|entry| entry.lane.0.as_str()).collect() } else { HashSet::new() };
+
     let mut core_gates = Vec::with_capacity(zone.exits.len());
     let mut pedestrian_core_lanes: Vec<(&Lane, Length, Length)> =
         Vec::with_capacity(zone.exits.len());
@@ -597,11 +697,35 @@ pub fn zone_polygon(
             // bank (also its exit), the far bank and the painted stripe.
             // Matching on exits would draw only the near bank.
             let default_reach = lane.width.get::<meter>() / 2.0;
-            let (start, end) = links
+            let (mut start, mut end) = links
                 .crossing_sidewalk_reach
                 .get(lane.id.0.as_str())
                 .copied()
                 .unwrap_or((default_reach, default_reach));
+            // A crossing's own reach toward a bank is meant to merge its
+            // buffered stripe into that bank's own polygon seamlessly —
+            // pointless, and never needed, toward a bank this zone never
+            // included in the first place (a complex junction's own far
+            // bank, `zone_generator::pedestrian_zones`'s own module
+            // docs). Capped to zero rather than left at the network's own
+            // sidewalk-width reach: on its own this doesn't fully stop a
+            // crossing from still landing in a neighbouring junction's own
+            // zone too (`overlaps::unsplit_crossings`'s own docs cover the
+            // deeper reason and the actual fix — a complex cluster's own
+            // walkingareas can each individually reach toward a
+            // *different* nearby junction, not just via this crossing's
+            // own reach), but reaching past ground this zone doesn't claim
+            // is never correct regardless, and removing it shrinks the
+            // disputed ground `unsplit_crossings` and
+            // `resolve_pedestrian_overlaps` both have to reconcile.
+            if let Some(&(near_bank, far_bank)) = links.crossing_banks.get(lane.id.0.as_str()) {
+                if !entry_lane_ids.contains(near_bank) {
+                    start = 0.0;
+                }
+                if !entry_lane_ids.contains(far_bank) {
+                    end = 0.0;
+                }
+            }
             pedestrian_core_lanes.push((
                 lane,
                 Length::new::<meter>(start),

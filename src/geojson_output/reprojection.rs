@@ -51,6 +51,24 @@ impl Reprojector {
             .with_context(|| format!("could not reproject network point {point:?} to WGS84"))?;
         Ok([coords.0.to_degrees(), coords.1.to_degrees()])
     }
+
+    /// The inverse of [`Self::to_lon_lat`] — WGS84 lon/lat into the
+    /// network's own local, offset metres. `proj4rs::transform` is
+    /// direction-agnostic, so this just swaps which `Proj` is `from` and
+    /// which is `to`, then adds `net_offset` back instead of subtracting
+    /// it. Needed to fold a real OSM crosswalk's own lon/lat polyline into
+    /// the same local space every other polygon in this crate is built in.
+    pub fn to_local(&self, lon_lat: [f64; 2]) -> Result<Point> {
+        let mut coords = (lon_lat[0].to_radians(), lon_lat[1].to_radians(), 0.0);
+        transform(&self.to, &self.from, &mut coords).with_context(|| {
+            format!("could not reproject WGS84 point {lon_lat:?} to the network's local coordinates")
+        })?;
+        Ok(Point {
+            x: coords.0 + self.net_offset.x,
+            y: coords.1 + self.net_offset.y,
+            z: 0.0,
+        })
+    }
 }
 
 pub fn shape_length(shape: &Shape) -> Length {
@@ -174,4 +192,31 @@ pub fn trimmed_path_points(shape: &Shape, entry: Length, exit: Length) -> Vec<Po
         points.push(end);
     }
     points
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sumo_types::domain::{Boundary, Location};
+
+    #[test]
+    fn to_local_inverts_to_lon_lat() {
+        // Barcelona's real `location`, `waiting_zones/data/barcelona/barcelona.net.xml`.
+        let location = Location {
+            net_offset: Point { x: -435_316.02, y: -4_587_129.41, z: 0.0 },
+            converted_boundary: Boundary { min: Point::default(), max: Point::default() },
+            original_boundary: Boundary { min: Point::default(), max: Point::default() },
+            projection: Projection::Proj4(
+                "+proj=utm +zone=31 +ellps=WGS84 +datum=WGS84 +units=m +no_defs".to_string(),
+            ),
+        };
+        let reproject = Reprojector::new(&location).expect("a valid PROJ4 string");
+
+        let original = Point { x: 1500.0, y: 2000.0, z: 0.0 };
+        let lon_lat = reproject.to_lon_lat(original).expect("reprojecting to WGS84");
+        let back = reproject.to_local(lon_lat).expect("reprojecting back to local metres");
+
+        assert!((back.x - original.x).abs() < 0.001, "x drifted: {back:?} vs {original:?}");
+        assert!((back.y - original.y).abs() < 0.001, "y drifted: {back:?} vs {original:?}");
+    }
 }

@@ -40,6 +40,13 @@ derive_more = { version = "2.1.1", features = ["display", "from", "as_ref"] }
 # nothing from it crosses the boundary. That copy is purely for this crate's
 # own types and its version is free.)
 sumo-types = { version = "0.3.0", features = ["additional", "write"] }
+# The real, surveyed crosswalk a pedestrian zone's polygon should fully
+# contain — see `geojson_output::crosswalks`. Path, not crates.io: unlike
+# `sumo-types` this is a sibling crate developed alongside this workspace
+# (`../libs/osm_crosswalks`), the same shared reader `control-plane/map`'s
+# `osm.rs` now also builds on, so this crate only builds inside the Leave
+# checkout — same as `traci` below.
+osm_crosswalks = { path = "../libs/osm_crosswalks" }
 # Reprojects a network's local/projected coordinates (`.net.xml`'s own CRS,
 # e.g. UTM) back to WGS84 lon/lat for the GeoJSON output — the coordinate
 # system GPS and GeoJSON both assume. Pure Rust, no `libproj` system
@@ -103,4 +110,4 @@ geo = { version = "0.33.1", default-features = false }
 # `zone_output` themselves never talk to a running simulation, so this has
 # no business being a regular dependency — path, not crates.io, same
 # reasoning `control_loop`'s own Cargo.toml gives for its sibling crates.
-traci = { path = "../traci" }
+traci = { path = "../libs/traci" }

@@ -3,13 +3,17 @@ use anstyle::{AnsiColor, Style};
 use anyhow::{Context, Result};
 use geo::{Coord, LineString, MultiPolygon};
 use geojson::{Feature, FeatureCollection, Geometry, JsonObject, Position};
+use osm_crosswalks::OsmCrosswalk;
 use std::{collections::HashMap, path::Path};
 use sumo_types::additional::domain::E3Detector;
 use sumo_types::domain::{Lane, Network, Point};
-use crate::geojson_output::geometry::{centroid, despike, lane_links, zone_modes, zone_polygon};
+use crate::geojson_output::crosswalks::match_crosswalks;
+use crate::geojson_output::geometry::{centroid, despike, lane_links, rectangle_if_close, zone_modes, zone_polygon};
 use crate::geojson_output::overlaps::{
     distance_to_polygon, drop_grazing_vertices_everywhere, drop_interior_rings, drop_slivers,
-    keep_part_near, relax_needle_vertices_everywhere, resolve_overlaps, split_self_intersections,
+    keep_part_near, overlap_area_m2, relax_needle_vertices_everywhere, resolve_overlaps,
+    resolve_pedestrian_overlaps, resolve_vehicle_overlaps, split_self_intersections, unsplit_crossings,
+    OVERLAP_AREA_THRESHOLD_M2,
 };
 use crate::geojson_output::reprojection::{distance_from_start, point_and_tangent_at, Reprojector, MIN_DRAWN_LANE_LENGTH_METERS};
 
@@ -98,56 +102,65 @@ pub fn build_feature(
     polygon: &MultiPolygon<f64>,
     reproject: &Reprojector,
 ) -> Result<Feature> {
-    let stop_line = reproject.to_lon_lat(published_stop_line(&stop_line_points(zone, lanes)?, polygon))?;
+    let stop_line = published_stop_line(&stop_line_points(zone, lanes)?, polygon);
+    build_feature_at(zone, lanes, lane_to_junction, polygon, reproject, stop_line)
+}
 
+/// [`build_feature`], with the stop line to publish already decided.
+pub fn build_feature_at(
+    zone: &E3Detector,
+    lanes: &HashMap<&str, &Lane>,
+    lane_to_junction: &HashMap<&str, &str>,
+    polygon: &MultiPolygon<f64>,
+    reproject: &Reprojector,
+    stop_line: Point,
+) -> Result<Feature> {
+    // The junction the zone's own controlled lane (its exit) feeds into —
+    // derived from the network, since `E3Detector` mirrors SUMO's own
+    // `e3Detector` schema, which has no concept of "intersection".
+    let intersection_id =
+        zone.exits.first().and_then(|exit| lane_to_junction.get(exit.lane.0.as_str()).copied());
+    let modes = serde_json::json!(zone_modes(zone, lanes));
+    feature_from_parts(&zone.id.0, intersection_id, modes, polygon, reproject, stop_line)
+}
+
+/// A zone's GeoJSON feature from its parts: id, junction, modes, polygon
+/// (local metres) and stop line — for a zone with or without an
+/// `E3Detector` behind it.
+pub fn feature_from_parts(
+    id: &str,
+    intersection_id: Option<&str>,
+    modes: serde_json::Value,
+    polygon: &MultiPolygon<f64>,
+    reproject: &Reprojector,
+    stop_line: Point,
+) -> Result<Feature> {
+    let stop_line = reproject.to_lon_lat(stop_line)?;
     let ring = |line: &LineString<f64>| -> Result<Vec<Position>> {
         line.coords().map(|c| reproject.to_lon_lat(Point { x: c.x, y: c.y, z: 0.0 }).map(Position::from)).collect()
     };
-    // A vehicle zone's own pipeline converges on exactly one part (see
-    // `to_feature_collection`'s own despike/split/`keep_part_near` pass). A
-    // pedestrian zone is deliberately two — the two banks of its crossing,
-    // with the road between them — so a zone with more than one part is
-    // emitted as a GeoJSON `MultiPolygon`, which the client's own
-    // point-in-polygon check (`resolver::catalogue`), the panel and this
+    // A zone with more than one part is emitted as a GeoJSON `MultiPolygon`,
+    // which the client's own point-in-polygon check, the panel and this
     // crate's own fixtures all already accept.
     if polygon.0.is_empty() {
-        anyhow::bail!("zone {:?} has no polygon part to emit", zone.id);
+        anyhow::bail!("zone {id:?} has no polygon part to emit");
     }
-    // Every `part.interiors()` is always empty here: `zone_polygon`'s own
-    // `drop_interior_rings` strips every interior ring before this function
-    // ever sees the polygon (see that function's own docs on why a waiting
-    // zone's own real ground never legitimately has a hole). Debug-only,
-    // not a silent truncation: this asserts the guarantee holds rather than
-    // quietly re-dropping a hole a future change to `zone_polygon`
-    // reintroduces.
     let polygons: Vec<Vec<Vec<Position>>> = polygon
         .0
         .iter()
         .map(|part| {
-            debug_assert!(part.interiors().is_empty(), "zone {:?} has an interior ring `zone_polygon` should have dropped", zone.id);
+            debug_assert!(part.interiors().is_empty(), "zone {id:?} has an interior ring that should have been dropped");
             ring(part.exterior()).map(|ring| vec![ring])
         })
         .collect::<Result<_>>()?;
 
-    // The junction the zone's own controlled lane (its exit — always the
-    // group's own controlled lane, never guaranteed of an entry, extended
-    // or otherwise; see `zone_generator`'s own docs) feeds into. Not a
-    // field on `E3Detector` itself: `E3Detector` is a literal mirror of
-    // SUMO's own `e3Detector` schema (see `zone_generator`'s module docs
-    // on why no project-specific type sits between the two), which has no
-    // concept of "intersection" at all — this is derived straight from the
-    // network here instead, the same way `territory::zones::Zone::edge` is
-    // derived from a zone's own exits rather than carried as a field.
-    let intersection_id =
-        zone.exits.first().and_then(|exit| lane_to_junction.get(exit.lane.0.as_str()).copied());
-
     let mut properties = JsonObject::new();
-    properties.insert("waiting_zone_id".to_string(), zone.id.0.clone().into());
+    properties.insert("waiting_zone_id".to_string(), id.into());
     if let Some(intersection_id) = intersection_id {
         properties.insert("intersection_id".to_string(), intersection_id.into());
     }
     properties.insert("stop_line".to_string(), serde_json::json!(stop_line));
-    properties.insert("modes".to_string(), serde_json::json!(zone_modes(zone, lanes)));
+    properties.insert("modes".to_string(), modes);
 
     let geometry = if polygons.len() == 1 {
         Geometry::new_polygon(polygons.into_iter().next().expect("checked non-empty above"))
@@ -172,6 +185,57 @@ pub fn zone_feature(
 }
 
 pub fn to_feature_collection(network: &Network, zones: &[E3Detector]) -> Result<FeatureCollection> {
+    to_feature_collection_with_crosswalks(network, zones, &[])
+}
+
+/// [`to_feature_collection`], additionally widening a pedestrian zone's own
+/// crossing to fully contain whichever real OSM `crosswalks` entry matches
+/// it (see [`crate::geojson_output::crosswalks::match_crosswalks`]). An
+/// empty `crosswalks` behaves exactly like `to_feature_collection` — no
+/// match is ever made, no footprint ever grows.
+pub fn to_feature_collection_with_crosswalks(
+    network: &Network,
+    zones: &[E3Detector],
+    crosswalks: &[OsmCrosswalk],
+) -> Result<FeatureCollection> {
+    // Pedestrian zones are built on their own (see `pedestrian`'s own docs):
+    // the crosswalk plus a sidewalk offset, nothing of the vehicle pipeline.
+    let is_pedestrian = |zone: &E3Detector| !zone.detect_persons.is_empty();
+    if zones.iter().any(is_pedestrian) {
+        let (pedestrian, vehicle): (Vec<E3Detector>, Vec<E3Detector>) =
+            zones.iter().cloned().partition(|zone| is_pedestrian(zone));
+        let mut features = crate::geojson_output::pedestrian::feature_collection(network, &pedestrian, crosswalks)?.features;
+        if !vehicle.is_empty() {
+            features.extend(vehicle_feature_collection(network, &vehicle)?.features);
+        }
+        // Back in the zones' own order.
+        let position = |feature: &Feature| {
+            let id = feature.property("waiting_zone_id").and_then(|v| v.as_str()).unwrap_or_default();
+            zones.iter().position(|zone| zone.id.0 == id).unwrap_or(usize::MAX)
+        };
+        features.sort_by_key(position);
+        return Ok(FeatureCollection { bbox: None, features, foreign_members: None });
+    }
+    vehicle_feature_collection(network, zones)
+}
+
+/// Which junction lists a lane among its own `incLanes` — used to report
+/// a zone's `intersection_id` (see `build_feature`'s own docs on why this
+/// is derived here rather than stored on `E3Detector`). Not `edge.to`:
+/// real `.net.xml` output never sets `from`/`to` on a walkingarea edge
+/// (it's already "at" a junction, not a stretch of road connecting two of
+/// them), but SUMO still lists a walkingarea lane among the junction's own
+/// `incLanes`, right alongside the vehicle lanes it shares the junction
+/// with, so this covers both zone kinds uniformly.
+pub fn lane_to_junction(network: &Network) -> HashMap<&str, &str> {
+    network
+        .junctions
+        .iter()
+        .flat_map(|junction| junction.incoming_lanes.iter().map(move |lane| (lane.0.as_str(), junction.id.0.as_str())))
+        .collect()
+}
+
+fn vehicle_feature_collection(network: &Network, zones: &[E3Detector]) -> Result<FeatureCollection> {
     let reproject = Reprojector::new(&network.location)?;
     let lanes: HashMap<&str, &Lane> = network
         .edges
@@ -190,11 +254,7 @@ pub fn to_feature_collection(network: &Network, zones: &[E3Detector]) -> Result<
     // among the junction's own `incLanes`, right alongside the vehicle
     // lanes it shares the junction with (see `zone_generator`'s own module
     // docs), so this covers both zone kinds uniformly.
-    let lane_to_junction: HashMap<&str, &str> = network
-        .junctions
-        .iter()
-        .flat_map(|junction| junction.incoming_lanes.iter().map(move |lane| (lane.0.as_str(), junction.id.0.as_str())))
-        .collect();
+    let lane_to_junction = lane_to_junction(network);
     let links = lane_links(network);
 
     let mut polygons = zones
@@ -376,6 +436,75 @@ pub fn to_feature_collection(network: &Network, zones: &[E3Detector]) -> Result<
         *polygon = if use_relaxed { relaxed } else { cleaned };
     }
 
+    // Every pedestrian-pedestrian pair whose shared ground is a clean
+    // quadrilateral — two crossings meeting at one corner, the common case
+    // — gets partitioned along its own diagonal rather than left as a
+    // double-claimed patch; see `resolve_pedestrian_overlaps`'s own docs
+    // for why that, not `resolve_overlaps`'s own cut-from-both fix, is the
+    // right one for two pedestrians sharing ground. Run on the zones'
+    // finished, per-zone-cleaned polygons (the loop just above), so the
+    // quad it looks for is the real, settled shape, not a still-noisy
+    // intermediate one. A pair whose shared ground isn't a clean quad is
+    // left exactly as before, still reported as an overlap.
+    resolve_pedestrian_overlaps(zones, &stop_points, &mut polygons);
+    // Every real crossing lane wholly inside its own structural owner's
+    // zone, whatever split it between two in the first place — see that
+    // function's own docs for why this has to run last and can't just
+    // trust the bisector cut just above to have gotten it right. Widened,
+    // where a real OSM crosswalk was matched to it, to also fully contain
+    // that crosswalk (see `crosswalks::match_crosswalks`'s own docs) —
+    // empty when `crosswalks` is, so this is a no-op for every existing
+    // caller that doesn't pass any.
+    let osm_matches = match_crosswalks(network, zones, &reproject, &[]);
+    let osm_footprints: HashMap<&str, MultiPolygon<f64>> =
+        osm_matches.footprints.iter().map(|(lane_id, polygon)| (lane_id.as_str(), polygon.clone())).collect();
+    unsplit_crossings(zones, &lanes, &stop_points, &mut polygons, &osm_footprints);
+
+    // The simplest possible footprint for the common case, tried last and
+    // only once, on every zone's own finished, cross-zone-resolved polygon
+    // — see `rectangle_if_close`'s own docs for why earlier (feeding a
+    // rectangle into `resolve_overlaps`'s own iterative cuts) is actively
+    // unsafe. A rectangle always contains every point of the shape it
+    // replaces, so accepting one can never lose stop-line coverage the loop
+    // above already settled — but it *can* newly overlap a neighbour
+    // `resolve_overlaps` had already cut this zone clear of (confirmed on
+    // real Barcelona data: swapping unconditionally reintroduced 17
+    // same-mode pairs the resolver had left disjoint). Kept in the zones'
+    // own iteration order rather than computed independently for every zone
+    // at once, so a later zone's own overlap check sees an earlier zone's
+    // already-accepted rectangle, not its pre-swap shape — accepting both
+    // could reintroduce exactly the overlap checking each one individually
+    // against the original shapes alone would have missed. Skipped for a
+    // pedestrian zone, same as `zone_polygon`'s own `simplify`: its shape is
+    // already the union of two rectangular banks and a stripe, not one
+    // footprint to square off further. Any pedestrian-pedestrian overlap
+    // `resolve_pedestrian_overlaps` (just above) couldn't partition is left
+    // deliberately alone, not squared off out from under it — see that
+    // function's own docs.
+    for index in 0..polygons.len() {
+        if !zones[index].detect_persons.is_empty() {
+            continue;
+        }
+        let candidate = rectangle_if_close(polygons[index].clone());
+        let fits = polygons
+            .iter()
+            .enumerate()
+            .filter(|&(other, _)| other != index && zones[other].detect_persons.is_empty())
+            .all(|(_, other_polygon)| overlap_area_m2(&candidate, other_polygon) <= OVERLAP_AREA_THRESHOLD_M2);
+        if fits {
+            polygons[index] = candidate;
+        }
+    }
+    // Run only now, after squaring: `rectangle_if_close`'s own candidate can
+    // legitimately grow a zone back out past a cut `resolve_vehicle_overlaps`
+    // made earlier (its own `fits` check above only ever compares against
+    // the *other* zone's polygon at that point in the loop, not against a
+    // still-to-come sibling's own later squaring) — running this pass
+    // before squaring let the very overlap it just resolved reopen once
+    // squaring ran afterward. Moved here, it sees the real, final shapes
+    // squaring settles on, so nothing downstream can undo its own cut.
+    resolve_vehicle_overlaps(zones, &stop_points, &mut polygons);
+
     let features = zones
         .iter()
         .zip(&polygons)
@@ -428,14 +557,25 @@ fn write_collection(path: &Path, collection: &FeatureCollection) -> Result<()> {
 /// writes both files, even when one side has no zones at all (a
 /// vehicle-only or pedestrian-only network): a fixed pair of endpoints a
 /// client can always fetch beats one that sometimes doesn't exist.
-pub fn write(path: &Path, network: &Network, zones: &[E3Detector]) -> Result<()> {
+pub fn write(path: &Path, network: &Network, zones: &[E3Detector], crosswalks: &[OsmCrosswalk]) -> Result<()> {
     let (pedestrian, vehicle): (Vec<&E3Detector>, Vec<&E3Detector>) =
         zones.iter().partition(|zone| !zone.detect_persons.is_empty());
 
     let pedestrian_zones: Vec<E3Detector> = pedestrian.into_iter().cloned().collect();
     let vehicle_zones: Vec<E3Detector> = vehicle.into_iter().cloned().collect();
 
-    write_collection(&suffixed(path, "pedestrians"), &to_feature_collection(network, &pedestrian_zones)?)?;
-    write_collection(&suffixed(path, "vehicles"), &to_feature_collection(network, &vehicle_zones)?)?;
+    write_collection(
+        &suffixed(path, "pedestrians"),
+        &to_feature_collection_with_crosswalks(network, &pedestrian_zones, crosswalks)?,
+    )?;
+    // A vehicle zone never references a crossing lane in its own entries
+    // (`unsplit_crossings` only ever looks at pedestrian zones' own
+    // `detect_persons`), so there is nothing for `crosswalks` to widen here
+    // — passed along anyway rather than duplicating `to_feature_collection`
+    // just to omit an argument that's already a no-op for this half.
+    write_collection(
+        &suffixed(path, "vehicles"),
+        &to_feature_collection_with_crosswalks(network, &vehicle_zones, crosswalks)?,
+    )?;
     Ok(())
 }

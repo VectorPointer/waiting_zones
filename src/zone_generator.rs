@@ -1238,14 +1238,65 @@ fn pedestrian_zones(
 
     let groups = group_lanes(junction, lane_ids, graph.connections_by_from_lane, programs);
 
-    // Each group is one crossing: its near-side walkingarea (the group's own
-    // lanes) plus the crossing's far-side walkingarea are one movement — a
-    // pedestrian crossing is symmetric, its walk phase belongs to the
-    // crossing, not to one direction — detected by a single `E3Detector`
-    // with an entry on each bank. `netconvert` only puts a `tl` on the
-    // connection out of the near bank, so the far one never appears in
-    // `incoming_lanes` and would otherwise drop out entirely.
+    // Each group is *usually* one crossing: its near-side walkingarea (the
+    // group's own lanes) plus the crossing's far-side walkingarea are one
+    // movement — a pedestrian crossing is symmetric, its walk phase belongs
+    // to the crossing, not to one direction — detected by a single
+    // `E3Detector` with an entry on each bank. The doc this comment used to
+    // carry claimed `netconvert` only puts a `tl` on the connection out of
+    // the near bank, so the far one would never appear in `incoming_lanes`
+    // on its own — confirmed wrong on real Barcelona data: an ordinary
+    // two-way crossing signals *both* directions independently (junction
+    // `5588597515`: `:..._w0`'s own `tl` connection crosses via `:..._c1`,
+    // `:..._w1`'s via `:..._c0`, the two directional lanes over one
+    // continuous stripe), so each bank's walkingarea satisfies
+    // `group_key_for_lane` entirely on its own and `group_lanes` returns
+    // *two* groups for what is physically one crossing. Each one alone then
+    // computed the whole crossing's own footprint (this function's own
+    // "the crossing lane is an entry only" logic below), publishing two
+    // disjoint ids over byte-for-byte the same ground — a real duplicate
+    // zone, not a borderline sliver `resolve_overlaps` could narrow.
     //
+    // The `far_bank_edge`/`redundant` pass below folds exactly that shape
+    // back into one group before either becomes its own zone. The far bank
+    // is still an *entry* only in the merged zone (never an exit — see this
+    // function's own docs on why, just below): the point is which bank a
+    // crossing contributes its own *movement identity* from, not whether
+    // its own `tl` connection resolves.
+    let far_bank_edge = |near_lanes: &[LaneId]| -> Option<EdgeId> {
+        near_lanes.iter().find_map(|lane| {
+            let (_, far_lane) = crossing_links(lane, lanes, graph);
+            far_lane.and_then(|far_lane| graph.edge_by_lane.get(far_lane).map(|edge| (*edge).clone()))
+        })
+    };
+    let far_edges: Vec<Option<EdgeId>> = groups.iter().map(|(_, near_lanes)| far_bank_edge(near_lanes)).collect();
+    let mut redundant = vec![false; groups.len()];
+    for i in 0..groups.len() {
+        if redundant[i] {
+            continue;
+        }
+        for j in (i + 1)..groups.len() {
+            if redundant[j] {
+                continue;
+            }
+            let (from_edge_i, _) = &groups[i].0;
+            let (from_edge_j, _) = &groups[j].0;
+            // Each is the other's own far bank: the same physical crossing,
+            // read from its two opposite banks. Keep the alphabetically
+            // first `from_edge`'s own zone — deterministic regardless of
+            // `incoming_lanes`' own order, the same tie-break
+            // `merge_fork_sibling_groups` already uses for its own
+            // analogous vehicle-side merge.
+            if far_edges[i].as_ref() == Some(from_edge_j) && far_edges[j].as_ref() == Some(from_edge_i) {
+                if from_edge_j < from_edge_i {
+                    redundant[i] = true;
+                } else {
+                    redundant[j] = true;
+                }
+            }
+        }
+    }
+
     // The far bank is an *entry* only: as an exit it would be read as a
     // controlled lane, and `derive_zones` would pull in the phase of the
     // crossing the far bank is itself the near side of — a different
@@ -1254,7 +1305,9 @@ fn pedestrian_zones(
     // another still contributes its own zone.
     groups
         .into_iter()
-        .filter_map(|((from_edge, directions), near_lanes)| {
+        .enumerate()
+        .filter(|(index, _)| !redundant[*index])
+        .filter_map(|(_, ((from_edge, directions), near_lanes))| {
             // One zone spans the whole crossing: the near bank (the group's
             // own lanes), the far bank, *and* the crossing lane itself — the
             // painted stripe between them. With the crossing lane among the
@@ -1274,10 +1327,46 @@ fn pedestrian_zones(
             // what `derive_zones` reads the controlling phase from, and the
             // crossing lane carries no `tl`/`linkIndex` of its own (the near
             // bank does).
+            //
+            // The far bank is skipped — the zone stays the near bank plus
+            // the crossing stripe, never the far bank's own walkingarea —
+            // at a junction `graph.complex_intersection_junctions` names: a
+            // real physically complex intersection `netconvert` modeled as
+            // a cluster of closely-spaced nodes (the module docs' own
+            // `joinTLS` case), where a walkingarea's own `shape` can span
+            // the whole cluster rather than one real corner. Confirmed on
+            // real Barcelona data (`590815505_w0_straight_ped` next to
+            // `6556429525_w0_straight_ped`, junctions 8.5m apart under one
+            // shared `joinedS_...` program): the near bank's own shape
+            // there already spans over 13m on its own, and unioning in the
+            // far bank nearly doubled that, into a zone that reached well
+            // into the *other* junction's own zone next door rather than
+            // covering one crossing. `extended_entry_lanes`'s own
+            // `stop_at_complex_intersections` flag exists for the
+            // analogous vehicle-side defect (see its own docs) — this is
+            // the pedestrian-side version, unconditional rather than
+            // flag-gated: unlike a vehicle zone's backward extension, this
+            // trades away nothing a real deployment wants by default (the
+            // near bank alone still covers "waiting to cross" — see this
+            // function's own docs just above on why a smaller zone is
+            // still a correct one), only geometry `netconvert` itself
+            // never drew as one coherent crossing to begin with.
+            //
+            // The crossing lane(s) — the actual painted stripe, a short,
+            // compact shape (confirmed on the same real data: 6.4m, two
+            // points, nowhere near the far bank's own size) — are added
+            // regardless of complexity: they're what lets the zone reach
+            // the stripe a pedestrian is actually standing on, not the
+            // part of this defect that ever grew unbounded, and dropping
+            // them too would leave the zone not covering its own crossing
+            // at exactly the junctions this pass already has to treat
+            // carefully.
             let mut entry_lanes = near_lanes.clone();
+            let skip_far_bank = graph.complex_intersection_junctions.contains(&junction.id);
             for near_lane in &near_lanes {
                 let (crossings, far_lane) = crossing_links(near_lane, lanes, graph);
-                if let Some(far_lane) = far_lane
+                if !skip_far_bank
+                    && let Some(far_lane) = far_lane
                     && !entry_lanes.contains(far_lane)
                 {
                     entry_lanes.push(far_lane.clone());
@@ -1549,6 +1638,26 @@ mod tests {
         }
     }
 
+    /// [`plain_connection`], but with a real `to_edge`/`to_lane` *and* an
+    /// optional `tl` — unlike [`vehicle_connection`] (whose `to_edge` is
+    /// always the placeholder `"out"`, fine for grouping but invisible to
+    /// [`crossing_destination`]'s own lane lookup), this is what a
+    /// walkingarea-to-crossing or crossing-to-walkingarea hop needs so
+    /// `crossing_links` can actually resolve the far bank.
+    fn crossing_connection(
+        from_edge: &str,
+        from_lane: usize,
+        to_edge: &str,
+        to_lane: usize,
+        tl: Option<(&str, i32)>,
+    ) -> Connection {
+        Connection {
+            traffic_light: tl.map(|(id, _)| TrafficLightId(id.into())),
+            link_index: tl.map(|(_, index)| LinkIndex(index)),
+            ..plain_connection(from_edge, from_lane, to_edge, to_lane)
+        }
+    }
+
     #[test]
     fn groups_lanes_from_the_same_edge_and_direction_into_one_zone() {
         let network = Network {
@@ -1795,6 +1904,74 @@ mod tests {
                 .all(|zone| zone.detect_persons.is_empty() || zone == pedestrian_zone),
             "only the pedestrian zone should set detectPersons"
         );
+    }
+
+    /// Regression test for a real Barcelona duplicate: an ordinary two-way
+    /// crossing signals *both* directions, so each bank's own walkingarea
+    /// (`:j0_w0`, `:j0_w1`) independently resolves a `tl`-controlled
+    /// connection into the crossing lane leading to the *other* bank
+    /// (`:j0_w0` -> `:j0_c1` -> `:j0_w1`, `:j0_w1` -> `:j0_c0` -> `:j0_w0`)
+    /// — confirmed on real data at junction `5588597515` and several
+    /// others (see `pedestrian_zones`'s own docs). Before the
+    /// `far_bank_edge`/`redundant` merge, `group_lanes` read this as two
+    /// entirely separate movements and produced two zones, each
+    /// independently computing the whole crossing's own footprint: two
+    /// disjoint ids over byte-for-byte the same ground, not two real
+    /// crossings.
+    #[test]
+    fn mutual_banks_of_one_two_way_crossing_produce_a_single_zone() {
+        let network = Network {
+            edges: vec![
+                edge_with_function(
+                    ":j0_w0",
+                    EdgeFunction::Walkingarea,
+                    vec![pedestrian_lane(":j0_w0_0", 3.3)],
+                ),
+                edge_with_function(
+                    ":j0_w1",
+                    EdgeFunction::Walkingarea,
+                    vec![pedestrian_lane(":j0_w1_0", 3.3)],
+                ),
+                edge_with_function(
+                    ":j0_c0",
+                    EdgeFunction::Crossing,
+                    vec![pedestrian_lane(":j0_c0_0", 6.4)],
+                ),
+                edge_with_function(
+                    ":j0_c1",
+                    EdgeFunction::Crossing,
+                    vec![pedestrian_lane(":j0_c1_0", 6.4)],
+                ),
+            ],
+            junctions: vec![junction(
+                "j0",
+                JunctionKind::TrafficLight,
+                vec![":j0_w0_0", ":j0_w1_0"],
+            )],
+            connections: vec![
+                crossing_connection(":j0_w0", 0, ":j0_c1", 0, Some(("j0", 0))),
+                crossing_connection(":j0_w1", 0, ":j0_c0", 0, Some(("j0", 1))),
+                crossing_connection(":j0_c0", 0, ":j0_w0", 0, None),
+                crossing_connection(":j0_c1", 0, ":j0_w1", 0, None),
+            ],
+            traffic_light_programs: vec![program("j0", vec!["GG", "rr"])],
+            ..Default::default()
+        };
+
+        let zones = generate(&network, None, false);
+        let pedestrian_zones: Vec<&E3Detector> =
+            zones.iter().filter(|zone| zone.detect_persons.contains(&PersonMode::Walk)).collect();
+
+        assert_eq!(
+            pedestrian_zones.len(),
+            1,
+            "one two-way crossing signalized from both banks is still one crossing, not two: {:?}",
+            pedestrian_zones.iter().map(|z| &z.id).collect::<Vec<_>>()
+        );
+        // Deterministic tie-break: the alphabetically-first bank's own id
+        // wins, regardless of `incoming_lanes`' own order — see
+        // `pedestrian_zones`'s own docs.
+        assert!(pedestrian_zones[0].id.0.starts_with("j0_w0_"));
     }
 
     #[test]

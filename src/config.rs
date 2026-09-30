@@ -45,6 +45,14 @@ struct Cli {
     /// unaffected either way.
     #[arg(long)]
     stop_at_complex_intersections: bool,
+
+    /// The real, surveyed `.osm` a pedestrian zone's own crosswalk geometry
+    /// should widen to fully contain (see `geojson_output::crosswalks`).
+    /// Defaults, when unset, to the same `<net>.osm` sibling convention
+    /// `control-plane/map` already uses — a territory with none keeps
+    /// working exactly as it does today, SUMO-only geometry.
+    #[arg(long, value_name = "PATH")]
+    osm: Option<PathBuf>,
 }
 
 pub struct Config {
@@ -53,6 +61,7 @@ pub struct Config {
     pub max_zone_length: Option<Length>,
     pub geojson_output: Option<PathBuf>,
     pub stop_at_complex_intersections: bool,
+    pub osm: Option<PathBuf>,
 }
 
 impl Config {
@@ -76,12 +85,27 @@ impl Config {
                 .with_file_name(format!("{stem}.waiting-zones.add.xml"))
         });
 
+        let osm = match raw.osm {
+            Some(path) => {
+                if !path.exists() {
+                    eprintln!("error: --osm {path:?} does not exist");
+                    std::process::exit(1);
+                }
+                Some(path)
+            }
+            None => {
+                let sibling = osm_crosswalks::sibling_osm_path(&raw.input);
+                sibling.exists().then_some(sibling)
+            }
+        };
+
         Config {
             input: raw.input,
             output,
             max_zone_length: raw.max_zone_length.map(Length::new::<meter>),
             geojson_output: raw.geojson,
             stop_at_complex_intersections: raw.stop_at_complex_intersections,
+            osm,
         }
     }
 }

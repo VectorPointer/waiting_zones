@@ -7,7 +7,8 @@ mod tests {
     use crate::geojson_output::{
         find_near_touch, weld_near_touch_and_split, MIN_DRAWN_LANE_LENGTH_METERS,
         distance_to_polygon, relax_needle_vertices_everywhere, Reprojector, feature_rings,
-        lane_links, overlapping_zone_ids, to_feature_collection, write, zone_feature,
+        lane_links, overlapping_zone_ids, overlapping_zone_ids_larger_than, resolve_pedestrian_overlaps,
+        to_feature_collection, write, zone_feature,
     };
     use sumo_types::additional::domain::{DetectorGate, DetectorId, E3Detector, LanePosition, LaneRef, PersonMode};
     use sumo_types::domain::{
@@ -346,7 +347,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let base_path = dir.join("zones.geojson");
 
-        write(&base_path, &network, &[vehicle_zone, pedestrian_zone]).unwrap();
+        write(&base_path, &network, &[vehicle_zone, pedestrian_zone], &[]).unwrap();
 
         let vehicles: FeatureCollection =
             serde_json::from_str(&std::fs::read_to_string(dir.join("zones.vehicles.geojson")).unwrap()).unwrap();
@@ -1847,6 +1848,74 @@ mod tests {
         )])
     }
 
+    fn ped_zone(id: &str, lane: &str) -> E3Detector {
+        E3Detector { detect_persons: vec![PersonMode::Walk], ..zone(id, lane) }
+    }
+
+    #[test]
+    fn resolve_pedestrian_overlaps_partitions_a_clean_quad_without_losing_ground() {
+        // Two crossings meeting at one corner: a's own square [0,10]x[0,10]
+        // and b's own square [5,15]x[5,15] share the quad [5,10]x[5,10] —
+        // the shape most real Barcelona ped-ped overlaps take. `a`'s own
+        // stop point sits near its far corner (1,9), `b`'s near (14,6): off
+        // the quad's own symmetric diagonal (an on-diagonal stop point is a
+        // degenerate tie this heuristic correctly refuses — see the
+        // "unseparable" test below), so the two approaches genuinely
+        // interleave and the shared quad's own diagonal should cleanly
+        // separate "nearer a" from "nearer b".
+        let zones = vec![ped_zone("a", "lane_a"), ped_zone("b", "lane_b")];
+        let stop_points = vec![Coord { x: 1.0, y: 9.0 }, Coord { x: 14.0, y: 6.0 }];
+        let mut polygons = vec![rect((0.0, 0.0), (10.0, 10.0)), rect((5.0, 5.0), (15.0, 15.0))];
+        // The union, not the sum: `a` and `b` already double-count their own
+        // 25-unit overlap in `|a| + |b|` before any of this runs, so a
+        // partition that keeps every bit of real ground correctly drops the
+        // *sum* by exactly that 25 — moving it from double- to
+        // single-counted, never discarding it. The union is what has to
+        // stay fixed.
+        let union_before = polygons[0].union(&polygons[1]).unsigned_area();
+
+        resolve_pedestrian_overlaps(&zones, &stop_points, &mut polygons);
+
+        assert_eq!(
+            polygons[0].intersection(&polygons[1]).unsigned_area(),
+            0.0,
+            "the two zones should no longer share any ground"
+        );
+        let union_after = polygons[0].union(&polygons[1]).unsigned_area();
+        assert!(
+            (union_after - union_before).abs() < 1e-9,
+            "partitioning should conserve the two zones' own combined ground, not just cut it away: \
+             {union_before} -> {union_after}"
+        );
+    }
+
+    #[test]
+    fn resolve_pedestrian_overlaps_leaves_an_unseparable_pair_alone() {
+        // Same two overlapping squares, but both stop points sit on the
+        // *same* side of the shared quad (near its own (10,10) corner) —
+        // neither diagonal can read one triangle as nearer `a` and the
+        // other as nearer `b`, so forcing a split would hand one zone
+        // ground that isn't actually nearer it. The pair should be left
+        // exactly as it was, still overlapping.
+        //
+        // Same-junction ids (both `12345_w*`), not the placeholder `"a"`/
+        // `"b"` other tests in this module use: this is the "two crossings
+        // meeting at one corner" case `resolve_pedestrian_overlaps`'s own
+        // module docs describe as a legitimate shared corner, which is
+        // exactly why the bisector fallback `resolve_vehicle_overlaps`
+        // lends this function (see that function's own docs) must not
+        // fire here — it only ever runs for two zones on *different*
+        // junctions, a real defect this same-corner case isn't.
+        let zones = vec![ped_zone("12345_w0_straight_ped", "lane_a"), ped_zone("12345_w1_straight_ped", "lane_b")];
+        let stop_points = vec![Coord { x: 9.0, y: 9.0 }, Coord { x: 9.5, y: 9.5 }];
+        let mut polygons = vec![rect((0.0, 0.0), (10.0, 10.0)), rect((5.0, 5.0), (15.0, 15.0))];
+        let before = polygons.clone();
+
+        resolve_pedestrian_overlaps(&zones, &stop_points, &mut polygons);
+
+        assert_eq!(polygons, before, "an unseparable pair must be left untouched, not forced apart");
+    }
+
     #[test]
     fn subtracting_the_real_overlap_removes_only_the_locally_contested_ground() {
         // A long, straight zone whose real conflict is entirely at its far
@@ -1872,6 +1941,39 @@ mod tests {
             remaining.intersection(&b).unsigned_area(),
             0.0,
             "a and b must not overlap any more after a gives back their real overlap"
+        );
+    }
+
+    /// Regression test for the real Barcelona pair an operator reported:
+    /// `5588597262_w0_straight_ped` and `5588597263_w0_straight_ped` (two
+    /// crossings meeting at one corner) used to overlap by several square
+    /// metres — a clean-looking rectangle that, before
+    /// `resolve_pedestrian_overlaps` existed, was left alone entirely (see
+    /// that function's own docs on why a vehicle-style cut-from-both would
+    /// have been the wrong fix for two pedestrians sharing ground). Hand
+    /// editing one zone's own perimeter to remove the overlap didn't help
+    /// either, since the *other* zone's own copy of `overlapping`/
+    /// `overlap_area` — baked in at compile time, from the same source this
+    /// test reads — never updates from an operator's edit; only
+    /// regenerating fixes it at the source.
+    #[test]
+    fn a_reported_pedestrian_pedestrian_overlap_no_longer_overlaps() {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let net_file = manifest_dir.join("data/barcelona/barcelona.net.xml");
+        let network = sumo_types::read_network(&net_file).expect("reading Barcelona network");
+        let zones = crate::zone_generator::generate(&network, None, false);
+        let pedestrian: Vec<_> = zones.into_iter().filter(|z| !z.detect_persons.is_empty()).collect();
+        let collection = to_feature_collection(&network, &pedestrian).expect("building collection");
+
+        const MIN_MEANINGFUL_OVERLAP_M2: f64 = 0.01;
+        let overlaps =
+            overlapping_zone_ids_larger_than(&collection, MIN_MEANINGFUL_OVERLAP_M2);
+        let reported = ("5588597262_w0_straight_ped".to_string(), "5588597263_w0_straight_ped".to_string());
+        assert!(
+            !overlaps.contains(&reported) && !overlaps.contains(&(reported.1.clone(), reported.0.clone())),
+            "{:?} should no longer overlap by more than {MIN_MEANINGFUL_OVERLAP_M2}m²: {:?}",
+            reported,
+            overlaps
         );
     }
 
@@ -2144,5 +2246,4 @@ mod tests {
             "a vertex already ring-adjacent to the near edge's own endpoint must not be welded"
         );
     }
-
 }

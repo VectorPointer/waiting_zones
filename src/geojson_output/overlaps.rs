@@ -7,10 +7,12 @@ use geo::{
     Polygon as GeoPolygon,
 };
 use geojson::{Feature, FeatureCollection, Position};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use sumo_types::additional::domain::E3Detector;
 use sumo_types::domain::Lane;
-use crate::geojson_output::geometry::{zone_polygon, LaneLinks, SPIKE_WELD_EPSILON_METERS};
+use crate::geojson_output::geometry::{
+    pedestrian_lane_polygon, rectangle_if_close, zone_polygon, LaneLinks, SPIKE_WELD_EPSILON_METERS,
+};
 use crate::geojson_output::reprojection::MIN_DRAWN_LANE_LENGTH_METERS;
 
 pub const ERROR: Style = AnsiColor::Red.on_default().bold();
@@ -1112,12 +1114,18 @@ pub fn resolve_overlaps(
     // in different files (`feature::write` splits them) and a pedestrian's
     // own waiting area deliberately sits where a vehicle lane's stop-line
     // buffer reaches. A pedestrian against a pedestrian one is not resolved
-    // either: two crossings meeting at one corner each span both banks, so
-    // they *share* that corner, and subtracting the shared ground from both
-    // (what this function does) would leave neither covering it — taking
-    // each zone's own stop line with it. A pedestrian at the shared corner
-    // legitimately belongs to either crossing (there is no heading filter),
-    // so overlap there is correct, not a defect to cut away.
+    // *here* either: two crossings meeting at one corner each span both
+    // banks, so they *share* that corner, and subtracting the shared
+    // ground from both (what this function does) would leave neither
+    // covering it — taking each zone's own stop line with it.
+    // `resolve_pedestrian_overlaps`, run later in `to_feature_collection`,
+    // handles the common shape of that case instead (partitioning the
+    // shared corner between the two zones rather than cutting it from
+    // both); whatever it can't partition is left exactly as this function
+    // leaves it — a pedestrian at the shared corner legitimately belongs
+    // to either crossing (there is no heading filter), so an unresolved
+    // overlap there is a real, if narrow, ambiguity, not a defect this
+    // function failed to cut away.
     let both_vehicles = |i: usize, j: usize| {
         zones[i].detect_persons.is_empty() && zones[j].detect_persons.is_empty()
     };
@@ -1267,9 +1275,593 @@ pub fn resolve_overlaps(
     for (i, j) in still_overlapping(polygons, &candidates) {
         eprintln!(
             "{ERROR}error:{ERROR:#} zones {:?} and {:?} still overlap after \
-             {MAX_RESOLUTION_ROUNDS} resolution rounds — left as-is",
+             {MAX_RESOLUTION_ROUNDS} resolution rounds — left as-is for now; \
+             `resolve_vehicle_overlaps` gets another attempt once every other \
+             pass has run",
             zones[i].id, zones[j].id,
         );
     }
     Ok(())
+}
+
+/// Resolves a pedestrian-pedestrian overlap whose shared ground is a clean
+/// quadrilateral — the common "two crossings meet at one corner" shape
+/// [`resolve_overlaps`]'s own docs describe as legitimate, not a defect —
+/// by splitting that quad along whichever of its two diagonals separates
+/// it into one triangle nearer each zone's own stop point, and handing
+/// each zone only its own triangle.
+///
+/// This is deliberately *not* [`resolve_overlaps`]'s own fix: that one
+/// subtracts the whole contested patch from *both* zones, opening a gap
+/// neither claims — correct for two vehicle zones, where a driver has
+/// committed to one lane or the other, but wrong for two pedestrians: a
+/// person standing exactly in that gap would then count as waiting for
+/// neither crossing, worse than the double-count the overlap warning
+/// exists to flag. Partitioning instead keeps the two zones' own combined
+/// ground exactly as before — only which one of them claims the shared
+/// corner changes — so coverage never drops and a pedestrian anywhere in
+/// it still counts as waiting for the nearer crossing.
+///
+/// A pair is left untouched (and still reported overlapping) whenever the
+/// shared ground isn't a simple quadrilateral, or neither diagonal
+/// separates it cleanly (see [`split_quad_by_nearest_zone`]) — a shape
+/// that doesn't fit this pattern is left exactly as it was rather than
+/// forced into a partition that wouldn't make geometric sense. Real
+/// Barcelona data has needed this for cases messier than a clean
+/// rectangle (three or more crossings meeting at one corner, or a quad
+/// `drop_grazing_vertices_everywhere`'s own cleanup left with a fifth,
+/// near-collinear vertex); those still show up as an overlap warning for
+/// an operator to look at by hand, the same as an unresolved
+/// vehicle-vehicle pair.
+pub fn resolve_pedestrian_overlaps(
+    zones: &[E3Detector],
+    stop_points: &[Coord<f64>],
+    polygons: &mut [MultiPolygon<f64>],
+) {
+    let pedestrian = |i: usize| !zones[i].detect_persons.is_empty();
+    let candidates: Vec<(usize, usize)> =
+        overlapping_pairs(polygons).into_iter().filter(|&(i, j)| pedestrian(i) && pedestrian(j)).collect();
+
+    for (i, j) in candidates {
+        let overlap = polygons[i].intersection(&polygons[j]);
+        if overlap.unsigned_area() <= OVERLAP_AREA_THRESHOLD_M2 {
+            continue; // already below the noise floor `overlapping_pairs` itself judges by
+        }
+        let quad_split = split_quad_by_nearest_zone(&overlap, stop_points[i], stop_points[j])
+            .map(|(a, b)| (MultiPolygon::new(vec![a]), MultiPolygon::new(vec![b])));
+        // [`split_quad_by_nearest_zone`]'s own refusal on a same-junction
+        // pair is left exactly as this function's own module docs already
+        // describe — three or more crossings meeting at one corner is a
+        // real, deliberately-ambiguous shared corner, not a defect this
+        // function should force a partition onto. [`split_overlap_by_bisector`]
+        // — built for [`resolve_vehicle_overlaps`] — only ever runs as a
+        // fallback here for two zones belonging to *different* junctions
+        // (`pedestrian_junction`, below): that overlap was never the
+        // "shared corner" case in the first place — the two crossings
+        // aren't even the same physical intersection — so the module
+        // docs' own "either crossing is a legitimate answer" reasoning
+        // doesn't apply, and it's a genuine geometry defect the same way a
+        // vehicle-vehicle overlap between unrelated movements is.
+        // Confirmed needed on real Barcelona data
+        // (`590815505_w0_straight_ped`/`6556429525_w0_straight_ped`, two
+        // closely-spaced junctions along a slip road whose own crossing
+        // zones substantially overlap in a shape well past a simple quad).
+        let used_quad_split = quad_split.is_some();
+        let different_junctions = pedestrian_junction(&zones[i].id) != pedestrian_junction(&zones[j].id);
+        let Some((near_i, near_j)) = quad_split.or_else(|| {
+            different_junctions.then(|| split_overlap_by_bisector(&overlap, stop_points[i], stop_points[j])).flatten()
+        }) else {
+            continue;
+        };
+
+        // Deliberately no `drop_grazing_vertices_everywhere` on the
+        // bisector-fallback path — see `resolve_vehicle_overlaps`'s own
+        // docs on why running it independently on each side of a shared
+        // cut line can nudge the two copies of that line apart again once
+        // reprojected. The quad path keeps running it: it's the one this
+        // function has always used, and changing it isn't this fallback's
+        // job.
+        // `keep_part_near`, but only on the bisector path: a straight cut
+        // through a pedestrian zone's own more complex outline (it isn't
+        // always the clean rectangle-ish shape the quad path expects) can
+        // pinch off a small disconnected sliver where the crossing lane's
+        // own stripe bridges the two banks, alongside the one real,
+        // dominant remaining piece — confirmed on real Barcelona data
+        // (`590815505_w0_straight_ped` cut against `6556429525_w0_straight_ped`:
+        // a 154.9m² main piece plus two artefacts of 2.2m² and 0.2m², not
+        // three genuine separate banks). The quad path never needed this:
+        // it starts from a shape simple enough that a straight cut through
+        // it stays one piece, which is exactly the case this pass's own
+        // `given_i.0.len() > polygons[i].0.len()` guard, below, still
+        // catches for it.
+        let keep_near = |zone: usize, polygon: MultiPolygon<f64>| {
+            if used_quad_split { polygon } else { keep_part_near(polygon, stop_points[zone]) }
+        };
+        let finish = |zone: usize, polygon: MultiPolygon<f64>| {
+            let cleaned = if used_quad_split { drop_grazing_vertices_everywhere(polygon) } else { polygon };
+            keep_near(zone, drop_interior_rings(drop_slivers(split_self_intersections(cleaned))))
+        };
+        // Each zone keeps everything it already had *except* the other
+        // zone's own share — not "cut the whole overlap, then union
+        // `near_i` back in". The two are mathematically the same ground
+        // (`near_i` and `near_j` exactly partition `overlap`, and
+        // `overlap` ⊆ both zones already, so
+        // `polygon \ overlap ∪ near_i == polygon \ near_j`) but not the
+        // same *operation*: a `difference` against the other zone's own
+        // small share is a much more local cut than removing the whole
+        // shared patch and rebuilding half of it back with a `union`,
+        // whose own seam isn't guaranteed to reconnect a zone's own
+        // crossing-lane bridge between its two banks (see
+        // `pedestrian_zones`'s own docs) the same way simply never having
+        // cut it in the first place does. Confirmed necessary on real
+        // Barcelona data: `10265139316_w1_straight_ped`/`..._w3_...`
+        // squares off into a clean, cleanly-separable quad but the
+        // cut-then-union form left one side split into two pieces; the
+        // plain `difference` form here resolves it in one connected piece.
+        let give = |zone: usize, polygon: &MultiPolygon<f64>, other_share: &MultiPolygon<f64>| -> MultiPolygon<f64> {
+            finish(zone, polygon.difference(other_share))
+        };
+        let (given_i, given_j) = (give(i, &polygons[i], &near_j), give(j, &polygons[j], &near_i));
+        // `near_i`/`near_j` are bit-identical complements of the same
+        // `overlap` polygon (see `split_overlap_by_bisector`'s own docs),
+        // so `given_i` and `given_j` are supposed to come out disjoint by
+        // construction — but each is the result of an independent
+        // `difference` against a large, complex zone polygon of its own,
+        // and `i_overlay`'s own re-triangulation of that *whole* operation
+        // (not just locally at the shared cut line) can still leave a
+        // real, measurable residual neither `near_i` nor `near_j` ever
+        // captured in the first place. Confirmed on real Barcelona data
+        // (`590815505_w0_straight_ped`/`6556429525_w0_straight_ped`): each
+        // side's own raw `difference` result barely touched its own
+        // `other_share` (a few mm²) individually, yet `given_i` and
+        // `given_j` themselves still shared a real 2.2m² — arithmetic
+        // noise from two separate large operations, not a second, real
+        // dispute over that ground.
+        //
+        // Subtracting that residual back out (from whichever side is
+        // smaller) looks like the obvious fix and isn't one: confirmed on
+        // real Barcelona data, handing an already-marginal residual shape
+        // into a *third* boolean operation crashes `i_overlay` outright
+        // (`assertion failed: overlay_rule.is_fill_top(link.fill)`,
+        // `a_long_bent_ribbon_keeps_most_of_its_own_area_when_only_one_
+        // end_is_contested`) — the residual is exactly the kind of
+        // degenerate, near-zero-width sliver a boolean library's own
+        // invariants don't hold up against. Rejecting the whole attempt
+        // when a meaningful residual survives is the safe move instead:
+        // the pair is left exactly as [`split_quad_by_nearest_zone`]'s own
+        // refusals leave it, still reported overlapping for a human, never
+        // shipped as geometry this pass can't actually verify is clean.
+        if !used_quad_split && given_i.intersection(&given_j).unsigned_area() > MIN_MEANINGFUL_VEHICLE_OVERLAP_M2 {
+            continue;
+        }
+        // Still guarded, not trusted unconditionally: a local cut can in
+        // principle still sever a genuinely narrow bridge. Left as a
+        // reported overlap, same as `split_quad_by_nearest_zone`'s own
+        // refusals, rather than risk a zone with a hole torn in it.
+        if given_i.0.is_empty()
+            || given_j.0.is_empty()
+            || given_i.0.len() > polygons[i].0.len()
+            || given_j.0.len() > polygons[j].0.len()
+        {
+            continue;
+        }
+        polygons[i] = given_i;
+        polygons[j] = given_j;
+    }
+}
+
+/// If `overlap` is (or squares off cleanly into) a simple quadrilateral,
+/// splits it along whichever of its two diagonals leaves each resulting
+/// triangle's own centroid closer to a *different* one of `near_a`/`near_b`
+/// — the diagonal that actually separates "nearer zone A" ground from
+/// "nearer zone B" ground, not an arbitrary one of the two. Returns
+/// `(triangle_near_a, triangle_near_b)`.
+///
+/// Squared off via [`rectangle_if_close`] first, the same tolerance a
+/// zone's own finished shape is squared off with — real Barcelona overlaps
+/// are rarely a literal four-vertex ring even when they're visibly
+/// rectangular; a reprojection or a buffering seam almost always leaves a
+/// near-collinear extra vertex or two on the shared patch. Confirmed
+/// necessary on real data: `5588597262_w0_straight_ped`/
+/// `5588597263_w0_straight_ped` (an operator hand-edited one side of this
+/// exact pair expecting the warning to clear) is a five-vertex overlap that
+/// only resolves once it's squared off first. Most of a real Barcelona
+/// network's own ped-ped overlaps still don't square off this cleanly at
+/// all, though — three or more crossings meeting at one corner is at least
+/// as common as two, and that shape is genuinely not a quadrilateral no
+/// matter how it's measured; those are correctly left as a reported
+/// overlap rather than forced through this pass.
+///
+/// `None` when `overlap` doesn't square off into a single, hole-free
+/// four-vertex rectangle at all (a three-or-more-crossing corner, or a
+/// shape too far from rectangular for [`rectangle_if_close`]'s own
+/// tolerance), or when *neither* diagonal separates it — both triangles
+/// read nearer the same zone's own stop point, which happens when one
+/// zone's approach sits almost entirely to one side of the shared patch
+/// rather than the two genuinely interleaving. Forcing a split in either
+/// case would hand one zone a shape that isn't actually the ground nearer
+/// it, which is worse than leaving the pair as a reported overlap for a
+/// human to look at.
+///
+/// A real, signalized pedestrian crossing — a lane
+/// `zone_generator::pedestrian_zones` lists among some zone's own
+/// *entries* but never its *exits* (that function's own module docs: the
+/// near bank is both, a crossing lane is entry-only) — always ends up
+/// wholly inside exactly one pedestrian zone: its own structural owner,
+/// the zone whose own entries name it. No other zone keeps any part of
+/// that same lane's own buffered polygon, however it got there.
+///
+/// Run last, after every cross-zone pass above: a crossing can end up
+/// split for more than one reason, not just [`resolve_pedestrian_overlaps`]'s
+/// own bisector cut slicing through it. Confirmed on real Barcelona data,
+/// junction `590815505`'s own crossing `:590815505_c1_0`: even with that
+/// crossing's own reach toward its excluded far bank capped to zero
+/// (`zone_polygon`'s own docs on `crossing_banks`), it still landed
+/// partly inside the *neighbouring* junction `6556429525`'s own zone —
+/// 8.5m away, under one shared `joinTLS` program — because that
+/// neighbour's own near-bank walkingarea is independently large enough to
+/// reach into `590815505`'s own territory with no crossing lane involved
+/// at all. Chasing every way two independently-drawn `netconvert`
+/// walkingareas in a dense real cluster can end up physically overlapping
+/// is an open-ended search with no guarantee of ever being complete; this
+/// instead fixes the one property that actually matters regardless of
+/// *why* two zones both reached the same crossing — a client (and the
+/// panel) must never see one physical crosswalk drawn as two
+/// differently-coloured halves.
+pub fn unsplit_crossings(
+    zones: &[E3Detector],
+    lanes: &HashMap<&str, &Lane>,
+    stop_points: &[Coord<f64>],
+    polygons: &mut [MultiPolygon<f64>],
+    osm_footprints: &HashMap<&str, MultiPolygon<f64>>,
+) {
+    // Same cleanup every other cross-zone pass in this file already runs
+    // on its own `union`/`difference` output before trusting it — see
+    // `resolve_overlaps`'s own main loop and `resolve_pedestrian_overlaps`'s
+    // own `finish` for the established pattern. Skipping it left a real
+    // interior ring behind on real Barcelona data
+    // (`2112389514_w1_straight_ped`): unioning a crossing's own polygon
+    // back into an owner whose neighbour's own cut had left a
+    // near-but-not-quite-matching seam closed off a sliver between them
+    // rather than merging cleanly.
+    let finish = |zone: usize, polygon: MultiPolygon<f64>| {
+        let cleaned = drop_interior_rings(drop_slivers(split_self_intersections(polygon)));
+        if cleaned.0.len() > 1 { keep_part_near(cleaned, stop_points[zone]) } else { cleaned }
+    };
+
+    // Every real crossing's own buffered polygon, keyed by whichever
+    // zone structurally owns it — computed once, up front, entirely
+    // independent of `polygons`' own current (still-maybe-split) state.
+    // Two neighbouring junctions in the same dense cluster can each own
+    // their own, *different* crossing whose buffered polygons happen to
+    // touch or overlap each other (two real, physically close crosswalks,
+    // not one split in two) — folding "subtract every foreign crossing"
+    // and "add back my own" into one pass, zone by zone, in array order,
+    // let a *later* zone's own give-back subtract a slice back out of an
+    // *earlier* zone's own crossing right where the two touch (confirmed
+    // on real Barcelona data, `2119385421_w1_straight_ped`'s own
+    // `:2119385421_c0_0` and `2119385421_w2_straight_ped`'s own sibling
+    // `:2119385421_c1_0`). Splitting into the two passes below — first
+    // strip every foreign crossing from every zone, using every crossing's
+    // own original polygon; only once that's done, hand each zone its own
+    // back — makes the result independent of iteration order: a zone's
+    // own crossing is always unioned in *after* every foreign one has
+    // already been subtracted, never the other way around.
+    let mut crossings_by_owner: HashMap<usize, Vec<MultiPolygon<f64>>> = HashMap::new();
+    for (owner, zone) in zones.iter().enumerate() {
+        if zone.detect_persons.is_empty() {
+            continue;
+        }
+        let exit_ids: HashSet<&str> = zone.exits.iter().map(|gate| gate.lane.0.as_str()).collect();
+        for entry in &zone.entries {
+            let lane_id = entry.lane.0.as_str();
+            if exit_ids.contains(lane_id) {
+                continue; // the near bank itself (both an entry and an exit), not a crossing lane
+            }
+            let Some(&lane) = lanes.get(lane_id) else { continue };
+            let default_reach = lane.width / 2.0;
+            let mut crossing = pedestrian_lane_polygon(lane, default_reach, default_reach);
+            // The real, surveyed crosswalk this lane was matched to (see
+            // `crosswalks::match_crosswalks`) can reach past SUMO's own
+            // synthetic buffer in places — unioned in here, before the
+            // subtract/give-back passes below, so it's treated exactly like
+            // the rest of this crossing's own footprint rather than a
+            // separate thing a neighbouring zone could keep a bite of.
+            // Grow-only: this never *shrinks* the SUMO-derived shape, even
+            // where the real crosswalk happens to be narrower.
+            if let Some(osm_footprint) = osm_footprints.get(lane_id) {
+                crossing = crossing.union(osm_footprint);
+            }
+            if !crossing.0.is_empty() {
+                crossings_by_owner.entry(owner).or_default().push(crossing);
+            }
+        }
+    }
+    if crossings_by_owner.is_empty() {
+        return;
+    }
+
+    for zone in 0..zones.len() {
+        if zones[zone].detect_persons.is_empty() {
+            continue;
+        }
+        for (&owner, owned) in &crossings_by_owner {
+            if owner == zone {
+                continue;
+            }
+            for crossing in owned {
+                let claimed = polygons[zone].intersection(crossing);
+                if claimed.unsigned_area() > OVERLAP_AREA_THRESHOLD_M2 {
+                    polygons[zone] = finish(zone, polygons[zone].difference(crossing));
+                }
+            }
+        }
+    }
+    for (&owner, owned) in &crossings_by_owner {
+        // Restored, not just left alone: the owner's own polygon may
+        // already have lost part of a crossing to whatever split it in
+        // the first place (a bisector cut, most often) — unioning it
+        // back in is what actually gives the owner the *whole* crossing
+        // rather than only the fraction the cut happened to leave it.
+        for crossing in owned {
+            polygons[owner] = finish(owner, polygons[owner].union(crossing));
+        }
+    }
+}
+
+fn split_quad_by_nearest_zone(
+    overlap: &MultiPolygon<f64>,
+    near_a: Coord<f64>,
+    near_b: Coord<f64>,
+) -> Option<(GeoPolygon<f64>, GeoPolygon<f64>)> {
+    let squared = rectangle_if_close(overlap.clone());
+    if squared.0.len() != 1 {
+        return None;
+    }
+    let part = &squared.0[0];
+    if !part.interiors().is_empty() {
+        return None;
+    }
+    let mut coords: Vec<Coord<f64>> = part.exterior().coords().copied().collect();
+    if coords.first() == coords.last() {
+        coords.pop();
+    }
+    if coords.len() != 4 {
+        return None;
+    }
+
+    let triangle = |a: Coord<f64>, b: Coord<f64>, c: Coord<f64>| {
+        GeoPolygon::new(LineString::new(vec![a, b, c, a]), Vec::new())
+    };
+    let centroid = |a: Coord<f64>, b: Coord<f64>, c: Coord<f64>| Coord {
+        x: (a.x + b.x + c.x) / 3.0,
+        y: (a.y + b.y + c.y) / 3.0,
+    };
+    let distance_sq = |p: Coord<f64>, q: Coord<f64>| {
+        let (dx, dy) = (p.x - q.x, p.y - q.y);
+        dx * dx + dy * dy
+    };
+
+    // Tries splitting along one diagonal (the two triangles it produces),
+    // accepting it only if the two triangles' own centroids land nearer
+    // *different* zones — see this function's own docs.
+    let try_diagonal = |t1: (Coord<f64>, Coord<f64>, Coord<f64>),
+                         t2: (Coord<f64>, Coord<f64>, Coord<f64>)|
+     -> Option<(GeoPolygon<f64>, GeoPolygon<f64>)> {
+        let c1 = centroid(t1.0, t1.1, t1.2);
+        let c2 = centroid(t2.0, t2.1, t2.2);
+        let t1_nearer_a = distance_sq(c1, near_a) < distance_sq(c1, near_b);
+        let t2_nearer_a = distance_sq(c2, near_a) < distance_sq(c2, near_b);
+        if t1_nearer_a == t2_nearer_a {
+            return None;
+        }
+        Some(if t1_nearer_a {
+            (triangle(t1.0, t1.1, t1.2), triangle(t2.0, t2.1, t2.2))
+        } else {
+            (triangle(t2.0, t2.1, t2.2), triangle(t1.0, t1.1, t1.2))
+        })
+    };
+
+    // Diagonal 0-2 (triangles 0,1,2 and 0,2,3), then diagonal 1-3
+    // (triangles 1,2,3 and 1,3,0) — whichever one actually separates.
+    try_diagonal((coords[0], coords[1], coords[2]), (coords[0], coords[2], coords[3]))
+        .or_else(|| try_diagonal((coords[1], coords[2], coords[3]), (coords[1], coords[3], coords[0])))
+}
+
+/// Splits `overlap` into the part nearer `near_a` and the part nearer
+/// `near_b`, by clipping it against the half-plane on each side of the
+/// perpendicular bisector of the segment `near_a`->`near_b`. Unlike
+/// [`split_quad_by_nearest_zone`], this makes no assumption about
+/// `overlap`'s own shape (a clean four-vertex rectangle, or anything
+/// else) — a half-plane clip via [`BooleanOps::intersection`] partitions
+/// whatever is handed to it, which is what a vehicle-vehicle overlap
+/// needs: it is the leftover of a `difference` cut, not a hand-drawn
+/// crossing corner, and rarely squares off as cleanly as a pedestrian
+/// one does.
+///
+/// `None` only when `near_a` and `near_b` coincide — there is then no
+/// direction to bisect along at all, left as an unresolved, still-reported
+/// overlap by the caller, same as [`split_quad_by_nearest_zone`]'s own
+/// refusals. Unlike that function, landing entirely on one side is *not*
+/// treated as a refusal: it means every bit of the disputed ground is
+/// genuinely nearer one zone's own stop line than the other's, so that
+/// zone keeps all of it and the far zone's own share is simply empty —
+/// still a valid partition, just a lopsided one.
+fn pedestrian_junction(id: &sumo_types::additional::domain::DetectorId) -> &str {
+    let id: &str = id.as_ref();
+    id.split("_w").next().unwrap_or(id)
+}
+
+fn split_overlap_by_bisector(
+    overlap: &MultiPolygon<f64>,
+    near_a: Coord<f64>,
+    near_b: Coord<f64>,
+) -> Option<(MultiPolygon<f64>, MultiPolygon<f64>)> {
+    let (dx, dy) = (near_b.x - near_a.x, near_b.y - near_a.y);
+    let len = dx.hypot(dy);
+    if len < 1e-6 {
+        return None;
+    }
+    let (ux, uy) = (dx / len, dy / len); // unit vector, near_a -> near_b
+    let (px, py) = (-uy, ux); // perpendicular to it
+    let mid = Coord { x: (near_a.x + near_b.x) / 2.0, y: (near_a.y + near_b.y) / 2.0 };
+
+    // Far past any real zone's own extent — this crate's own local
+    // coordinates are metre-scale, so a million metres is comfortably
+    // outside anything `overlap` could ever reach, the same margin
+    // [`weld_near_touch_and_split`]'s own callers rely on elsewhere in
+    // this file for "large enough to not matter, small enough to stay
+    // finite".
+    const EXTENT: f64 = 1_000_000.0;
+    // `sign > 0.0` builds the half-plane on `near_a`'s own side of the
+    // bisector (extending away from `near_b`); `sign < 0.0` builds
+    // `near_b`'s.
+    let half_plane = |sign: f64| -> MultiPolygon<f64> {
+        let p1 = Coord { x: mid.x + px * EXTENT, y: mid.y + py * EXTENT };
+        let p2 = Coord { x: mid.x - px * EXTENT, y: mid.y - py * EXTENT };
+        let p3 = Coord { x: p2.x - ux * EXTENT * sign, y: p2.y - uy * EXTENT * sign };
+        let p4 = Coord { x: p1.x - ux * EXTENT * sign, y: p1.y - uy * EXTENT * sign };
+        MultiPolygon::new(vec![GeoPolygon::new(LineString::new(vec![p1, p2, p3, p4, p1]), Vec::new())])
+    };
+
+    let near_a_half = overlap.intersection(&half_plane(1.0));
+    // `overlap`'s own complement of `near_a_half`, not a second independent
+    // `intersection` against `half_plane(-1.0)` — this is the whole reason
+    // the two shares end up sharing bit-identical vertices along their cut
+    // line rather than two close-but-not-quite-matching ones. Confirmed
+    // necessary on real Barcelona data: computed as two separate
+    // intersections, `resolve_vehicle_overlaps`'s own two `difference`
+    // calls each carved their zone's own new boundary from a *different*
+    // polygon (this same `overlap`, sliced by the same line but through
+    // two unrelated boolean-op calls), and the boolean library's own
+    // floating-point rounding didn't always land the two results on
+    // exactly the same points — reopening, once reprojected to lon/lat, a
+    // real if small overlap right where this pass had just cut one away.
+    // `difference` against `near_a_half` itself instead guarantees the
+    // shared edge is the exact same one `near_a_half` already has.
+    let near_b_half = overlap.difference(&near_a_half);
+    // Self-unioned before handing either share back as a future
+    // `difference` subtrahend — same trick `zone_polygon`'s own
+    // `polygon.union(&polygon)` uses to close a self-touching contour, and
+    // `resolve_overlaps`'s own main loop uses on a multi-neighbour cut for
+    // the same reason (see its own docs): clipping a complex, many-vertex,
+    // non-convex pedestrian overlap against a half-plane can leave `near_a_half`/
+    // `near_b_half` as several disjoint parts rather than one clean piece,
+    // and a `MultiPolygon` handed to `difference` still self-overlapping or
+    // barely-touching along its own part boundaries is exactly the
+    // "subtrahend a difference never otherwise gets to clean up itself"
+    // case that function's own docs warn about — cheap insurance against
+    // the same failure mode on a genuinely complex, non-convex pedestrian
+    // overlap (`resolve_pedestrian_overlaps`'s own caller is the only one
+    // that ever hands this function a shape that isn't close to a simple
+    // rectangle). [`resolve_pedestrian_overlaps`]'s own residual check,
+    // after both `difference` calls, is what actually guarantees the two
+    // results end up disjoint — this is a first line of defence, not a
+    // substitute for that guarantee.
+    let clean = |half: MultiPolygon<f64>| half.union(&half);
+    Some((clean(near_a_half), clean(near_b_half)))
+}
+
+/// [`resolve_vehicle_overlaps`]'s own trigger — the same "a real client's
+/// GPS fix could actually land in both zones" bound
+/// `tests::geojson_zones_do_not_overlap`'s own `MIN_MEANINGFUL_OVERLAP_M2`
+/// judges the finished output by, not `OVERLAP_AREA_THRESHOLD_M2`'s own
+/// square-millimetre goal. The overwhelming majority of what
+/// `overlapping_pairs` finds this late — after `resolve_overlaps`'s own
+/// rounds, every per-zone cleanup pass and `rectangle_if_close`'s own
+/// squaring have all already run — is exactly that kind of residual
+/// arithmetic noise, not a real dispute: cutting a real zone over a sliver
+/// neither a client nor a human would ever notice only adds risk (a fresh
+/// `difference` can, in principle, leave a self-intersection behind — see
+/// [`resolve_vehicle_overlaps`]'s own guard) for no product benefit.
+pub const MIN_MEANINGFUL_VEHICLE_OVERLAP_M2: f64 = 0.01;
+
+/// Resolves a vehicle-vehicle overlap left over once every other pass has
+/// run — [`resolve_overlaps`]'s own iterative shrink-and-cut, then every
+/// per-zone cleanup pass (`despike`, `drop_grazing_vertices_everywhere`,
+/// `relax_needle_vertices_everywhere`, …) `feature::to_feature_collection`
+/// runs afterward, any of which can nudge a boundary [`resolve_overlaps`]
+/// had already made disjoint back into a sliver of real, measurable
+/// overlap (see `resolve_overlaps`'s own docs on why cleanup runs once,
+/// outside its loop, rather than being re-litigated round to round).
+///
+/// Run on the zones' own finished, per-zone-cleaned polygons — the same
+/// point in the pipeline [`resolve_pedestrian_overlaps`] runs at, and for
+/// the same reason: the overlap this looks for has to be the real,
+/// settled one, not a still-noisy intermediate shape neither pass would
+/// ever see again.
+///
+/// Two zones sharing one approach that hasn't yet diverged into separate
+/// lanes (`-207322888#12_straight` and `-207322888#12_straight+right`,
+/// siblings off the same source edge — see
+/// `tests::geojson_zones_do_not_overlap`'s own `ZONES_SHARING_ONE_APPROACH`)
+/// both genuinely reach back over the same asphalt, and
+/// [`resolve_overlaps`]'s own cut-from-both fix (correct where two zones
+/// simply shouldn't share any ground at all) would open a gap neither
+/// zone claims right where a real, undecided driver is standing. This
+/// partitions the disputed ground between the two zones instead — nearer
+/// each zone's own stop line goes to that zone — so the pair's combined
+/// coverage never shrinks and every point in dispute still counts for
+/// exactly one movement, the nearer one, rather than for both or for
+/// neither.
+///
+/// Left as a reported overlap, same as [`resolve_pedestrian_overlaps`]'s
+/// own refusals, whenever [`split_overlap_by_bisector`] can't partition
+/// the shared ground, or the resulting cut is degenerate (empties a
+/// zone, or leaves it with more disjoint parts than it started with) —
+/// a local cut can in principle still sever a genuine, if narrow, bridge
+/// of ground a zone needs to stay connected to its own stop line.
+pub fn resolve_vehicle_overlaps(
+    zones: &[E3Detector],
+    stop_points: &[Coord<f64>],
+    polygons: &mut [MultiPolygon<f64>],
+) {
+    let vehicle = |i: usize| zones[i].detect_persons.is_empty();
+    let candidates: Vec<(usize, usize)> =
+        overlapping_pairs(polygons).into_iter().filter(|&(i, j)| vehicle(i) && vehicle(j)).collect();
+
+    for (i, j) in candidates {
+        let overlap = polygons[i].intersection(&polygons[j]);
+        if overlap.unsigned_area() <= MIN_MEANINGFUL_VEHICLE_OVERLAP_M2 {
+            continue; // see that constant's own docs — arithmetic noise, not a real dispute
+        }
+        let Some((near_i, near_j)) = split_overlap_by_bisector(&overlap, stop_points[i], stop_points[j]) else {
+            continue;
+        };
+
+        // Deliberately no `drop_grazing_vertices_everywhere` here, unlike
+        // [`resolve_pedestrian_overlaps`]'s own `finish` — confirmed on
+        // real Barcelona data (`-207322888#12_straight`/`+right`,
+        // `550448817#3_straight+left`/`+right`): running it independently
+        // on `given_i` and `given_j` nudged their shared new boundary a
+        // hair differently for each zone, reopening a real, several-
+        // square-centimetre overlap once reprojected to lon/lat — smaller
+        // than the one this pass had just cut away, but still well past
+        // `MIN_MEANINGFUL_OVERLAP_M2`. `near_i`/`near_j` already share
+        // bit-identical vertices along that line (see
+        // [`split_overlap_by_bisector`]'s own docs on why `near_j` is
+        // `near_i`'s own complement rather than a second, independent cut)
+        // — a pass that can reposition either side's own copy of it
+        // separately is the one thing left that could still break that
+        // agreement.
+        let finish = |polygon: MultiPolygon<f64>| drop_interior_rings(drop_slivers(split_self_intersections(polygon)));
+        // Each zone keeps everything it already had except the *other*
+        // zone's own share of the disputed ground — see
+        // [`resolve_pedestrian_overlaps`]'s own `give` for why this, not
+        // "cut the whole overlap out and union the zone's own share back
+        // in", is the right operation.
+        let give = |polygon: &MultiPolygon<f64>, other_share: &MultiPolygon<f64>| -> MultiPolygon<f64> {
+            finish(polygon.difference(other_share))
+        };
+        let (given_i, given_j) = (give(&polygons[i], &near_j), give(&polygons[j], &near_i));
+        if given_i.0.is_empty()
+            || given_j.0.is_empty()
+            || given_i.0.len() > polygons[i].0.len()
+            || given_j.0.len() > polygons[j].0.len()
+        {
+            continue;
+        }
+        polygons[i] = given_i;
+        polygons[j] = given_j;
+    }
 }
